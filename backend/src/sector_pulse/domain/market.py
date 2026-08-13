@@ -23,7 +23,7 @@ class SectorSnapshot(BaseModel):
     leader_name: str | None = None
     leader_pct_change: Decimal | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def breadth_ratio(self) -> Decimal:
         total = self.advancers + self.decliners
@@ -40,7 +40,7 @@ class SectorUniverseSnapshot(BaseModel):
     collected_at: datetime
     sectors: tuple[SectorSnapshot, ...]
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def sector_count(self) -> int:
         return len(self.sectors)

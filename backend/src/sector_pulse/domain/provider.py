@@ -29,6 +29,8 @@ T = TypeVar("T")
 
 
 class ProviderResult(BaseModel, Generic[T]):
+    """屏蔽供应商细节后的统一返回值，状态与数据是否存在必须一致。"""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
     provider_id: str
     capability: str
@@ -41,7 +43,10 @@ class ProviderResult(BaseModel, Generic[T]):
     error: ProviderError | None = None
 
     @model_validator(mode="after")
-    def validate_result(self):
+    def validate_result(self) -> "ProviderResult[T]":
+        # FAILED 与 SUCCESS 的约束让调用方可区分“确实为空”和“调用失败”。
+        if self.status is DataStatus.SUCCESS and self.data is None:
+            raise ValueError("successful result requires data")
         if self.status is DataStatus.FAILED and (self.data is not None or self.error is None):
             raise ValueError("failed result invariant")
         if (

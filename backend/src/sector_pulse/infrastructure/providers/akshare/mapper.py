@@ -19,6 +19,7 @@ FIELD = {
 
 
 def _get(row: Mapping[str, Any], key: str) -> Any:
+    # 仅在 Adapter 边界识别中文供应商列名，领域层不泄露 AKShare/DataFrame 细节。
     if FIELD[key] in row:
         return row[FIELD[key]]
     aliases = {
@@ -50,6 +51,7 @@ def map_sector_rows(
     collected_at: datetime,
     source_version: str,
 ) -> SectorUniverseSnapshot:
+    # 将原始行转换为不可变领域快照；缺失的可选指标保留为 None，而非编造数值。
     sectors = tuple(
         SectorSnapshot(
             provider_sector_id=str(_get(row, "code") or _get(row, "name")),

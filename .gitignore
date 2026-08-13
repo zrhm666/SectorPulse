@@ -13,6 +13,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.test-tmp/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -25,6 +26,8 @@ coverage/
 
 # Runtime data
 data/
+artifacts/
+.live-data-consent
 logs/
 backups/
 *.db
@@ -38,3 +41,4 @@ backups/
 Thumbs.db
 
 docs
+backend/tests

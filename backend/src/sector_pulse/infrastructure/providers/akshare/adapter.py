@@ -16,7 +16,7 @@ from .mapper import map_sector_rows
 
 class AkShareMarketDataAdapter:
     @property
-    def manifest(self):
+    def manifest(self) -> ProviderManifest:
         return ProviderManifest(
             provider_id="akshare-eastmoney",
             version="1.0.0",
@@ -28,12 +28,13 @@ class AkShareMarketDataAdapter:
             retention_note="local only",
         )
 
-    def __init__(self, client=None):
+    def __init__(self, client: PandasAkShareClient | None = None) -> None:
         self._client = client or PandasAkShareClient()
 
     async def fetch_sector_universe(
         self, kind: SectorKind, mode: AnalysisMode
     ) -> ProviderResult[SectorUniverseSnapshot]:
+        # AKShare 的实时板块列表没有可靠的历史截点能力，因此 AS_OF 明确拒绝且不触网。
         capability = f"sector_universe.{kind.value.lower()}"
         now = datetime.now(UTC)
         if mode is AnalysisMode.AS_OF:
@@ -66,6 +67,7 @@ class AkShareMarketDataAdapter:
                 raw_artifact_sha256=batch.raw_artifact_sha256,
             )
         except Exception as exc:
+            # 将供应商异常压缩成可审核的统一错误语义，调用方不依赖第三方异常类型。
             return ProviderResult(
                 provider_id=self.manifest.provider_id,
                 capability=capability,

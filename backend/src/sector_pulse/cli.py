@@ -16,7 +16,7 @@ app = typer.Typer(no_args_is_help=True)
 def phase0_probe(
     output_dir: Path = typer.Option(Path("data/phase0/latest")),
     consent_file: Path = typer.Option(Path(".live-data-consent")),
-):
+) -> None:
     if not consent_file.is_file():
         raise typer.BadParameter("create .live-data-consent after reviewing provider terms")
     report = asyncio.run(
@@ -35,7 +35,7 @@ def phase0_probe(
 def render_report(
     input_path: Path = typer.Option(..., "--input"),
     output_path: Path = typer.Option(..., "--output"),
-):
+) -> None:
     write_utf8_atomic(
         output_path,
         render_phase0_markdown(

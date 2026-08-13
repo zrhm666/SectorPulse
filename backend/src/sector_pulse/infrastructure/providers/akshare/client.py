@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from importlib.metadata import version
 from typing import Any
 
-import akshare as ak
+import akshare as ak  # type: ignore[import-untyped]
 
 from sector_pulse.domain.market import SectorKind
 
@@ -22,6 +22,7 @@ class RawSectorBatch:
 
 class PandasAkShareClient:
     async def fetch(self, kind: SectorKind) -> RawSectorBatch:
+        # AKShare 是同步 DataFrame API，放到线程中执行以免阻塞后续并行采集。
         function = (
             ak.stock_board_industry_name_em
             if kind is SectorKind.INDUSTRY

@@ -22,6 +22,7 @@ packages = ["backend/src/sector_pulse"]
 testpaths = ["backend/tests"]
 addopts = "-ra --strict-markers"
 markers = ["live: requires explicit live network access"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py312"

@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 
 def write_utf8_atomic(path: Path, content: str) -> None:
+    # 先写临时文件再替换，避免进程中断时留下截断 JSON/Markdown。
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(content, encoding="utf-8")

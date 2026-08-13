@@ -40,6 +40,7 @@ async def run_phase0_probe(
     thresholds: QualityThresholds,
     max_skew_seconds: int,
 ) -> Phase0ProbeReport:
+    """并行采集行业/概念行情，质量通过后才锁定本轮 LIVE cutoff。"""
     run = AnalysisRun.create_live(requested_at)
     industry, concept = await asyncio.gather(
         provider.fetch_sector_universe(SectorKind.INDUSTRY, AnalysisMode.LIVE),
@@ -58,9 +59,11 @@ async def run_phase0_probe(
         usable=iq.status is not QualityStatus.BLOCKED and cq.status is not QualityStatus.BLOCKED,
     )
     if not report.usable:
+        # 失败时只保存摘要，不落盘可能造成误解的半成品行情和雷达文件。
         write_utf8_atomic(output_dir / "probe.json", report.model_dump_json(indent=2))
         return report
     assert industry.data is not None and concept.data is not None
+    # probe.json 最后写入，作为本次完整产物已就绪的提交标记。
     report = report.model_copy(
         update={
             "run": lock_cutoff_from_core_market(
