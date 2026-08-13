@@ -99,4 +99,3 @@ Phase 1A 之后的详细计划不在本轮提前固化。原因是 AKShare/Tusha
 先执行详细计划：`docs/superpowers/plans/2026-08-13-phase-0-foundation-and-market-data-spike.md`。
 
 Phase 0 完成并由用户验收后，使用 `superpowers:writing-plans` 根据真实产物编写 Phase 1A 详细计划；不得直接跳到 Agent 或 Web 大规模实现。
-
