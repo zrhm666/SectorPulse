@@ -25,6 +25,10 @@ coverage/
 
 # Runtime data
 data/
+artifacts/
+.live-data-consent
+artifacts/
+.live-data-consent
 logs/
 backups/
 *.db
