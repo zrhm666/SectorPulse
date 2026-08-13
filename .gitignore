@@ -25,10 +25,6 @@ coverage/
 
 # Runtime data
 data/
-artifacts/
-.live-data-consent
-artifacts/
-.live-data-consent
 logs/
 backups/
 *.db
@@ -40,3 +36,5 @@ backups/
 .vscode/
 .DS_Store
 Thumbs.db
+
+docs
