@@ -1,0 +1,1 @@
+{"provider_id":"akshare-eastmoney","version":"1.0.0","capabilities":["sector_universe.industry","sector_universe.concept"],"authorization_status":"RESEARCH_ONLY","supports_live":true,"supports_as_of":false,"source_attribution":"AKShare over Eastmoney public endpoints","retention_note":"Phase 0 local validation only"}

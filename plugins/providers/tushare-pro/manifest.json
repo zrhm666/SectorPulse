@@ -1,0 +1,1 @@
+{"provider_id":"tushare-pro","version":"0.1.0","capabilities":["sector_classification","sector_membership","sector_history"],"authorization_status":"RESEARCH_ONLY","supports_live":false,"supports_as_of":false,"source_attribution":"Tushare Pro capability research","retention_note":"Requires token, points and terms verification"}
