@@ -24,8 +24,10 @@ def render_phase0_markdown(report: "Phase0ProbeReport") -> str:
             f"- authorization: `{report.provider_authorization.value}`",
             f"- INDUSTRY count/status: `{report.industry_quality.sector_count}` / "
             f"`{report.industry_quality.status.value}`",
+            f"- INDUSTRY issues: `{','.join(report.industry_quality.issues) or 'NONE'}`",
             f"- CONCEPT count/status: `{report.concept_quality.sector_count}` / "
             f"`{report.concept_quality.status.value}`",
+            f"- CONCEPT issues: `{','.join(report.concept_quality.issues) or 'NONE'}`",
             f"- usable: `{str(report.usable).lower()}`",
             "",
             "This record proves technical availability only. "
