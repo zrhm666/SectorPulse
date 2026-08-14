@@ -1,0 +1,57 @@
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
+
+class SQLiteDatabase:
+    """管理本地 SQLite 连接和迁移，不向领域层暴露 SQL。"""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+
+    @contextmanager
+    def connection(self) -> Iterator[sqlite3.Connection]:
+        """创建启用外键的短连接，由调用方负责查询但不负责关闭。"""
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self._path)
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA journal_mode = WAL")
+        try:
+            yield connection
+        finally:
+            connection.close()
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        """事务成功时提交，异常时回滚，保证一批领域对象不会只写入一半。"""
+        with self.connection() as connection:
+            try:
+                yield connection
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+
+    def initialize(self) -> None:
+        """按版本顺序执行未应用迁移；重复调用不会重复写入版本。"""
+        migration_path = Path(__file__).parent / "migrations" / "001_phase1a.sql"
+        migration_sql = migration_path.read_text(encoding="utf-8")
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version INTEGER PRIMARY KEY,
+                    applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            applied = connection.execute(
+                "SELECT 1 FROM schema_migrations WHERE version = ?", (1,)
+            ).fetchone()
+            if applied is not None:
+                return
+            connection.executescript(migration_sql)
+            connection.execute(
+                "INSERT INTO schema_migrations (version) VALUES (?)", (1,)
+            )
