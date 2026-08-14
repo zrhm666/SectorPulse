@@ -35,8 +35,8 @@ class SQLiteDatabase:
 
     def initialize(self) -> None:
         """按版本顺序执行未应用迁移；重复调用不会重复写入版本。"""
-        migration_path = Path(__file__).parent / "migrations" / "001_phase1a.sql"
-        migration_sql = migration_path.read_text(encoding="utf-8")
+        migration_dir = Path(__file__).parent / "migrations"
+        migrations = sorted(migration_dir.glob("[0-9][0-9][0-9]_*.sql"))
         with self.transaction() as connection:
             connection.execute(
                 """
@@ -46,12 +46,14 @@ class SQLiteDatabase:
                 )
                 """
             )
-            applied = connection.execute(
-                "SELECT 1 FROM schema_migrations WHERE version = ?", (1,)
-            ).fetchone()
-            if applied is not None:
-                return
-            connection.executescript(migration_sql)
-            connection.execute(
-                "INSERT INTO schema_migrations (version) VALUES (?)", (1,)
-            )
+            applied_versions = {
+                row[0] for row in connection.execute("SELECT version FROM schema_migrations")
+            }
+            for migration_path in migrations:
+                version = int(migration_path.name[:3])
+                if version in applied_versions:
+                    continue
+                connection.executescript(migration_path.read_text(encoding="utf-8"))
+                connection.execute(
+                    "INSERT INTO schema_migrations (version) VALUES (?)", (version,)
+                )
