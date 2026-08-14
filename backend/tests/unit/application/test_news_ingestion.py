@@ -9,10 +9,11 @@ def document(document_id: str, title: str, content_hash: str, minutes: int) -> N
     return NewsDocument(
         document_id=document_id,
         source_id="source",
-        url=f"https://example.com/{document_id}",
+        canonical_locator=f"https://example.com/{document_id}",
+        citation_url=f"https://example.com/{document_id}",
         title=title,
         published_at=published,
-        observed_at=published,
+        collected_at=published,
         content_hash=content_hash,
         source_grade=SourceGrade.REPUTABLE_MEDIA,
     )

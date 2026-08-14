@@ -67,10 +67,11 @@ class FakeNewsProvider:
         document = NewsDocument(
             document_id="doc-1",
             source_id="fixture-news",
-            url="https://example.com/news/1",
+            canonical_locator="https://example.com/news/1",
+            citation_url="https://example.com/news/1",
             title="产业政策发布",
             published_at=cutoff,
-            observed_at=cutoff,
+            collected_at=cutoff,
             content_hash="a" * 64,
             source_grade=SourceGrade.PRIMARY,
         )

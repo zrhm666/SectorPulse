@@ -64,10 +64,11 @@ class RssNewsAdapter:
             document = NewsDocument(
                 document_id=str(row.get("id") or hashlib.sha256(str(row).encode()).hexdigest()),
                 source_id=self._source_id,
-                url=_canonical_url(str(row["link"])),
+                canonical_locator=_canonical_url(str(row["link"])),
+                citation_url=_canonical_url(str(row["link"])),
                 title=str(row["title"]).strip(),
                 published_at=published_at,
-                observed_at=observed_at,
+                collected_at=observed_at,
                 content_hash=hashlib.sha256(
                     f"{row['title']}\n{row['link']}".encode()
                 ).hexdigest(),
@@ -87,7 +88,7 @@ class RssNewsAdapter:
             capability="news.discovery",
             status=DataStatus.SUCCESS,
             data=tuple(documents),
-            observed_at=observed_at,
+                observed_at=observed_at,
             collected_at=observed_at,
             source_version=self.manifest.version,
         )

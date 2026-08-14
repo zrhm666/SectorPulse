@@ -45,16 +45,14 @@ class ProviderResult(BaseModel, Generic[T]):
     @model_validator(mode="after")
     def validate_result(self) -> "ProviderResult[T]":
         # FAILED 与 SUCCESS 的约束让调用方可区分“确实为空”和“调用失败”。
-        if self.status is DataStatus.SUCCESS and self.data is None:
-            raise ValueError("successful result requires data")
+        if self.status is DataStatus.SUCCESS and (self.data is None or self.error is not None):
+            raise ValueError("successful result requires data without error")
+        if self.status is DataStatus.PARTIAL and (self.data is None or self.error is None):
+            raise ValueError("partial result requires both data and error")
         if self.status is DataStatus.FAILED and (self.data is not None or self.error is None):
             raise ValueError("failed result invariant")
-        if (
-            self.status is not DataStatus.FAILED
-            and self.data is not None
-            and self.error is not None
-        ):
-            raise ValueError("data/error mutually exclusive")
+        if self.status not in {DataStatus.PARTIAL, DataStatus.FAILED} and self.error is not None:
+            raise ValueError("error only allowed for partial or failed results")
         return self
 
 

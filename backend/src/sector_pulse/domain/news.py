@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SourceGrade(StrEnum):
@@ -23,14 +23,18 @@ class NewsDocument(BaseModel):
 
     document_id: str
     source_id: str
-    url: str
+    canonical_locator: str
+    citation_url: str | None = None
     title: str
+    publisher: str | None = None
+    summary: str | None = Field(default=None, max_length=500)
     published_at: datetime | None
-    observed_at: datetime
+    source_observed_at: datetime | None = None
+    collected_at: datetime
     content_hash: str
     source_grade: SourceGrade
 
-    @field_validator("published_at", "observed_at")
+    @field_validator("published_at", "source_observed_at", "collected_at")
     @classmethod
     def require_utc(cls, value: datetime | None) -> datetime | None:
         if value is not None and (
@@ -43,7 +47,7 @@ class NewsDocument(BaseModel):
         """决定新闻在指定 cutoff 下可用于证据、背景或必须排除。"""
         if cutoff.tzinfo is None or cutoff.utcoffset() != timedelta(0):
             raise ValueError("cutoff must use UTC")
-        if self.observed_at > cutoff:
+        if self.source_observed_at is not None and self.source_observed_at > cutoff:
             return NewsUse.EXCLUDED
         if self.published_at is None:
             return NewsUse.BACKGROUND

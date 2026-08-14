@@ -13,10 +13,11 @@ def test_news_repository_persists_event_documents(tmp_path: Path) -> None:
     document = NewsDocument(
         document_id="doc-1",
         source_id="source",
-        url="https://example.com/1",
+        canonical_locator="https://example.com/1",
+        citation_url="https://example.com/1",
         title="新闻标题",
         published_at=datetime(2026, 8, 14, 8, 0, tzinfo=UTC),
-        observed_at=datetime(2026, 8, 14, 8, 1, tzinfo=UTC),
+        collected_at=datetime(2026, 8, 14, 8, 1, tzinfo=UTC),
         content_hash="a" * 64,
         source_grade=SourceGrade.PRIMARY,
     )

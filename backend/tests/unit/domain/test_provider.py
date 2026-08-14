@@ -38,3 +38,24 @@ def test_success_result_requires_data() -> None:
             data=None,
             collected_at=datetime(2026, 8, 13, 6, 0, tzinfo=UTC),
         )
+
+
+def test_partial_result_requires_data_and_error() -> None:
+    now = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
+    result = ProviderResult[list[str]](
+        provider_id="example",
+        capability="news.keyword.search",
+        status=DataStatus.PARTIAL,
+        data=["one"],
+        collected_at=now,
+        error=ProviderError(code="ROW_MAPPING", message="one row skipped", retriable=False),
+    )
+    assert result.data == ["one"]
+    with pytest.raises(ValidationError):
+        ProviderResult[list[str]](
+            provider_id="example",
+            capability="news.keyword.search",
+            status=DataStatus.PARTIAL,
+            data=["one"],
+            collected_at=now,
+        )

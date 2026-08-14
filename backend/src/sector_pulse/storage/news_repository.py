@@ -27,10 +27,10 @@ class SQLiteNewsRepository:
                     (
                         document.document_id,
                         document.source_id,
-                        document.url,
+                        document.canonical_locator,
                         document.title,
                         document.published_at.isoformat() if document.published_at else None,
-                        document.observed_at.isoformat(),
+                        document.collected_at.isoformat(),
                         document.content_hash,
                         document.source_grade.value,
                         document.model_dump_json(),
