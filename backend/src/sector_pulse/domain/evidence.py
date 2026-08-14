@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.quality import QualityStatus
 
 
@@ -20,6 +21,7 @@ class EvidencePack(BaseModel):
 
     run_id: UUID
     sector_id: str
+    sector_kind: SectorKind = SectorKind.INDUSTRY
     facts: tuple[str, ...]
     event_ids: tuple[str, ...]
     counter_evidence: tuple[str, ...]

@@ -93,6 +93,7 @@ def build_evidence_pack(
     return EvidencePack(
         run_id=run_id,
         sector_id=candidate.provider_sector_id,
+        sector_kind=candidate.kind,
         facts=facts,
         event_ids=related_event_ids,
         counter_evidence=(),

@@ -4,6 +4,10 @@ from collections.abc import Sequence
 from difflib import SequenceMatcher
 
 from sector_pulse.domain.news import NewsDocument, NewsEvent
+from sector_pulse.domain.provider import DataStatus, ProviderResult
+from sector_pulse.domain.time import AnalysisRun
+from sector_pulse.ports.news import NewsPort
+from sector_pulse.storage.news_repository import SQLiteNewsRepository
 
 
 def _normalize_title(title: str) -> str:
@@ -54,3 +58,34 @@ def deduplicate_documents(
             )
         )
     return tuple(events)
+
+
+async def ingest_news(
+    provider: NewsPort,
+    repository: SQLiteNewsRepository,
+    run: AnalysisRun,
+    source_ids: Sequence[str],
+) -> ProviderResult[tuple[NewsEvent, ...]]:
+    """在锁定 cutoff 后采集、去重并幂等保存新闻事件。"""
+    if run.run_cutoff_at is None:
+        raise ValueError("news ingestion requires a locked run cutoff")
+    result = await provider.fetch_since(run.run_cutoff_at, source_ids)
+    if result.status is not DataStatus.SUCCESS or result.data is None:
+        return ProviderResult(
+            provider_id=result.provider_id,
+            capability="news.events",
+            status=result.status,
+            collected_at=result.collected_at,
+            error=result.error,
+        )
+    events = deduplicate_documents(result.data)
+    repository.save(result.data, events)
+    return ProviderResult(
+        provider_id=result.provider_id,
+        capability="news.events",
+        status=DataStatus.SUCCESS if events else DataStatus.EMPTY,
+        data=events if events else None,
+        observed_at=result.observed_at,
+        collected_at=result.collected_at,
+        source_version=result.source_version,
+    )
