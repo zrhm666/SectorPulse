@@ -40,5 +40,3 @@ backups/
 .DS_Store
 Thumbs.db
 
-docs
-backend/tests
