@@ -1,0 +1,10 @@
+version: "2026-08-14.1"
+budget_cny_per_run: "2.00"
+max_attribution_concurrency: 4
+max_revision_rounds: 2
+routes:
+  attribution: {provider: fixture, model: fixture-low}
+  editorial: {provider: fixture, model: fixture-high}
+  writing: {provider: fixture, model: fixture-high}
+  review: {provider: fixture, model: fixture-review}
+  revision: {provider: fixture, model: fixture-high}

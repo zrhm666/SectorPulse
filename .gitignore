@@ -39,3 +39,7 @@ backups/
 .vscode/
 .DS_Store
 Thumbs.db
+
+
+backend/tests
+docs

@@ -1,6 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import typer
 
@@ -11,8 +12,15 @@ from sector_pulse.application.phase1a2_probe import (
     run_phase1a2_probe,
 )
 from sector_pulse.application.phase1a_probe import run_phase1a_probe
+from sector_pulse.application.phase1b_pipeline import (
+    Phase1BRequest,
+    run_phase1b_pipeline,
+)
+from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.domain.quality import QualityThresholds
+from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
+from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.news.akshare_adapters import (
     AkShareClsAdapter,
     AkShareCninfoAdapter,
@@ -25,6 +33,9 @@ from sector_pulse.infrastructure.providers.akshare.constituents import (
 )
 from sector_pulse.reporting.phase0_report import render_phase0_markdown, write_utf8_atomic
 from sector_pulse.reporting.phase1a2_report import write_phase1a2_report
+from sector_pulse.reporting.phase1b_report import write_phase1b_artifacts
+from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 app = typer.Typer(no_args_is_help=True)
@@ -125,3 +136,45 @@ def phase1a2_news_probe(
     json_path, markdown_path = write_phase1a2_report(report, output_dir)
     typer.echo(f"json={json_path}")
     typer.echo(f"markdown={markdown_path}")
+
+
+@app.command("phase1b-draft")
+def phase1b_draft(
+    run_id: UUID = typer.Option(..., "--run-id"),
+    provider: str = typer.Option("fixture", "--provider"),
+    output_dir: Path = typer.Option(Path("data/phase1b")),
+    database_path: Path = typer.Option(Path("data/sector-pulse.db")),
+    llm_config: Path = typer.Option(Path("config/llm.yaml")),
+    input_json: Path = typer.Option(Path("data/phase1b/input.json")),
+    fixture_responses: Path = typer.Option(
+        Path("backend/tests/fixtures/phase1b/fixture_responses.json")
+    ),
+    live_llm_consent: Path = typer.Option(Path(".live-llm-consent")),
+) -> None:
+    """从结构化 Phase 1B 输入生成待人工审核草稿，不执行自动发布。"""
+    if provider != "fixture":
+        if not live_llm_consent.is_file():
+            raise typer.BadParameter("create .live-llm-consent before using a live LLM provider")
+        raise typer.BadParameter("live LLM provider is not enabled in this Fixture-first phase")
+    if not input_json.is_file():
+        raise typer.BadParameter(f"input file does not exist: {input_json}")
+    import json
+
+    raw_input = json.loads(input_json.read_text(encoding="utf-8"))
+    request = Phase1BRequest.model_validate({"run_id": str(run_id), **raw_input})
+    database = SQLiteDatabase(database_path)
+    dependencies = type(
+        "Phase1BRuntimeDependencies",
+        (),
+        {
+            "llm": FixtureLLMProvider(json.loads(fixture_responses.read_text(encoding="utf-8"))),
+            "prompts": PromptRegistry(Path("config/prompts")),
+            "repository": SQLitePhase1BRepository(database),
+            "invocation_repository": SQLiteAgentInvocationRepository(database),
+            "config": load_llm_config(llm_config),
+        },
+    )()
+    result = asyncio.run(run_phase1b_pipeline(dependencies, request))
+    paths = write_phase1b_artifacts(result, output_dir)
+    for name, path in paths.items():
+        typer.echo(f"{name}={path}")

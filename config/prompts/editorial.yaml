@@ -1,0 +1,3 @@
+prompt_id: editorial
+version: "1.0.0"
+system: "从已校验的板块分析卡中精选适合社区阅读的重点板块。"
