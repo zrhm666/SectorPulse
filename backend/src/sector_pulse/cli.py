@@ -5,11 +5,26 @@ from pathlib import Path
 import typer
 
 from sector_pulse.application.phase0_probe import Phase0ProbeReport, run_phase0_probe
+from sector_pulse.application.phase1a2_probe import (
+    Phase1A2Dependencies,
+    Phase1A2Request,
+    run_phase1a2_probe,
+)
 from sector_pulse.application.phase1a_probe import run_phase1a_probe
+from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.domain.quality import QualityThresholds
+from sector_pulse.infrastructure.news.akshare_adapters import (
+    AkShareClsAdapter,
+    AkShareCninfoAdapter,
+    AkShareEastmoneyNewsAdapter,
+)
 from sector_pulse.infrastructure.news.rss_adapter import RssNewsAdapter
 from sector_pulse.infrastructure.providers.akshare.adapter import AkShareMarketDataAdapter
+from sector_pulse.infrastructure.providers.akshare.constituents import (
+    AkShareSectorConstituentAdapter,
+)
 from sector_pulse.reporting.phase0_report import render_phase0_markdown, write_utf8_atomic
+from sector_pulse.reporting.phase1a2_report import write_phase1a2_report
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 app = typer.Typer(no_args_is_help=True)
@@ -70,3 +85,43 @@ def phase1a_probe(
     )
     write_utf8_atomic(output_path, report.model_dump_json(indent=2))
     typer.echo(report.model_dump_json(indent=2))
+
+
+@app.command("phase1a2-news-probe")
+def phase1a2_news_probe(
+    run_kind: str = typer.Option(..., "--run-kind", help="intraday or post_close"),
+    output_dir: Path = typer.Option(Path("data/phase1a2")),
+    database_path: Path = typer.Option(Path("data/sector-pulse.db")),
+    entity_config: Path = typer.Option(Path("config/sector_entities.yaml")),
+    consent_file: Path = typer.Option(Path(".live-data-consent")),
+) -> None:
+    """执行带 consent 门禁的真实新闻检索与证据审计，不自动发布文章。"""
+    if not consent_file.is_file():
+        raise typer.BadParameter("create .live-data-consent after reviewing provider terms")
+    if run_kind not in {"intraday", "post_close"}:
+        raise typer.BadParameter("run_kind must be intraday or post_close")
+    global_news = AkShareClsAdapter()
+    keyword_news = AkShareEastmoneyNewsAdapter()
+    disclosure_news = AkShareCninfoAdapter()
+    dependencies: Phase1A2Dependencies = type(
+        "Phase1A2RuntimeDependencies",
+        (),
+        {
+            "market": AkShareMarketDataAdapter(),
+            "constituents": AkShareSectorConstituentAdapter(),
+            "global_news": global_news,
+            "keyword_news": keyword_news,
+            "disclosure_news": disclosure_news,
+            "database": SQLiteDatabase(database_path),
+            "entity_config": load_entity_config(entity_config),
+        },
+    )()
+    report = asyncio.run(
+        run_phase1a2_probe(
+            dependencies,
+            Phase1A2Request(requested_at=datetime.now(UTC), run_kind=run_kind),
+        )
+    )
+    json_path, markdown_path = write_phase1a2_report(report, output_dir)
+    typer.echo(f"json={json_path}")
+    typer.echo(f"markdown={markdown_path}")
