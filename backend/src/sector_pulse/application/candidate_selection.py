@@ -16,14 +16,13 @@ def _normalized(value: Decimal, values: list[Decimal]) -> Decimal:
     return (value - minimum) / (maximum - minimum)
 
 
-def select_candidates(
+def _rank_candidates(
     industry: SectorUniverseSnapshot,
     concept: SectorUniverseSnapshot,
-    events: Sequence[NewsEvent],
-    limit: int = 12,
+    event_sector_ids: set[str],
+    limit: int,
 ) -> tuple[SectorCandidate, ...]:
     """在行业/概念组内分别标准化，再合并为最多 limit 个候选。"""
-    event_sector_ids = {sector_id for event in events for sector_id in event.sector_ids}
     candidates: list[tuple[SectorSnapshot, Decimal, tuple[str, ...]]] = []
     for universe in (industry, concept):
         sectors = list(universe.sectors)
@@ -57,6 +56,26 @@ def select_candidates(
         )
         for index, (sector, score, reasons) in enumerate(candidates[:limit], start=1)
     )
+
+
+def select_market_precandidates(
+    industry: SectorUniverseSnapshot,
+    concept: SectorUniverseSnapshot,
+    limit: int = 30,
+) -> tuple[SectorCandidate, ...]:
+    """只基于市场事实生成预候选，明确不读取新闻事件。"""
+    return _rank_candidates(industry, concept, set(), limit)
+
+
+def select_candidates(
+    industry: SectorUniverseSnapshot,
+    concept: SectorUniverseSnapshot,
+    events: Sequence[NewsEvent],
+    limit: int = 12,
+) -> tuple[SectorCandidate, ...]:
+    """在预候选基础上加入去重新闻丰富度，生成最终候选。"""
+    event_sector_ids = {sector_id for event in events for sector_id in event.sector_ids}
+    return _rank_candidates(industry, concept, event_sector_ids, limit)
 
 
 def build_evidence_pack(
