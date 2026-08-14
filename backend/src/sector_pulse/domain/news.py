@@ -62,6 +62,7 @@ class NewsEvent(BaseModel):
     first_published_at: datetime | None
     document_ids: tuple[str, ...]
     deduplication_reason: str
+    sector_ids: tuple[str, ...] = ()
 
     @field_validator("first_published_at")
     @classmethod
