@@ -99,8 +99,9 @@ def build_evidence_pack(
     related_event_ids = tuple(
         event.event_id for event in events if candidate.provider_sector_id in event.sector_ids
     )
+    # Phase 1A.2 只证明“市场与新闻存在关联”；催化或明确驱动需由 Phase 1B 结合时序与反事实判断。
     level = (
-        EvidenceLevel.POSSIBLE_CATALYST
+        EvidenceLevel.MARKET_ASSOCIATION
         if related_event_ids
         else EvidenceLevel.NO_RELIABLE_EXPLANATION
     )
