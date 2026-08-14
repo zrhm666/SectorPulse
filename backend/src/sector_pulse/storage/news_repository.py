@@ -17,11 +17,19 @@ class SQLiteNewsRepository:
                     """
                     INSERT INTO news_documents (
                         document_id, source_id, canonical_url, title, published_at,
-                        observed_at, content_hash, source_grade, metadata_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        observed_at, content_hash, source_grade, metadata_json,
+                        citation_url, publisher, summary, source_observed_at,
+                        use_grade, quality_flags_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(document_id) DO UPDATE SET
                         title = excluded.title,
                         observed_at = excluded.observed_at,
+                        citation_url = excluded.citation_url,
+                        publisher = excluded.publisher,
+                        summary = excluded.summary,
+                        source_observed_at = excluded.source_observed_at,
+                        use_grade = excluded.use_grade,
+                        quality_flags_json = excluded.quality_flags_json,
                         metadata_json = excluded.metadata_json
                     """,
                     (
@@ -34,6 +42,14 @@ class SQLiteNewsRepository:
                         document.content_hash,
                         document.source_grade.value,
                         document.model_dump_json(),
+                        document.citation_url,
+                        document.publisher,
+                        document.summary,
+                        document.source_observed_at.isoformat()
+                        if document.source_observed_at
+                        else None,
+                        "EVIDENCE" if document.published_at is not None else "BACKGROUND",
+                        "[]",
                     ),
                 )
             for event in events:
