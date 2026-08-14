@@ -169,7 +169,7 @@ Phase 1A 已完成行情快照、新闻事件、候选板块和证据包的 fixt
 
 负责：
 
-- 排除 `published_at` 或 `observed_at` 晚于 `run_cutoff_at` 的数据；
+- 排除 `published_at` 或非空 `source_observed_at` 晚于 `run_cutoff_at` 的数据；
 - 将缺少 `published_at` 的新闻限制为背景；
 - 检查可核验 URL、来源 ID 和内容哈希；
 - 合并转载或改写事件；
@@ -220,7 +220,21 @@ Phase 1A 已完成行情快照、新闻事件、候选板块和证据包的 fixt
 
 ### 7.4 现有表扩展
 
-`news_documents` 补充文章来源、可选摘要、使用等级和字段质量标记。摘要必须限制长度；本阶段不持久化完整受版权保护的新闻正文。
+`news_documents` 补充文章来源、可选摘要、来源侧观测时间、可引用 URL、使用等级和字段质量标记。摘要必须限制长度；本阶段不持久化完整受版权保护的新闻正文。
+
+新闻标识与引用地址必须分离：
+
+- `canonical_locator` 用于去重和持久化唯一性；无原文链接的发现源可以使用内部 URN；
+- `citation_url` 只接受可核验的 HTTP(S) 原文或公告地址；
+- 财联社快讯可以有内部 `canonical_locator`，但 `citation_url` 必须为空。
+
+时间字段也必须分离：
+
+- `published_at` 是来源声明的首次发布时间；
+- `source_observed_at` 是来源明确提供的更新时间或事件时间，可以为空；
+- `collected_at` 是本系统实际抓取时间，通常晚于已锁定 cutoff，只用于审计。
+
+时间门禁检查 `published_at` 和非空的 `source_observed_at`，不使用 `collected_at` 判断新闻是否越过 cutoff。否则锁定 cutoff 后执行的任何网络抓取都会被错误排除。
 
 盘中和盘后运行使用不同 `run_id`，后一次运行不得覆盖前一次数据。
 
@@ -293,7 +307,7 @@ Phase 1A 已完成行情快照、新闻事件、候选板块和证据包的 fixt
 Phase 1A.2 只有同时满足以下条件才算通过：
 
 1. 默认运行总时长不超过 5 分钟；
-2. 100% 排除 cutoff 之后的新闻和公告；
+2. 100% 排除 `published_at` 或非空 `source_observed_at` 晚于 cutoff 的新闻和公告；
 3. 缺失发布时间的新闻全部限制为背景；
 4. 所有候选证据有来源 ID，用于引用的证据有可核验 URL；
 5. 标注 fixture 中的高置信板块映射准确率不低于 90%；
