@@ -1,5 +1,6 @@
 import hashlib
 from collections.abc import Sequence
+from uuid import UUID
 
 from sector_pulse.domain.evidence import EvidencePack
 from sector_pulse.storage.sqlite import SQLiteDatabase
@@ -35,3 +36,12 @@ class SQLiteEvidenceRepository:
                         hashlib.sha256(payload.encode("utf-8")).hexdigest(),
                     ),
                 )
+
+    def list_for_run(self, run_id: UUID) -> tuple[EvidencePack, ...]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                "SELECT payload_json FROM evidence_packs WHERE run_id = ? "
+                "ORDER BY sector_kind, provider_sector_id",
+                (str(run_id),),
+            ).fetchall()
+        return tuple(EvidencePack.model_validate_json(row[0]) for row in rows)

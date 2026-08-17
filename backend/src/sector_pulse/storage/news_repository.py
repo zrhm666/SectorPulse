@@ -22,34 +22,23 @@ class SQLiteNewsRepository:
                         use_grade, quality_flags_json
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(document_id) DO UPDATE SET
-                        title = excluded.title,
-                        observed_at = excluded.observed_at,
-                        citation_url = excluded.citation_url,
-                        publisher = excluded.publisher,
+                        title = excluded.title, observed_at = excluded.observed_at,
+                        citation_url = excluded.citation_url, publisher = excluded.publisher,
                         summary = excluded.summary,
                         source_observed_at = excluded.source_observed_at,
-                        use_grade = excluded.use_grade,
                         quality_flags_json = excluded.quality_flags_json,
                         metadata_json = excluded.metadata_json
                     """,
                     (
-                        document.document_id,
-                        document.source_id,
-                        document.canonical_locator,
+                        document.document_id, document.source_id, document.canonical_locator,
                         document.title,
                         document.published_at.isoformat() if document.published_at else None,
-                        document.collected_at.isoformat(),
-                        document.content_hash,
-                        document.source_grade.value,
-                        document.model_dump_json(),
-                        document.citation_url,
-                        document.publisher,
-                        document.summary,
+                        document.collected_at.isoformat(), document.content_hash,
+                        document.source_grade.value, document.model_dump_json(),
+                        document.citation_url, document.publisher, document.summary,
                         document.source_observed_at.isoformat()
-                        if document.source_observed_at
-                        else None,
-                        "EVIDENCE" if document.published_at is not None else "BACKGROUND",
-                        "[]",
+                        if document.source_observed_at else None,
+                        "EVIDENCE" if document.published_at is not None else "BACKGROUND", "[]",
                     ),
                 )
             for event in events:
@@ -64,31 +53,45 @@ class SQLiteNewsRepository:
                         metadata_json = excluded.metadata_json
                     """,
                     (
-                        event.event_id,
-                        event.canonical_title,
+                        event.event_id, event.canonical_title,
                         event.first_published_at.isoformat() if event.first_published_at else None,
-                        event.deduplication_reason,
-                        event.model_dump_json(),
+                        event.deduplication_reason, event.model_dump_json(),
                     ),
                 )
                 connection.execute(
-                    "DELETE FROM news_event_documents WHERE event_id = ?",
-                    (event.event_id,),
+                    "DELETE FROM news_event_documents WHERE event_id = ?", (event.event_id,)
                 )
                 connection.executemany(
-                    """
-                    INSERT INTO news_event_documents (event_id, document_id)
-                    VALUES (?, ?)
-                    """,
+                    "INSERT INTO news_event_documents (event_id, document_id) VALUES (?, ?)",
                     [(event.event_id, document_id) for document_id in event.document_ids],
                 )
 
     def get_event(self, event_id: str) -> NewsEvent | None:
         with self._database.connection() as connection:
             row = connection.execute(
-                "SELECT metadata_json FROM news_events WHERE event_id = ?",
-                (event_id,),
+                "SELECT metadata_json FROM news_events WHERE event_id = ?", (event_id,)
             ).fetchone()
-        if row is None:
-            return None
-        return NewsEvent.model_validate_json(row[0])
+        return NewsEvent.model_validate_json(row[0]) if row else None
+
+    def get_events(self, event_ids: Sequence[str]) -> tuple[NewsEvent, ...]:
+        if not event_ids:
+            return ()
+        placeholders = ",".join("?" for _ in event_ids)
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                f"SELECT metadata_json FROM news_events WHERE event_id IN ({placeholders})",
+                tuple(event_ids),
+            ).fetchall()
+        return tuple(NewsEvent.model_validate_json(row[0]) for row in rows)
+
+    def get_documents(self, document_ids: Sequence[str]) -> dict[str, NewsDocument]:
+        if not document_ids:
+            return {}
+        placeholders = ",".join("?" for _ in document_ids)
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                f"SELECT metadata_json FROM news_documents WHERE document_id IN ({placeholders})",
+                tuple(document_ids),
+            ).fetchall()
+        documents = (NewsDocument.model_validate_json(row[0]) for row in rows)
+        return {document.document_id: document for document in documents}

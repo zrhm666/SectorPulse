@@ -1,0 +1,26 @@
+{
+  "run": {
+    "run_id": "479fca1a-e800-4245-bd92-5e3c507a4353",
+    "mode": "LIVE",
+    "requested_at": "2026-08-17T07:11:35.548037Z",
+    "requested_cutoff_at": null,
+    "run_cutoff_at": "2026-08-17T07:11:35.549035Z",
+    "cutoff_locked_at": "2026-08-17T07:11:35.550034Z"
+  },
+  "provider_id": "fixture",
+  "provider_version": "1.0.0",
+  "provider_authorization": "RESEARCH_ONLY",
+  "industry_source_version": "v1",
+  "concept_source_version": "v1",
+  "industry_quality": {
+    "status": "NORMAL",
+    "sector_count": 50,
+    "issues": []
+  },
+  "concept_quality": {
+    "status": "NORMAL",
+    "sector_count": 100,
+    "issues": []
+  },
+  "usable": true
+}

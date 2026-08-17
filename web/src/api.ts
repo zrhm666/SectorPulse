@@ -145,6 +145,10 @@ export async function createRun(inputJson: object, provider: string): Promise<{ 
   return res.json() as Promise<{ run_id: string }>
 }
 
+export function fetchFixtureInput(): Promise<Record<string, unknown>> {
+  return get<Record<string, unknown>>('/fixture-input')
+}
+
 export function draftUrl(runId: string, ext: 'md' | 'txt'): string {
   return `${BASE}/runs/${runId}/draft.${ext}`
 }

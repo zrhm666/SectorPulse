@@ -22,7 +22,7 @@ def get_live_config() -> tuple[str, str, str] | None:
 
 
 def build_live_provider(
-    base_url: str, api_key: str, pricing: dict[str, Any]
+    base_url: str, api_key: str, pricing: dict[str, Any], timeout_seconds: float = 60.0
 ) -> OpenAICompatibleProvider:
     prices = {
         key: ModelPrice(
@@ -34,6 +34,6 @@ def build_live_provider(
     return OpenAICompatibleProvider(
         base_url=base_url,
         api_key=SecretStr(api_key),
-        timeout_seconds=60.0,
+        timeout_seconds=timeout_seconds,
         pricing=prices,
     )

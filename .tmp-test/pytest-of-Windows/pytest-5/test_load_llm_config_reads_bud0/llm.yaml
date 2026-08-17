@@ -1,0 +1,6 @@
+version: '1'
+budget_cny_per_run: '2.00'
+max_attribution_concurrency: 4
+max_revision_rounds: 2
+routes:
+  attribution: {provider: fixture, model: fixture-low}

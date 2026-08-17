@@ -1,0 +1,5 @@
+version: '1'
+budget_cny_per_run: '1.00'
+max_attribution_concurrency: 2
+max_revision_rounds: 1
+routes: {}

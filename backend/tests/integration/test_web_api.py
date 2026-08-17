@@ -17,6 +17,13 @@ def test_list_runs_empty(tmp_path) -> None:
     assert resp.json() == []
 
 
+def test_fixture_input_endpoint_returns_reproducible_example(tmp_path) -> None:
+    resp = _client(tmp_path).get("/api/fixture-input")
+    assert resp.status_code == 200
+    assert len(resp.json()["contexts"]) == 8
+    assert "industry-1" in resp.json()["gates"]
+
+
 def test_invalid_input_json_returns_422(tmp_path) -> None:
     resp = _client(tmp_path).post("/api/runs", json={"input_json": {}, "provider": "fixture"})
     assert resp.status_code == 422

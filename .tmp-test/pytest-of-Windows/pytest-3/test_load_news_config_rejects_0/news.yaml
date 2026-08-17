@@ -1,0 +1,3 @@
+sources:
+  - source_id: bad
+    provider_type: arbitrary.import.Path

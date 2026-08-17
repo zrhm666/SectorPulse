@@ -3,6 +3,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,6 +16,8 @@ from sector_pulse.application.entity_resolution import resolve_sector_links
 from sector_pulse.application.news_ingestion import deduplicate_documents
 from sector_pulse.application.news_quality import NewsQualityReport, evaluate_news_quality
 from sector_pulse.application.news_retrieval import build_news_query_plan, execute_news_query_plan
+from sector_pulse.domain.candidate import SectorCandidate
+from sector_pulse.domain.evidence import EvidencePack
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.news_retrieval import SectorEntityConfig
 from sector_pulse.domain.provider import DataStatus
@@ -43,6 +46,7 @@ class Phase1A2Request(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     requested_at: datetime
+    run_id: UUID | None = None
     run_kind: str = Field(pattern="^(intraday|post_close)$")
     lookback_hours: int = Field(default=24, ge=1, le=168)
     precandidate_limit: int = Field(default=30, ge=1, le=50)
@@ -99,6 +103,8 @@ class Phase1A2Report(BaseModel):
     downgrade_reasons: tuple[str, ...]
     ready_for_phase1b: bool
     evidence_pack_count: int
+    final_candidates: tuple[SectorCandidate, ...] = ()
+    evidence_packs: tuple[EvidencePack, ...] = ()
 
 
 def _empty_report(
@@ -136,6 +142,8 @@ def _empty_report(
         downgrade_reasons=(reason,),
         ready_for_phase1b=False,
         evidence_pack_count=0,
+        final_candidates=(),
+        evidence_packs=(),
     )
 
 
@@ -146,7 +154,7 @@ async def run_phase1a2_probe(
     started = time.perf_counter()
     database = dependencies.database
     database.initialize()
-    run = AnalysisRun.create_live(request.requested_at)
+    run = AnalysisRun.create_live(request.requested_at, request.run_id)
     industry, concept = await __import__("asyncio").gather(
         dependencies.market.fetch_sector_universe(SectorKind.INDUSTRY, AnalysisMode.LIVE),
         dependencies.market.fetch_sector_universe(SectorKind.CONCEPT, AnalysisMode.LIVE),
@@ -290,4 +298,6 @@ async def run_phase1a2_probe(
         downgrade_reasons=news_quality.blocking_reasons,
         ready_for_phase1b=news_quality.status is not QualityStatus.BLOCKED,
         evidence_pack_count=len(packs),
+        final_candidates=final_candidates,
+        evidence_packs=packs,
     )

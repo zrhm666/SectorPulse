@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+from uuid import UUID
+
+from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+
+
+class RealDataRunQueries:
+    """真实数据查询只读持久化摘要，不触发 Provider。"""
+
+    def __init__(self, repository: SQLiteRealDataRunRepository) -> None:
+        self._repository = repository
+
+    def list(self, limit: int = 50) -> list[dict[str, object]]:
+        return [self._serialize(run) for run in self._repository.list_runs(limit)]
+
+    def get(self, run_id: UUID) -> dict[str, object] | None:
+        run = self._repository.get_run(run_id)
+        return self._serialize(run) if run else None
+
+    def candidates(self, run_id: UUID) -> list[dict[str, object]]:
+        return [item.model_dump(mode="json") for item in self._repository.get_candidates(run_id)]
+
+    @staticmethod
+    def _serialize(run: object) -> dict[str, object]:
+        return run.model_dump(mode="json")  # type: ignore[union-attr]

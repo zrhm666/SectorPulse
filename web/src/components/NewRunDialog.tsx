@@ -1,7 +1,7 @@
 // web/src/components/NewRunDialog.tsx
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createRun } from '../api'
+import { createRun, fetchFixtureInput } from '../api'
 
 export default function NewRunDialog({ onClose }: { onClose: () => void }) {
   const [jsonText, setJsonText] = useState('')
@@ -33,11 +33,22 @@ export default function NewRunDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
+  async function loadFixture() {
+    try {
+      setJsonText(JSON.stringify(await fetchFixtureInput(), null, 2))
+      setProvider('fixture')
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载 Fixture 示例失败')
+    }
+  }
+
   return (
     <div className="modal" onClick={onClose}>
       <div className="modal-inner" onClick={(e) => e.stopPropagation()}>
         <h2>新建运行</h2>
         <div style={{ marginBottom: 8 }}>
+          <button onClick={loadFixture}>加载 Fixture 示例</button>
           <button onClick={() => fileRef.current?.click()}>上传 JSON 文件</button>
           <input ref={fileRef} type="file" accept=".json" hidden onChange={handleFile} />
         </div>

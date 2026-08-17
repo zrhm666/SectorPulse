@@ -54,8 +54,8 @@ class AnalysisRun(BaseModel):
         return self
 
     @classmethod
-    def create_live(cls, requested_at: datetime) -> "AnalysisRun":
-        return cls(run_id=uuid4(), mode=AnalysisMode.LIVE, requested_at=requested_at)
+    def create_live(cls, requested_at: datetime, run_id: UUID | None = None) -> "AnalysisRun":
+        return cls(run_id=run_id or uuid4(), mode=AnalysisMode.LIVE, requested_at=requested_at)
 
     @classmethod
     def create_as_of(cls, requested_at: datetime, requested_cutoff_at: datetime) -> "AnalysisRun":

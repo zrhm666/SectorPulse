@@ -57,10 +57,19 @@ class RunService:
         self._llm_factory = llm_factory
         self._tasks = RunTaskRegistry()
 
-    def create_run(self, input_json: dict[str, Any], provider: str) -> UUID:
+    def create_run(
+        self, input_json: dict[str, Any], provider: str, run_id: UUID | None = None
+    ) -> UUID:
         # 先做同步预检，避免未配置 Live 任务先落库为 RUNNING。
         self._preflight(provider)
-        run_id = uuid4()
+        run_id = run_id or uuid4()
+        existing = self._runs_repo.get_run(run_id)
+        if existing is not None:
+            if existing.status == "RUNNING":
+                return run_id
+            if existing.draft_id is not None:
+                return run_id
+            raise ProviderUnavailable("run already has a terminal Phase 1B execution")
         request = Phase1BRequest.model_validate({"run_id": str(run_id), **input_json})
         # 输入里的 contexts/gates 可能携带其它 run_id，统一归一到本次生成的 run_id，
         # 保证 attribution 落库与后续按 run_id 读取（雷达/证据）保持一致。
@@ -191,9 +200,6 @@ class RunService:
                 raise ProviderUnavailable(
                     "缺少 SECTOR_PULSE_LLM_API_KEY / BASE_URL / MODEL 环境变量"
                 )
-            model = live_config[2]
-            if model not in self._config.pricing:
-                raise ProviderUnavailable(f"模型 {model} 未配置价格，拒绝运行")
             return
         if provider not in self._llm_factory:
             raise ProviderUnavailable(f"unknown provider: {provider}")

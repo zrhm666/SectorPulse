@@ -23,14 +23,15 @@ def _get(row: Mapping[str, Any], key: str) -> Any:
     if FIELD[key] in row:
         return row[FIELD[key]]
     aliases = {
-        "name": ("名称",),
-        "code": ("代码",),
-        "pct": ("涨跌幅",),
-        "turnover": ("换手率",),
-        "up": ("上涨家数",),
-        "down": ("下跌家数",),
-        "leader": ("领涨股票",),
-        "leader_pct": ("领涨股票-涨跌幅",),
+        "name": ("名称", "name"),
+        "code": ("代码", "code"),
+        "pct": ("涨跌幅", "pct_change", "change"),
+        "cap": ("总市值", "total_market_cap"),
+        "turnover": ("换手率", "turnover_rate"),
+        "up": ("上涨家数", "上涨数量", "advancers"),
+        "down": ("下跌家数", "下跌数量", "decliners"),
+        "leader": ("领涨股票", "leader_name"),
+        "leader_pct": ("领涨股票-涨跌幅", "leader_pct_change"),
     }
     for alias in aliases.get(key, ()):
         if alias in row:
@@ -50,6 +51,9 @@ def map_sector_rows(
     observed_at: datetime,
     collected_at: datetime,
     source_version: str,
+    *,
+    provider_id: str = "akshare-eastmoney",
+    classification_prefix: str = "eastmoney",
 ) -> SectorUniverseSnapshot:
     # 将原始行转换为不可变领域快照；缺失的可选指标保留为 None，而非编造数值。
     sectors = tuple(
@@ -68,8 +72,8 @@ def map_sector_rows(
         for row in rows
     )
     return SectorUniverseSnapshot(
-        provider_id="akshare-eastmoney",
-        classification_version=f"eastmoney-{kind.value.lower()}",
+        provider_id=provider_id,
+        classification_version=f"{classification_prefix}-{kind.value.lower()}",
         source_version=source_version,
         kind=kind,
         observed_at=observed_at,

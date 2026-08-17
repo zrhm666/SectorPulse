@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { fetchRuns, RunSummary } from '../api'
 import Badge from '../components/Badge'
 import NewRunDialog from '../components/NewRunDialog'
+import { createDataRun } from '../dataRunsApi'
+import { useNavigate } from 'react-router-dom'
 
 const STATUS_TONE: Record<string, 'gray' | 'blue' | 'green' | 'red' | 'orange'> = {
   RUNNING: 'blue',
@@ -20,6 +22,12 @@ const STATUS_TONE: Record<string, 'gray' | 'blue' | 'green' | 'red' | 'orange'> 
 export default function RunListPage() {
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [showNew, setShowNew] = useState(false)
+  const navigate = useNavigate()
+
+  const startDataRun = async (mode: 'intraday' | 'post_close') => {
+    const result = await createDataRun({ mode, provider: 'live', precandidate_limit: 30, final_candidate_limit: 12 })
+    navigate(`/data-runs/${result.run_id}`)
+  }
 
   useEffect(() => {
     fetchRuns().then(setRuns).catch(console.error)
@@ -29,7 +37,11 @@ export default function RunListPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>运行历史</h1>
-        <button onClick={() => setShowNew(true)}>新建运行</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => startDataRun('intraday')}>盘中分析</button>
+          <button onClick={() => startDataRun('post_close')}>盘后分析</button>
+          <button onClick={() => setShowNew(true)}>新建运行</button>
+        </div>
       </div>
       {showNew && <NewRunDialog onClose={() => setShowNew(false)} />}
       {runs.length === 0 && <p>还没有运行记录，点击「新建运行」开始。</p>}

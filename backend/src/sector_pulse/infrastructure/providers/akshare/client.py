@@ -36,3 +36,20 @@ class PandasAkShareClient:
             json.dumps(rows, ensure_ascii=False, sort_keys=True, default=str).encode()
         ).hexdigest()
         return RawSectorBatch(rows, started, completed, version("akshare"), digest)
+
+
+class PandasThsAkShareClient(PandasAkShareClient):
+    async def fetch(self, kind: SectorKind) -> RawSectorBatch:
+        function = (
+            ak.stock_board_industry_name_ths
+            if kind is SectorKind.INDUSTRY
+            else ak.stock_board_concept_name_ths
+        )
+        started = datetime.now(UTC)
+        frame = await asyncio.to_thread(function)
+        completed = datetime.now(UTC)
+        rows = frame.to_dict(orient="records")
+        digest = hashlib.sha256(
+            json.dumps(rows, ensure_ascii=False, sort_keys=True, default=str).encode()
+        ).hexdigest()
+        return RawSectorBatch(rows, started, completed, version("akshare"), digest)

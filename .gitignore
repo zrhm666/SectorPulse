@@ -28,6 +28,7 @@ coverage/
 data/
 artifacts/
 .live-data-consent
+.live-llm-consent
 logs/
 backups/
 *.db

@@ -30,23 +30,14 @@ class SQLiteNewsRetrievalRepository:
                         retry_count, status, duration_ms, error_code
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(run_id, source_id) DO UPDATE SET
-                        completed_at = excluded.completed_at,
-                        call_count = excluded.call_count,
-                        retry_count = excluded.retry_count,
-                        status = excluded.status,
-                        duration_ms = excluded.duration_ms,
-                        error_code = excluded.error_code
+                        completed_at = excluded.completed_at, call_count = excluded.call_count,
+                        retry_count = excluded.retry_count, status = excluded.status,
+                        duration_ms = excluded.duration_ms, error_code = excluded.error_code
                     """,
                     (
-                        str(metric.run_id),
-                        metric.source_id,
-                        metric.started_at.isoformat(),
-                        metric.completed_at.isoformat(),
-                        metric.call_count,
-                        metric.retry_count,
-                        metric.status.value,
-                        metric.duration_ms,
-                        metric.error_code,
+                        str(metric.run_id), metric.source_id, metric.started_at.isoformat(),
+                        metric.completed_at.isoformat(), metric.call_count, metric.retry_count,
+                        metric.status.value, metric.duration_ms, metric.error_code,
                     ),
                 )
             for query, status, result_count, error_code in query_results:
@@ -59,23 +50,14 @@ class SQLiteNewsRetrievalRepository:
                         status, result_count, error_code
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(run_id, query_id) DO UPDATE SET
-                        status = excluded.status,
-                        result_count = excluded.result_count,
+                        status = excluded.status, result_count = excluded.result_count,
                         error_code = excluded.error_code
                     """,
                     (
-                        str(run_id),
-                        query.query_id,
-                        query.query_type.value,
-                        query.source_id,
-                        value_hash,
-                        json.dumps(query.sector_ids, ensure_ascii=False),
-                        query.priority,
-                        query.start_at.isoformat(),
-                        query.cutoff_at.isoformat(),
-                        status.value,
-                        result_count,
-                        error_code,
+                        str(run_id), query.query_id, query.query_type.value, query.source_id,
+                        value_hash, json.dumps(query.sector_ids, ensure_ascii=False),
+                        query.priority, query.start_at.isoformat(), query.cutoff_at.isoformat(),
+                        status.value, result_count, error_code,
                     ),
                 )
             for link in links:
@@ -93,14 +75,25 @@ class SQLiteNewsRetrievalRepository:
                         rule_version = excluded.rule_version
                     """,
                     (
-                        str(link.run_id),
-                        link.event_id,
-                        link.sector_id,
-                        link.sector_kind.value,
-                        link.relation_type,
-                        json.dumps(link.matched_entities, ensure_ascii=False),
-                        link.mapping_confidence.value,
-                        link.mapping_reason,
-                        link.rule_version,
+                        str(link.run_id), link.event_id, link.sector_id, link.sector_kind.value,
+                        link.relation_type, json.dumps(link.matched_entities, ensure_ascii=False),
+                        link.mapping_confidence.value, link.mapping_reason, link.rule_version,
                     ),
                 )
+
+    def list_links(self, run_id: UUID) -> tuple[SectorEventLink, ...]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                "SELECT event_id, sector_id, sector_kind, relation_type, "
+                "matched_entities_json, mapping_confidence, mapping_reason, rule_version "
+                "FROM sector_event_links WHERE run_id = ? ORDER BY event_id, sector_id",
+                (str(run_id),),
+            ).fetchall()
+        return tuple(
+            SectorEventLink(
+                run_id=run_id, event_id=row[0], sector_id=row[1], sector_kind=row[2],
+                relation_type=row[3], matched_entities=tuple(json.loads(row[4])),
+                mapping_confidence=row[5], mapping_reason=row[6], rule_version=row[7],
+            )
+            for row in rows
+        )
