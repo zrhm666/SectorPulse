@@ -1,0 +1,27 @@
+{
+  "article-draft": {
+    "draft_id": "00000000-0000-0000-0000-000000000002",
+    "run_id": "00000000-0000-0000-0000-000000000001",
+    "version": 1,
+    "status": "UNREVIEWED",
+    "titles": ["今日板块观察"],
+    "introduction": "本文基于已锁定的公开信息整理市场异动，只描述事实和证据边界。",
+    "sections": [
+      {"section_id": "industry-1", "sector_id": "industry-1", "heading": "行业板块观察", "body": "暂无可靠解释，相关新闻仅作背景参考。", "claims": [], "source_ids": ["source-1"], "character_count": 20},
+      {"section_id": "industry-2", "sector_id": "industry-2", "heading": "行业板块观察", "body": "暂无可靠解释，相关新闻仅作背景参考。", "claims": [], "source_ids": ["source-1"], "character_count": 20},
+      {"section_id": "industry-3", "sector_id": "industry-3", "heading": "行业板块观察", "body": "暂无可靠解释，相关新闻仅作背景参考。", "claims": [], "source_ids": ["source-1"], "character_count": 20}
+    ],
+    "conclusion": "市场仍需结合后续成交和板块广度观察。",
+    "risk_notice": "仅供信息交流，不构成投资建议。",
+    "sources": [{"source_id": "source-1", "title": "公开来源", "citation_url": "https://example.test/source-1"}],
+    "character_count": 1200
+  },
+  "review:1": {
+    "review_id": "review-1",
+    "draft_id": "00000000-0000-0000-0000-000000000002",
+    "draft_version": 1,
+    "decision": "PASS",
+    "issues": [],
+    "revision_round": 0
+  }
+}

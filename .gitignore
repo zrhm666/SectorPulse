@@ -39,7 +39,6 @@ backups/
 .vscode/
 .DS_Store
 Thumbs.db
-
-
-backend/tests
-docs
+.tmp/
+web/test-results/
+web/tsconfig.tsbuildinfo

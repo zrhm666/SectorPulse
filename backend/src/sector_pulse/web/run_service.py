@@ -13,6 +13,7 @@ from sector_pulse.application.phase1b_pipeline import (
     run_phase1b_pipeline,
 )
 from sector_pulse.application.progress import ProgressSink
+from sector_pulse.application.task_registry import RunTaskRegistry
 from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.article import ArticleDraft, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
@@ -54,9 +55,11 @@ class RunService:
         self._bus = bus
         self._fixture_responses = fixture_responses
         self._llm_factory = llm_factory
-        self._tasks: dict[UUID, asyncio.Task[None]] = {}
+        self._tasks = RunTaskRegistry()
 
     def create_run(self, input_json: dict[str, Any], provider: str) -> UUID:
+        # 先做同步预检，避免未配置 Live 任务先落库为 RUNNING。
+        self._preflight(provider)
         run_id = uuid4()
         request = Phase1BRequest.model_validate({"run_id": str(run_id), **input_json})
         # 输入里的 contexts/gates 可能携带其它 run_id，统一归一到本次生成的 run_id，
@@ -84,6 +87,7 @@ class RunService:
                 provider=provider,
                 status="RUNNING",
                 input_json_hash=input_hash,
+                input_json=input_json,
             )
         )
 
@@ -98,9 +102,7 @@ class RunService:
                 )
 
         bridge = BridgeSink(self._bus, run_id)
-        self._tasks[run_id] = asyncio.create_task(
-            self._execute(run_id, request, provider, bridge)
-        )
+        self._tasks.start(run_id, self._execute(run_id, request, provider, bridge))
         return run_id
 
     async def _execute(
@@ -122,7 +124,7 @@ class RunService:
                 prompts=self._prompts,
                 repository=self._phase1b_repo,
                 invocation_repository=self._invocation_repo,
-                config=self._config,
+                config=self._runtime_config(provider),
             )
             result = await run_phase1b_pipeline(
                 deps,
@@ -175,6 +177,42 @@ class RunService:
             return [RunService._rebind_run_id(item, run_id) for item in node]
         return node
 
+    def _preflight(self, provider: str) -> None:
+        """在创建运行前检查 Provider；不触网、不写库。"""
+        if provider == "fixture":
+            return
+        if provider == "live":
+            from sector_pulse.web.live_provider import check_live_consent, get_live_config
+
+            if not check_live_consent():
+                raise ProviderUnavailable("缺少 .live-llm-consent，真实模型被禁用")
+            live_config = get_live_config()
+            if live_config is None:
+                raise ProviderUnavailable(
+                    "缺少 SECTOR_PULSE_LLM_API_KEY / BASE_URL / MODEL 环境变量"
+                )
+            model = live_config[2]
+            if model not in self._config.pricing:
+                raise ProviderUnavailable(f"模型 {model} 未配置价格，拒绝运行")
+            return
+        if provider not in self._llm_factory:
+            raise ProviderUnavailable(f"unknown provider: {provider}")
+
+    def _runtime_config(self, provider: str) -> LLMRuntimeConfig:
+        """Live 使用环境变量模型覆盖各阶段路由，Fixture 保持配置文件路由。"""
+        if provider != "live":
+            return self._config
+        from sector_pulse.web.live_provider import get_live_config
+
+        live_config = get_live_config()
+        if live_config is None:
+            raise ProviderUnavailable("Live Provider 配置不完整")
+        model = live_config[2]
+        routes = {
+            stage: route.model_copy(update={"provider": "live", "model": model})
+            for stage, route in self._config.routes.items()
+        }
+        return self._config.model_copy(update={"routes": routes})
     def _build_llm(self, provider: str, run_id: UUID) -> Any:
         if provider == "fixture":
             from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
@@ -201,12 +239,14 @@ class RunService:
             raise ProviderUnavailable(f"unknown provider: {provider}")
         return factory()
 
+    def retry_run(self, run_id: UUID) -> UUID:
+        # 只允许对已结束且保存了输入快照的运行重试，避免重复执行 RUNNING 任务。
+        row = self._runs_repo.get_run(run_id)
+        if row is None or row.status in {"RUNNING"} or row.input_json is None:
+            raise ProviderUnavailable("run cannot be retried without a completed input snapshot")
+        return self.create_run(row.input_json, row.provider)
     def cancel_run(self, run_id: UUID) -> bool:
-        task = self._tasks.get(run_id)
-        if task is None or task.done():
-            return False
-        task.cancel()
-        return True
+        return self._tasks.cancel(run_id)
 
     def list_runs(self, limit: int = 50) -> list[RunSummary]:
         return [

@@ -1,23 +1,12 @@
 // web/src/pages/tabs/RadarTab.tsx
 import { useEffect, useState } from 'react'
-import { fetchRadar } from '../../api'
+import { fetchRadar, RadarCardView } from '../../api'
 import Badge from '../../components/Badge'
 
-interface RadarCard {
-  sector_id: string
-  attribution_level: string
-  confidence: number
-  allowed_max_level: string
-  conclusion: string
-  counter_evidence: string[]
-  uncertainties: string[]
-  claims: { claim_id: string; text: string }[]
-}
-
 export default function RadarTab({ runId }: { runId: string }) {
-  const [cards, setCards] = useState<RadarCard[]>([])
+  const [cards, setCards] = useState<RadarCardView[]>([])
   useEffect(() => {
-    fetchRadar(runId).then((d) => setCards(d.cards as RadarCard[])).catch(console.error)
+    fetchRadar(runId).then((d) => setCards(d.cards)).catch(console.error)
   }, [runId])
 
   if (cards.length === 0) return <p>暂无板块分析卡。</p>

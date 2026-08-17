@@ -20,6 +20,22 @@ class LLMRuntimeConfig(BaseModel):
     routes: dict[str, LLMRoute]
     pricing: dict[str, dict[str, str]] = Field(default_factory=dict)
 
+    def route_for(self, stage: str, provider_override: str | None = None) -> LLMRoute:
+        # 统一从配置解析阶段路由；旧配置缺失 routes 时保留 Fixture 兼容默认值。
+        route = self.routes.get(stage)
+        if route is None:
+            defaults = {
+                "attribution": "fixture",
+                "editorial": "fixture-high",
+                "writing": "fixture-high",
+                "review": "fixture-review",
+                "revision": "fixture-high",
+            }
+            route = LLMRoute(provider="fixture", model=defaults.get(stage, "fixture"))
+        if provider_override is None:
+            return route
+        return route.model_copy(update={"provider": provider_override})
+
 
 def load_llm_config(path: Path) -> LLMRuntimeConfig:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))

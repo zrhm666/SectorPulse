@@ -11,7 +11,10 @@ from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
+from sector_pulse.application.run_commands import RunCommandService
+from sector_pulse.application.run_queries import RunQueryService
 from sector_pulse.config.llm_config import load_llm_config
+from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
@@ -40,13 +43,12 @@ def create_app(
             prompts=PromptRegistry(Path("config/prompts")),
             config=load_llm_config(Path("config/llm.yaml")),
             bus=bus,
-            fixture_responses=json.loads(
-                Path("backend/tests/fixtures/phase1b/fixture_responses.json").read_text(
-                    encoding="utf-8"
-                )
-            ),
+            fixture_responses=load_default_fixture_responses(),
             llm_factory={},
         )
+
+    commands = RunCommandService(service)
+    queries = RunQueryService(service)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -61,12 +63,12 @@ def create_app(
 
     @app.get("/api/runs")
     async def list_runs() -> list[Any]:
-        return service.list_runs()
+        return queries.list()
 
     @app.post("/api/runs", response_model=NewRunResponse, status_code=200)
     async def create_run(req: NewRunRequest) -> NewRunResponse:
         try:
-            run_id = service.create_run(req.input_json, req.provider)
+            run_id = commands.create(req.input_json, req.provider)
         except ProviderUnavailable as exc:
             raise HTTPException(409, str(exc)) from exc
         except ValidationError as exc:
@@ -75,62 +77,72 @@ def create_app(
 
     @app.get("/api/runs/{run_id}")
     async def get_run(run_id: UUID) -> dict[str, Any]:
-        detail = service.get_run(run_id)
+        detail = queries.detail(run_id)
         if detail is None:
             raise HTTPException(404, "run not found")
         return detail.model_dump(mode="json")
 
     @app.get("/api/runs/{run_id}/events")
     async def run_events(run_id: UUID) -> StreamingResponse:
+        if queries.detail(run_id) is None:
+            raise HTTPException(404, "run not found")
         async def event_stream() -> AsyncIterator[str]:
             async for event in bus.subscribe(run_id):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
+    @app.post("/api/runs/{run_id}/retry", response_model=NewRunResponse)
+    async def retry_run(run_id: UUID) -> NewRunResponse:
+        try:
+            new_run_id = commands.retry(run_id)
+        except ProviderUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return NewRunResponse(run_id=new_run_id)
+
     @app.post("/api/runs/{run_id}/cancel")
     async def cancel_run(run_id: UUID) -> dict[str, bool]:
-        if not service.cancel_run(run_id):
+        if not commands.cancel(run_id):
             raise HTTPException(404, "run not found or not running")
         return {"cancelled": True}
 
     @app.get("/api/runs/{run_id}/radar")
     async def get_radar(run_id: UUID) -> dict[str, Any]:
-        if service.get_run(run_id) is None:
+        if queries.detail(run_id) is None:
             raise HTTPException(404, "run not found")
-        return service.get_radar(run_id)
+        return queries.radar(run_id)
 
     @app.get("/api/runs/{run_id}/draft")
     async def get_draft(run_id: UUID) -> dict[str, Any]:
-        if service.get_run(run_id) is None:
+        if queries.detail(run_id) is None:
             raise HTTPException(404, "run not found")
-        return service.get_draft(run_id)
+        return queries.draft(run_id)
 
     @app.get("/api/runs/{run_id}/draft.md")
     async def get_draft_md(run_id: UUID) -> PlainTextResponse:
-        body = service.render_draft_markdown(run_id)
+        body = queries.markdown(run_id)
         if body is None:
             raise HTTPException(404, "draft not ready")
         return PlainTextResponse(body, media_type="text/markdown; charset=utf-8")
 
     @app.get("/api/runs/{run_id}/draft.txt")
     async def get_draft_txt(run_id: UUID) -> PlainTextResponse:
-        body = service.render_draft_text(run_id)
+        body = queries.text(run_id)
         if body is None:
             raise HTTPException(404, "draft not ready")
         return PlainTextResponse(body, media_type="text/plain; charset=utf-8")
 
     @app.get("/api/runs/{run_id}/evidence")
     async def get_evidence(run_id: UUID) -> dict[str, Any]:
-        if service.get_run(run_id) is None:
+        if queries.detail(run_id) is None:
             raise HTTPException(404, "run not found")
-        return service.get_evidence(run_id)
+        return queries.evidence(run_id)
 
     @app.get("/api/runs/{run_id}/review")
     async def get_review(run_id: UUID) -> dict[str, Any]:
-        if service.get_run(run_id) is None:
+        if queries.detail(run_id) is None:
             raise HTTPException(404, "run not found")
-        return service.get_review(run_id)
+        return queries.review(run_id)
 
     if static_dir is not None and static_dir.exists():
         assets = static_dir / "assets"

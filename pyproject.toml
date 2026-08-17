@@ -14,9 +14,11 @@ dev = ["mypy>=1.17,<2", "pandas-stubs>=2.2,<3", "pytest>=8.4,<10", "pytest-async
 
 [project.scripts]
 sector-pulse = "sector_pulse.cli:app"
+sector-pulse-web = "sector_pulse.web.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["backend/src/sector_pulse"]
+include = ["backend/src/sector_pulse/resources/**/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

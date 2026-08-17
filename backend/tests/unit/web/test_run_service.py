@@ -1,0 +1,85 @@
+# backend/tests/unit/web/test_run_service.py
+import asyncio
+from datetime import UTC, datetime
+from pathlib import Path
+
+from sector_pulse.config.llm_config import LLMRuntimeConfig
+from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
+from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
+from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
+from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.run_service import RunService
+
+from backend.tests.integration.test_phase1b_pipeline import contexts, fixture_responses, gate
+
+
+def _service(tmp_path) -> RunService:
+    db = SQLiteDatabase(tmp_path / "test.db")
+    config = LLMRuntimeConfig(
+        version="test",
+        budget_cny_per_run=2,
+        max_attribution_concurrency=4,
+        max_revision_rounds=2,
+        routes={},
+    )
+    return RunService(
+        runs_repo=SQLitePhase1BRunsRepository(db),
+        phase1b_repo=SQLitePhase1BRepository(db),
+        invocation_repo=SQLiteAgentInvocationRepository(db),
+        news_evidence=SQLiteNewsEvidenceRepository(db),
+        prompts=PromptRegistry(Path("config/prompts")),
+        config=config,
+        bus=ProgressBus(),
+        fixture_responses=fixture_responses(),
+        llm_factory={},
+    )
+
+
+def _input_json() -> dict:
+    return {
+        "requested_at": datetime(2026, 8, 14, 12, tzinfo=UTC).isoformat(),
+        "contexts": [c.model_dump(mode="json") for c in contexts()],
+        "gates": {c.sector_id: gate(c).model_dump(mode="json") for c in contexts()},
+    }
+
+
+async def test_create_run_lifecycle(tmp_path) -> None:
+    svc = _service(tmp_path)
+    run_id = svc.create_run(_input_json(), "fixture")
+    detail = svc.get_run(run_id)
+    assert detail is not None
+    assert detail.status == "RUNNING"
+    # 后台任务在 asyncio 事件循环里运行；轮询直到状态离开 RUNNING（最多 5s）。
+    for _ in range(50):
+        if svc.get_run(run_id).status != "RUNNING":
+            break
+        await asyncio.sleep(0.1)
+    detail = svc.get_run(run_id)
+    assert detail is not None
+    assert detail.status == "READY_FOR_HUMAN_REVIEW"
+    assert detail.sector_count == 8
+    # 给后台任务的 finally 收尾（保存 invocations / 关闭 bus）留出时间。
+    await asyncio.sleep(0.2)
+
+    # run_id 一致性：全部落库产物都应归属本次创建的 run_id，而不是 fixture 的 RUN_ID。
+    repo = svc._phase1b_repo
+    cards = repo.get_cards(run_id)
+    assert len(cards) == 8
+    assert all(card.run_id == run_id for card in cards)
+    # 证明不是 fallback 占位卡片：fallback 的 uncertainties 是异常类型名 "AgentOutputViolation"，
+    # 而 fixture 卡片是 "没有合格新闻"。fixture 卡片 attribution_level 全为
+    # NO_RELIABLE_EXPLANATION 且无 supporting_evidence_ids，无法用级别/证据区分。
+    assert all(
+        "AgentOutputViolation" not in uncertainty
+        for card in cards
+        for uncertainty in card.uncertainties
+    )
+    assert any(card.uncertainties == ("没有合格新闻",) for card in cards)
+    drafts = repo.get_drafts(run_id)
+    assert len(drafts) >= 2
+    review = repo.get_review(run_id)
+    assert review is not None
+    assert review.decision.value == "PASS"

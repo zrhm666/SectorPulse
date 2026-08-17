@@ -57,6 +57,7 @@ async def run_attribution_agents(
     concurrency: int = 4,
     progress_sink: ProgressSink | None = None,
     invocation_sink: InvocationSink = noop_invocation_sink,
+    model: str = "fixture",
 ) -> tuple[AttributionAgentResult, ...]:
     sink = progress_sink or NoopProgressSink()
     semaphore = asyncio.Semaphore(concurrency)
@@ -71,7 +72,7 @@ async def run_attribution_agents(
                 SectorAnalysisCard
             ](
                 agent_name="attribution",
-                model="fixture",
+                model=model,
                 prompt_id=getattr(prompt, "prompt_id", "attribution"),
                 prompt_version=getattr(prompt, "version", "1"),
                 system_prompt=getattr(prompt, "system", ""),

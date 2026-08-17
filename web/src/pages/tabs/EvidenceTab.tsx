@@ -1,39 +1,11 @@
 // web/src/pages/tabs/EvidenceTab.tsx
 import { useEffect, useState } from 'react'
-import { fetchEvidence } from '../../api'
-
-interface NewsDocument {
-  title: string
-  citation_url: string | null
-  publisher: string | null
-}
-
-interface NewsEvent {
-  event_id: string
-  canonical_title: string
-  documents: NewsDocument[]
-}
-
-interface Invocation {
-  stage: string
-  model: string
-  prompt_id: string
-  prompt_version: number
-  status: string
-  total_tokens: number
-  estimated_cost_cny: number
-}
-
-interface EvidenceData {
-  sectors: unknown[]
-  events: NewsEvent[]
-  invocations: Invocation[]
-}
+import { EvidenceView, fetchEvidence } from '../../api'
 
 export default function EvidenceTab({ runId }: { runId: string }) {
-  const [data, setData] = useState<EvidenceData>({ sectors: [], events: [], invocations: [] })
+  const [data, setData] = useState<EvidenceView>({ sectors: [], events: [], invocations: [] })
   useEffect(() => {
-    fetchEvidence(runId).then((d) => setData(d as EvidenceData)).catch(console.error)
+    fetchEvidence(runId).then(setData).catch(console.error)
   }, [runId])
 
   return (

@@ -1,0 +1,36 @@
+cases:
+  - id: missing_published_at
+    published_at: null
+    source_grade: REPUTABLE_MEDIA
+    citation_url: https://example.test/a
+    event_before_move: true
+    breadth_ratio: "0.80"
+    expected_max: MARKET_ASSOCIATION
+  - id: discovery_without_citation
+    published_at: "2026-08-14T01:00:00Z"
+    source_grade: DISCOVERY_ONLY
+    citation_url: null
+    event_before_move: true
+    breadth_ratio: "0.80"
+    expected_max: MARKET_ASSOCIATION
+  - id: event_after_move
+    published_at: "2026-08-14T02:30:00Z"
+    source_grade: PRIMARY
+    citation_url: https://example.test/b
+    event_before_move: false
+    breadth_ratio: "0.80"
+    expected_max: MARKET_ASSOCIATION
+  - id: broad_primary_response
+    published_at: "2026-08-14T01:00:00Z"
+    source_grade: PRIMARY
+    citation_url: https://example.test/c
+    event_before_move: true
+    breadth_ratio: "0.80"
+    expected_max: EXPLICIT_DRIVER
+  - id: single_stock_only
+    published_at: "2026-08-14T01:00:00Z"
+    source_grade: PRIMARY
+    citation_url: https://example.test/d
+    event_before_move: true
+    breadth_ratio: "0.10"
+    expected_max: POSSIBLE_CATALYST

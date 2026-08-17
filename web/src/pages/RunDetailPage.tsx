@@ -1,7 +1,6 @@
-// web/src/pages/RunDetailPage.tsx
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { fetchRun, RunSummary } from '../api'
+import { fetchRun, retryRun, RunSummary } from '../api'
 import { useRunSSE } from '../useRuns'
 import DraftTab from './tabs/DraftTab'
 import EvidenceTab from './tabs/EvidenceTab'
@@ -16,11 +15,30 @@ export default function RunDetailPage() {
   const { runId } = useParams()
   const [tab, setTab] = useState<Tab>('overview')
   const [run, setRun] = useState<RunSummary | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const refresh = useCallback(() => {
     if (!runId) return
     fetchRun(runId).then(setRun).catch(console.error)
   }, [runId])
+
+  // 首次进入详情页先拉取快照；SSE 只负责增量进度，避免刷新后页面空白。
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const handleRetry = async () => {
+    if (!runId) return
+    setRetrying(true)
+    try {
+      const next = await retryRun(runId)
+      window.location.href = `/runs/${next.run_id}`
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   const { events, done } = useRunSSE(runId ?? null, refresh)
 
@@ -34,6 +52,11 @@ export default function RunDetailPage() {
           <span>Provider：{run.provider}</span>
           <span>耗时：{run.elapsed_ms != null ? `${run.elapsed_ms}ms` : '—'}</span>
           <span>成本：{run.total_cost_cny != null ? `¥${run.total_cost_cny}` : '—'}</span>
+          {run.status !== 'RUNNING' && (
+            <button onClick={handleRetry} disabled={retrying}>
+              {retrying ? '重试中...' : '重试'}
+            </button>
+          )}
         </div>
       )}
       <nav className="tabbar">

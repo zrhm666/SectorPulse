@@ -1,25 +1,11 @@
 // web/src/pages/tabs/ReviewTab.tsx
 import { useEffect, useState } from 'react'
-import { fetchReview } from '../../api'
-
-interface ReviewIssue {
-  issue_id: string
-  severity: string
-  code: string
-  message: string
-  suggested_fix: string | null
-}
-
-interface ReviewData {
-  decision: string | null
-  revision_round: number | null
-  issues: ReviewIssue[]
-}
+import { fetchReview, ReviewView } from '../../api'
 
 export default function ReviewTab({ runId }: { runId: string }) {
-  const [review, setReview] = useState<ReviewData>({ decision: null, revision_round: null, issues: [] })
+  const [review, setReview] = useState<ReviewView>({ decision: null, revision_round: null, issues: [] })
   useEffect(() => {
-    fetchReview(runId).then((d) => setReview(d as ReviewData)).catch(console.error)
+    fetchReview(runId).then(setReview).catch(console.error)
   }, [runId])
 
   return (

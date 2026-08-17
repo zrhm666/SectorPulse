@@ -88,6 +88,11 @@ async def run_phase1b_pipeline(
 
     active_invocation_sink = invocation_sink or record
 
+    def total_cost() -> MoneyCny:
+        """汇总当前调用审计成本，供 Web 展示和预算门禁复用。"""
+        amount = sum((item.estimated_cost_cny.amount for item in collected), Decimal("0"))
+        return MoneyCny(amount=amount)
+
     def save_invocations() -> None:
         if collected:
             dependencies.invocation_repository.save(tuple(collected))
@@ -100,7 +105,7 @@ async def run_phase1b_pipeline(
             outline=None,
             draft=None,
             review=None,
-            total_cost_cny=MoneyCny(amount=Decimal("0")),
+            total_cost_cny=total_cost(),
             elapsed_ms=0,
         )
     prompt_attribution = dependencies.prompts.get("attribution")
@@ -113,15 +118,36 @@ async def run_phase1b_pipeline(
         dependencies.config.max_attribution_concurrency,
         progress_sink=progress_sink,
         invocation_sink=active_invocation_sink,
+        model=dependencies.config.route_for("attribution").model,
+
+
+
+
+
+
+
+
+
+
     )
     cards = tuple(result.card for result in agent_results)
     dependencies.repository.save_contexts(request.contexts)
     dependencies.repository.save_gate_results(tuple(request.gates.values()))
     dependencies.repository.save_cards(cards)
     progress_sink.emit("attribution.done", {"cards": len(cards)})
+    if total_cost().amount > dependencies.config.budget_cny_per_run:
+        save_invocations()
+        return Phase1BRunResult(
+            status=PipelineStatus.BUDGET_EXCEEDED,
+            analysis_cards=cards,
+            outline=None, draft=None, review=None,
+            total_cost_cny=total_cost(),
+            elapsed_ms=int((time.perf_counter() - started) * 1000),
+        )
     outline = await run_editorial_agent(
         cards, dependencies.llm, dependencies.prompts.get("editorial"),
         invocation_sink=active_invocation_sink,
+        model=dependencies.config.route_for("editorial").model,
     )
     dependencies.repository.save_outline(outline)
     progress_sink.emit("editorial.done", {"sector_ids": list(outline.sector_ids)})
@@ -129,6 +155,7 @@ async def run_phase1b_pipeline(
     draft = await run_writing_agent(
         outline, cards_by_id, dependencies.llm, dependencies.prompts.get("writing"),
         invocation_sink=active_invocation_sink,
+        model=dependencies.config.route_for("writing").model,
     )
     progress_sink.emit("writing.done", {"version": draft.version if draft else None})
     if draft is None:
@@ -139,13 +166,14 @@ async def run_phase1b_pipeline(
             outline=outline,
             draft=None,
             review=None,
-            total_cost_cny=MoneyCny(amount=Decimal("0")),
+            total_cost_cny=total_cost(),
             elapsed_ms=int((time.perf_counter() - started) * 1000),
         )
     dependencies.repository.save_draft(draft)
     review = await run_review_agent(
         draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review"),
         invocation_sink=active_invocation_sink,
+        model=dependencies.config.route_for("review").model,
     )
     if review is None:
         save_invocations()
@@ -155,7 +183,7 @@ async def run_phase1b_pipeline(
             outline=outline,
             draft=draft.model_copy(update={"status": DraftStatus.UNREVIEWED}),
             review=None,
-            total_cost_cny=MoneyCny(amount=Decimal("0")),
+            total_cost_cny=total_cost(),
             elapsed_ms=int((time.perf_counter() - started) * 1000),
         )
     dependencies.repository.save_review(review)
@@ -179,6 +207,7 @@ async def run_phase1b_pipeline(
         review = await run_review_agent(
             draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review"),
             invocation_sink=active_invocation_sink,
+        model=dependencies.config.route_for("review").model,
         )
         if review is None:
             save_invocations()
@@ -188,7 +217,7 @@ async def run_phase1b_pipeline(
                 outline=outline,
                 draft=draft,
                 review=None,
-                total_cost_cny=MoneyCny(amount=Decimal("0")),
+                total_cost_cny=total_cost(),
                 elapsed_ms=int((time.perf_counter() - started) * 1000),
             )
         dependencies.repository.save_review(review)
@@ -204,7 +233,7 @@ async def run_phase1b_pipeline(
             outline=outline,
             draft=draft,
             review=review,
-            total_cost_cny=MoneyCny(amount=Decimal("0")),
+            total_cost_cny=total_cost(),
             elapsed_ms=int((time.perf_counter() - started) * 1000),
         )
     ready_payload = draft.model_copy(
@@ -219,6 +248,6 @@ async def run_phase1b_pipeline(
         outline=outline,
         draft=ready_draft,
         review=review,
-        total_cost_cny=MoneyCny(amount=Decimal("0")),
+        total_cost_cny=total_cost(),
         elapsed_ms=int((time.perf_counter() - started) * 1000),
     )

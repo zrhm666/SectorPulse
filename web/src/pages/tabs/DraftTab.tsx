@@ -1,30 +1,16 @@
 // web/src/pages/tabs/DraftTab.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { draftUrl, fetchDraft } from '../../api'
-
-interface DraftSection {
-  section_id: string
-  heading: string
-  body: string
-}
-
-interface DraftVersion {
-  version: number
-  status: string
-  character_count: number
-  titles: string[]
-  sections: DraftSection[]
-}
+import { draftUrl, DraftVersionView, fetchDraft } from '../../api'
 
 export default function DraftTab({ runId }: { runId: string }) {
-  const [versions, setVersions] = useState<DraftVersion[]>([])
+  const [versions, setVersions] = useState<DraftVersionView[]>([])
   const [left, setLeft] = useState<number>(0)
   const [right, setRight] = useState<number>(0)
   useEffect(() => {
     fetchDraft(runId)
       .then((d) => {
-        setVersions(d.versions as DraftVersion[])
-        const vs = d.versions as DraftVersion[]
+        setVersions(d.versions)
+        const vs = d.versions
         if (vs.length > 0) {
           setRight(vs.length)
           if (vs.length > 1) setLeft(vs.length - 1)
@@ -65,8 +51,26 @@ export default function DraftTab({ runId }: { runId: string }) {
         <p>
           版本 {latest.version}，{latest.status}，{latest.character_count} 字
         </p>
+        <h4>导语</h4>
+        <p>{latest.introduction}</p>
         <button onClick={() => copy(draftUrl(runId, 'md'))}>复制 Markdown</button>
         <button onClick={() => copy(draftUrl(runId, 'txt'))}>复制纯文本</button>
+      </div>
+      <div className="card">
+        <h4>结论</h4>
+        <p>{latest.conclusion}</p>
+        <h4>风险提示</h4>
+        <p>{latest.risk_notice}</p>
+        <h4>来源</h4>
+        {latest.sources.length === 0 ? (
+          <p>暂无来源</p>
+        ) : (
+          <ul>
+            {latest.sources.map((source, index) => (
+              <li key={index}>{String(source.title ?? source.citation_url ?? '未命名来源')}</li>
+            ))}
+          </ul>
+        )}
       </div>
       <div className="card">
         <label>左版本：</label>

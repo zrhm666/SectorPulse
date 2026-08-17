@@ -19,6 +19,7 @@ async def run_editorial_agent(
     llm: LLMPort,
     prompt: Any,
     invocation_sink: InvocationSink = noop_invocation_sink,
+    model: str = "fixture",
 ) -> ArticleOutline:
     valid = tuple(cards[:6])
     if len(valid) < 3:
@@ -27,7 +28,7 @@ async def run_editorial_agent(
         ArticleOutline
     ](
         agent_name="editorial",
-        model="fixture-high",
+        model=model,
         prompt_id=getattr(prompt, "prompt_id", "editorial"),
         prompt_version=getattr(prompt, "version", "1"),
         system_prompt=getattr(prompt, "system", ""),
@@ -66,12 +67,13 @@ async def run_writing_agent(
     llm: LLMPort,
     prompt: Any,
     invocation_sink: InvocationSink = noop_invocation_sink,
+    model: str = "fixture",
 ) -> ArticleDraft | None:
     request = LLMRequest[
         ArticleDraft
     ](
         agent_name="writing",
-        model="fixture-high",
+        model=model,
         prompt_id=getattr(prompt, "prompt_id", "writing"),
         prompt_version=getattr(prompt, "version", "1"),
         system_prompt=getattr(prompt, "system", ""),
@@ -100,12 +102,13 @@ async def run_review_agent(
     llm: LLMPort,
     prompt: Any,
     invocation_sink: InvocationSink = noop_invocation_sink,
+    model: str = "fixture",
 ) -> ReviewReport | None:
     request = LLMRequest[
         ReviewReport
     ](
         agent_name="review",
-        model="fixture-review",
+        model=model,
         prompt_id=getattr(prompt, "prompt_id", "review"),
         prompt_version=getattr(prompt, "version", "1"),
         system_prompt=getattr(prompt, "system", ""),
