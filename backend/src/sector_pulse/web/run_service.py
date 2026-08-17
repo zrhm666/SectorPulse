@@ -1,0 +1,385 @@
+# backend/src/sector_pulse/web/run_service.py
+import asyncio
+import hashlib
+import json
+from dataclasses import asdict
+from datetime import UTC, datetime
+from typing import Any
+from uuid import UUID, uuid4
+
+from sector_pulse.application.phase1b_pipeline import (
+    Phase1BDependencies,
+    Phase1BRequest,
+    run_phase1b_pipeline,
+)
+from sector_pulse.application.progress import ProgressSink
+from sector_pulse.config.llm_config import LLMRuntimeConfig
+from sector_pulse.domain.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.llm import AgentInvocation
+from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
+from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
+from sector_pulse.storage.phase1b_runs_repository import (
+    Phase1BRunRow,
+    SQLitePhase1BRunsRepository,
+)
+from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.schemas import RunDetail, RunSummary
+
+
+class ProviderUnavailable(ValueError):
+    pass
+
+
+class RunService:
+    def __init__(
+        self,
+        runs_repo: SQLitePhase1BRunsRepository,
+        phase1b_repo: SQLitePhase1BRepository,
+        invocation_repo: SQLiteAgentInvocationRepository,
+        news_evidence: SQLiteNewsEvidenceRepository,
+        prompts: PromptRegistry,
+        config: LLMRuntimeConfig,
+        bus: ProgressBus,
+        fixture_responses: dict[str, object],
+        llm_factory: dict[str, Any],
+    ) -> None:
+        self._runs_repo = runs_repo
+        self._phase1b_repo = phase1b_repo
+        self._invocation_repo = invocation_repo
+        self._news_evidence = news_evidence
+        self._prompts = prompts
+        self._config = config
+        self._bus = bus
+        self._fixture_responses = fixture_responses
+        self._llm_factory = llm_factory
+        self._tasks: dict[UUID, asyncio.Task[None]] = {}
+
+    def create_run(self, input_json: dict[str, Any], provider: str) -> UUID:
+        run_id = uuid4()
+        request = Phase1BRequest.model_validate({"run_id": str(run_id), **input_json})
+        # 输入里的 contexts/gates 可能携带其它 run_id，统一归一到本次生成的 run_id，
+        # 保证 attribution 落库与后续按 run_id 读取（雷达/证据）保持一致。
+        request = request.model_copy(
+            update={
+                "run_id": run_id,
+                "contexts": tuple(
+                    context.model_copy(update={"run_id": run_id})
+                    for context in request.contexts
+                ),
+                "gates": {
+                    sector_id: gate.model_copy(update={"run_id": run_id})
+                    for sector_id, gate in request.gates.items()
+                },
+            }
+        )
+        input_hash = hashlib.sha256(
+            json.dumps(input_json, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        self._runs_repo.insert(
+            Phase1BRunRow(
+                run_id=run_id,
+                requested_at=request.requested_at,
+                provider=provider,
+                status="RUNNING",
+                input_json_hash=input_hash,
+            )
+        )
+
+        class BridgeSink:
+            def __init__(self, bus: ProgressBus, rid: UUID) -> None:
+                self.bus = bus
+                self.rid = rid
+
+            def emit(self, stage: str, detail: dict[str, Any]) -> None:
+                self.bus.emit(
+                    self.rid, {"type": "progress", "stage": stage, "detail": detail}
+                )
+
+        bridge = BridgeSink(self._bus, run_id)
+        self._tasks[run_id] = asyncio.create_task(
+            self._execute(run_id, request, provider, bridge)
+        )
+        return run_id
+
+    async def _execute(
+        self,
+        run_id: UUID,
+        request: Phase1BRequest,
+        provider: str,
+        progress_sink: ProgressSink,
+    ) -> None:
+        invocations: list[AgentInvocation] = []
+
+        def record(invocation: AgentInvocation) -> None:
+            invocations.append(invocation)
+
+        try:
+            llm = self._build_llm(provider, request.run_id)
+            deps = Phase1BDependencies(
+                llm=llm,
+                prompts=self._prompts,
+                repository=self._phase1b_repo,
+                invocation_repository=self._invocation_repo,
+                config=self._config,
+            )
+            result = await run_phase1b_pipeline(
+                deps,
+                request,
+                progress_sink=progress_sink,
+                invocation_sink=record,
+            )
+            self._runs_repo.update_status(
+                run_id,
+                status=result.status,
+                elapsed_ms=result.elapsed_ms,
+                total_cost_cny=str(result.total_cost_cny.amount),
+                draft_id=result.draft.draft_id if result.draft else None,
+                finished_at=datetime.now(UTC),
+            )
+            self._bus.emit(run_id, {"type": "done", "status": result.status})
+        except asyncio.CancelledError:
+            self._runs_repo.update_status(
+                run_id, status="CANCELLED", finished_at=datetime.now(UTC)
+            )
+            self._bus.emit(run_id, {"type": "cancelled"})
+        except ProviderUnavailable as exc:
+            self._runs_repo.update_status(
+                run_id, status="FAILED", error_message=str(exc), finished_at=datetime.now(UTC)
+            )
+            self._bus.emit(run_id, {"type": "error", "message": str(exc)})
+        except Exception as exc:
+            self._runs_repo.update_status(
+                run_id, status="FAILED", error_message=str(exc), finished_at=datetime.now(UTC)
+            )
+            self._bus.emit(run_id, {"type": "error", "message": str(exc)})
+        finally:
+            if invocations:
+                self._invocation_repo.save(invocations)
+            self._bus.close(run_id)
+
+    @staticmethod
+    def _rebind_run_id(node: Any, run_id: UUID) -> Any:
+        """深度拷贝 fixture 响应，并把所有 "run_id" 字段替换为本次运行的 run_id。"""
+        if isinstance(node, dict):
+            return {
+                key: (
+                    str(run_id)
+                    if key == "run_id"
+                    else RunService._rebind_run_id(value, run_id)
+                )
+                for key, value in node.items()
+            }
+        if isinstance(node, list):
+            return [RunService._rebind_run_id(item, run_id) for item in node]
+        return node
+
+    def _build_llm(self, provider: str, run_id: UUID) -> Any:
+        if provider == "fixture":
+            from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
+
+            return FixtureLLMProvider(self._rebind_run_id(self._fixture_responses, run_id))
+        if provider == "live":
+            from sector_pulse.web.live_provider import (
+                build_live_provider,
+                check_live_consent,
+                get_live_config,
+            )
+
+            if not check_live_consent():
+                raise ProviderUnavailable("缺少 .live-llm-consent，真实模型被禁用")
+            config_value = get_live_config()
+            if config_value is None:
+                raise ProviderUnavailable(
+                    "缺少 SECTOR_PULSE_LLM_API_KEY / BASE_URL / MODEL 环境变量"
+                )
+            base_url, api_key, _model = config_value
+            return build_live_provider(base_url, api_key, self._config.pricing)
+        factory = self._llm_factory.get(provider)
+        if factory is None:
+            raise ProviderUnavailable(f"unknown provider: {provider}")
+        return factory()
+
+    def cancel_run(self, run_id: UUID) -> bool:
+        task = self._tasks.get(run_id)
+        if task is None or task.done():
+            return False
+        task.cancel()
+        return True
+
+    def list_runs(self, limit: int = 50) -> list[RunSummary]:
+        return [
+            RunSummary(
+                run_id=r.run_id,
+                requested_at=r.requested_at,
+                provider=r.provider,
+                status=r.status,
+                elapsed_ms=r.elapsed_ms,
+                total_cost_cny=r.total_cost_cny,
+                draft_id=r.draft_id,
+            )
+            for r in self._runs_repo.list_runs(limit)
+        ]
+
+    def get_run(self, run_id: UUID) -> RunDetail | None:
+        row = self._runs_repo.get_run(run_id)
+        if row is None:
+            return None
+        cards = self._phase1b_repo.get_cards(run_id)
+        review = self._phase1b_repo.get_review(run_id)
+        return RunDetail(
+            run_id=row.run_id,
+            requested_at=row.requested_at,
+            provider=row.provider,
+            status=row.status,
+            elapsed_ms=row.elapsed_ms,
+            total_cost_cny=row.total_cost_cny,
+            draft_id=row.draft_id,
+            input_json_hash=row.input_json_hash,
+            error_message=row.error_message,
+            sector_count=len(cards),
+            review_decision=review.decision.value if review else None,
+        )
+
+    def get_radar(self, run_id: UUID) -> dict[str, Any]:
+        cards = self._phase1b_repo.get_cards(run_id)
+        gates = self._phase1b_repo.get_gates(run_id)
+        gate_by_sector = {g.sector_id: g for g in gates}
+        return {
+            "cards": [
+                {
+                    "sector_id": c.sector_id,
+                    "sector_kind": c.sector_kind.value,
+                    "attribution_level": c.attribution_level.value,
+                    "allowed_max_level": c.allowed_max_level.value,
+                    "confidence": str(c.confidence),
+                    "conclusion": c.conclusion,
+                    "supporting_evidence_ids": list(c.supporting_evidence_ids),
+                    "counter_evidence": list(c.counter_evidence),
+                    "uncertainties": list(c.uncertainties),
+                    "forbidden_inferences": list(c.forbidden_inferences),
+                    "claims": [claim.model_dump(mode="json") for claim in c.claims],
+                    "gate_reasons": list(
+                        gate_by_sector[c.sector_id].reasons if c.sector_id in gate_by_sector else ()
+                    ),
+                }
+                for c in cards
+            ]
+        }
+
+    def get_draft(self, run_id: UUID) -> dict[str, Any]:
+        drafts = self._phase1b_repo.get_drafts(run_id)
+        return {
+            "versions": [
+                {
+                    "version": d.version,
+                    "status": d.status.value,
+                    "titles": list(d.titles),
+                    "introduction": d.introduction,
+                    "sections": [s.model_dump(mode="json") for s in d.sections],
+                    "conclusion": d.conclusion,
+                    "risk_notice": d.risk_notice,
+                    "sources": [s.model_dump(mode="json") for s in d.sources],
+                    "character_count": d.character_count,
+                }
+                for d in drafts
+            ]
+        }
+
+    def get_evidence(self, run_id: UUID) -> dict[str, Any]:
+        contexts = self._phase1b_repo.get_contexts(run_id)
+        cards = self._phase1b_repo.get_cards(run_id)
+        invocations = self._invocation_repo.list_for_run(run_id)
+        event_ids: set[str] = set()
+        for ctx in contexts:
+            event_ids.update(ctx.event_ids)
+            event_ids.update(ctx.eligible_event_ids)
+            event_ids.update(ctx.background_event_ids)
+        events = self._news_evidence.get_events(tuple(sorted(event_ids)))
+        return {
+            "sectors": [
+                {
+                    "sector_id": c.sector_id,
+                    "attribution_level": c.attribution_level.value,
+                    "claims": [claim.model_dump(mode="json") for claim in c.claims],
+                }
+                for c in cards
+            ],
+            "events": [asdict(ev) for ev in events],
+            "invocations": [
+                {
+                    "stage": inv.stage,
+                    "provider_id": inv.provider_id,
+                    "model": inv.model,
+                    "prompt_id": inv.prompt_id,
+                    "prompt_version": inv.prompt_version,
+                    "status": inv.status.value,
+                    "total_tokens": inv.usage.total_tokens,
+                    "estimated_cost_cny": str(inv.estimated_cost_cny.amount),
+                    "error_code": inv.error_code,
+                }
+                for inv in invocations
+            ],
+        }
+
+    def get_review(self, run_id: UUID) -> dict[str, Any]:
+        review = self._phase1b_repo.get_review(run_id)
+        if review is None:
+            return {"decision": None, "revision_round": None, "issues": []}
+        return {
+            "decision": review.decision.value,
+            "revision_round": review.revision_round,
+            "issues": [issue.model_dump(mode="json") for issue in review.issues],
+        }
+
+    def _ready_draft(self, run_id: UUID) -> ArticleDraft | None:
+        drafts = self._phase1b_repo.get_drafts(run_id)
+        if not drafts:
+            return None
+        for draft in reversed(drafts):
+            if draft.status is DraftStatus.READY_FOR_HUMAN_REVIEW:
+                return draft
+        return drafts[-1]
+
+    def render_draft_markdown(self, run_id: UUID) -> str | None:
+        draft = self._ready_draft(run_id)
+        if draft is None:
+            return None
+        from decimal import Decimal
+
+        from sector_pulse.application.phase1b_pipeline import Phase1BRunResult
+        from sector_pulse.domain.llm import MoneyCny
+        from sector_pulse.reporting.phase1b_report import render_phase1b_markdown
+
+        result = Phase1BRunResult(
+            status="READY_FOR_HUMAN_REVIEW",
+            analysis_cards=(),
+            outline=None,
+            draft=draft,
+            review=None,
+            total_cost_cny=MoneyCny(amount=Decimal("0")),
+            elapsed_ms=0,
+        )
+        return render_phase1b_markdown(result)
+
+    def render_draft_text(self, run_id: UUID) -> str | None:
+        draft = self._ready_draft(run_id)
+        if draft is None:
+            return None
+        from decimal import Decimal
+
+        from sector_pulse.application.phase1b_pipeline import Phase1BRunResult
+        from sector_pulse.domain.llm import MoneyCny
+        from sector_pulse.reporting.phase1b_report import render_phase1b_text
+
+        result = Phase1BRunResult(
+            status="READY_FOR_HUMAN_REVIEW",
+            analysis_cards=(),
+            outline=None,
+            draft=draft,
+            review=None,
+            total_cost_cny=MoneyCny(amount=Decimal("0")),
+            elapsed_ms=0,
+        )
+        return render_phase1b_text(result)

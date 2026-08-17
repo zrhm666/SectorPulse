@@ -8,3 +8,7 @@ routes:
   writing: {provider: fixture, model: fixture-high}
   review: {provider: fixture, model: fixture-review}
   revision: {provider: fixture, model: fixture-high}
+pricing:
+  gpt-4o-mini:
+    input_cny_per_million: "2.5"
+    output_cny_per_million: "10.0"

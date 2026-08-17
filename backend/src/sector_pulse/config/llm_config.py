@@ -18,6 +18,7 @@ class LLMRuntimeConfig(BaseModel):
     max_attribution_concurrency: int = Field(ge=1, le=32)
     max_revision_rounds: int = Field(ge=0, le=2)
     routes: dict[str, LLMRoute]
+    pricing: dict[str, dict[str, str]] = Field(default_factory=dict)
 
 
 def load_llm_config(path: Path) -> LLMRuntimeConfig:

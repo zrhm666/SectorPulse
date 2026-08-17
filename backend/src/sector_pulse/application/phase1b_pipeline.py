@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -17,6 +17,8 @@ from sector_pulse.application.editorial_agents import (
     run_review_agent,
     run_writing_agent,
 )
+from sector_pulse.application.invocations import InvocationSink
+from sector_pulse.application.progress import NoopProgressSink, ProgressSink
 from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.article import ArticleDraft, DraftStatus
 from sector_pulse.domain.attribution import (
@@ -24,7 +26,7 @@ from sector_pulse.domain.attribution import (
     AttributionGateResult,
     SectorAnalysisCard,
 )
-from sector_pulse.domain.llm import AgentInvocation, LLMStatus, MoneyCny, TokenUsage
+from sector_pulse.domain.llm import AgentInvocation, MoneyCny
 from sector_pulse.domain.review import ReviewDecision, ReviewReport
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.ports.llm import LLMPort
@@ -71,28 +73,27 @@ class Phase1BRunResult:
     elapsed_ms: int
 
 
-def _invoke_record(run_id: UUID, stage: str, result: Any) -> AgentInvocation:
-    return AgentInvocation(
-        invocation_id=uuid4(),
-        run_id=run_id,
-        stage=stage,
-        provider_id="fixture",
-        model="fixture",
-        prompt_id=stage,
-        prompt_version="1",
-        input_hash="not-recorded-in-fixture",
-        output_hash=None,
-        status=result.status if isinstance(result.status, LLMStatus) else LLMStatus.SUCCESS,
-        usage=TokenUsage(),
-        estimated_cost_cny=MoneyCny(amount=Decimal("0")),
-    )
-
-
 async def run_phase1b_pipeline(
-    dependencies: Phase1BDependencies, request: Phase1BRequest
+    dependencies: Phase1BDependencies,
+    request: Phase1BRequest,
+    progress_sink: ProgressSink = NoopProgressSink(),
+    invocation_sink: InvocationSink | None = None,
 ) -> Phase1BRunResult:
     started = time.perf_counter()
+    progress_sink.emit("phase1b.start", {"run_id": str(request.run_id)})
+    collected: list[AgentInvocation] = []
+
+    def record(invocation: AgentInvocation) -> None:
+        collected.append(invocation)
+
+    active_invocation_sink = invocation_sink or record
+
+    def save_invocations() -> None:
+        if collected:
+            dependencies.invocation_repository.save(tuple(collected))
+
     if len(request.contexts) < 3:
+        save_invocations()
         return Phase1BRunResult(
             status=PipelineStatus.ATTRIBUTION_BLOCKED,
             analysis_cards=(),
@@ -103,26 +104,35 @@ async def run_phase1b_pipeline(
             elapsed_ms=0,
         )
     prompt_attribution = dependencies.prompts.get("attribution")
+    progress_sink.emit("attribution.start", {"total": len(request.contexts)})
     agent_results = await run_attribution_agents(
         request.contexts,
         request.gates,
         dependencies.llm,
         prompt_attribution,
         dependencies.config.max_attribution_concurrency,
+        progress_sink=progress_sink,
+        invocation_sink=active_invocation_sink,
     )
     cards = tuple(result.card for result in agent_results)
     dependencies.repository.save_contexts(request.contexts)
     dependencies.repository.save_gate_results(tuple(request.gates.values()))
     dependencies.repository.save_cards(cards)
+    progress_sink.emit("attribution.done", {"cards": len(cards)})
     outline = await run_editorial_agent(
-        cards, dependencies.llm, dependencies.prompts.get("editorial")
+        cards, dependencies.llm, dependencies.prompts.get("editorial"),
+        invocation_sink=active_invocation_sink,
     )
     dependencies.repository.save_outline(outline)
+    progress_sink.emit("editorial.done", {"sector_ids": list(outline.sector_ids)})
     cards_by_id = {card.sector_id: card for card in cards}
     draft = await run_writing_agent(
-        outline, cards_by_id, dependencies.llm, dependencies.prompts.get("writing")
+        outline, cards_by_id, dependencies.llm, dependencies.prompts.get("writing"),
+        invocation_sink=active_invocation_sink,
     )
+    progress_sink.emit("writing.done", {"version": draft.version if draft else None})
     if draft is None:
+        save_invocations()
         return Phase1BRunResult(
             status=PipelineStatus.DRAFT_GENERATION_FAILED,
             analysis_cards=cards,
@@ -134,9 +144,11 @@ async def run_phase1b_pipeline(
         )
     dependencies.repository.save_draft(draft)
     review = await run_review_agent(
-        draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review")
+        draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review"),
+        invocation_sink=active_invocation_sink,
     )
     if review is None:
+        save_invocations()
         return Phase1BRunResult(
             status=PipelineStatus.UNREVIEWED,
             analysis_cards=cards,
@@ -147,6 +159,10 @@ async def run_phase1b_pipeline(
             elapsed_ms=int((time.perf_counter() - started) * 1000),
         )
     dependencies.repository.save_review(review)
+    progress_sink.emit(
+        "review.done",
+        {"decision": review.decision.value if review else None},
+    )
     revision_round = 0
     while (
         review.decision is ReviewDecision.REVISE
@@ -161,9 +177,11 @@ async def run_phase1b_pipeline(
         draft = revise_sections(draft, replacements)
         dependencies.repository.save_draft(draft)
         review = await run_review_agent(
-            draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review")
+            draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review"),
+            invocation_sink=active_invocation_sink,
         )
         if review is None:
+            save_invocations()
             return Phase1BRunResult(
                 status=PipelineStatus.UNREVIEWED,
                 analysis_cards=cards,
@@ -174,7 +192,12 @@ async def run_phase1b_pipeline(
                 elapsed_ms=int((time.perf_counter() - started) * 1000),
             )
         dependencies.repository.save_review(review)
+        progress_sink.emit(
+            "review.done",
+            {"decision": review.decision.value if review else None},
+        )
     if review.decision is not ReviewDecision.PASS:
+        save_invocations()
         return Phase1BRunResult(
             status=PipelineStatus.REVISE_REQUIRED,
             analysis_cards=cards,
@@ -189,6 +212,7 @@ async def run_phase1b_pipeline(
     ).model_dump()
     ready_draft = ArticleDraft.model_validate(ready_payload)
     dependencies.repository.save_draft(ready_draft)
+    save_invocations()
     return Phase1BRunResult(
         status=PipelineStatus.READY_FOR_HUMAN_REVIEW,
         analysis_cards=cards,

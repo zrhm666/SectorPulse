@@ -170,3 +170,58 @@ class SQLitePhase1BRepository:
                 (str(draft_id),),
             ).fetchall()
         return tuple(ArticleDraft.model_validate_json(row[0]) for row in rows)
+
+    # 只读查询：table 与 order_column 仅允许本类内固定字符串（attribution_contexts /
+    # attribution_gate_results / sector_analysis_cards + sector_id），不接受外部输入以防注入。
+    def _payloads_for(self, table: str, order_column: str, run_id: UUID) -> tuple[str, ...]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                f"SELECT payload_json FROM {table} WHERE run_id = ? ORDER BY {order_column}",
+                (str(run_id),),
+            ).fetchall()
+        return tuple(row[0] for row in rows)
+
+    def get_contexts(self, run_id: UUID) -> tuple[AttributionContext, ...]:
+        return tuple(
+            AttributionContext.model_validate_json(p)
+            for p in self._payloads_for("attribution_contexts", "sector_id", run_id)
+        )
+
+    def get_gates(self, run_id: UUID) -> tuple[AttributionGateResult, ...]:
+        return tuple(
+            AttributionGateResult.model_validate_json(p)
+            for p in self._payloads_for("attribution_gate_results", "sector_id", run_id)
+        )
+
+    def get_cards(self, run_id: UUID) -> tuple[SectorAnalysisCard, ...]:
+        return tuple(
+            SectorAnalysisCard.model_validate_json(p)
+            for p in self._payloads_for("sector_analysis_cards", "sector_id", run_id)
+        )
+
+    def get_outline(self, run_id: UUID) -> ArticleOutline | None:
+        with self._database.connection() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM article_outlines WHERE run_id = ?",
+                (str(run_id),),
+            ).fetchone()
+        return ArticleOutline.model_validate_json(row[0]) if row else None
+
+    def get_drafts(self, run_id: UUID) -> tuple[ArticleDraft, ...]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                "SELECT payload_json FROM article_drafts WHERE run_id = ? ORDER BY version",
+                (str(run_id),),
+            ).fetchall()
+        return tuple(ArticleDraft.model_validate_json(row[0]) for row in rows)
+
+    def get_review(self, run_id: UUID) -> ReviewReport | None:
+        with self._database.connection() as connection:
+            row = connection.execute(
+                """SELECT rr.payload_json FROM review_reports rr
+                   JOIN article_drafts ad ON ad.draft_id = rr.draft_id
+                   AND ad.version = rr.draft_version
+                   WHERE ad.run_id = ? ORDER BY rr.draft_version DESC LIMIT 1""",
+                (str(run_id),),
+            ).fetchone()
+        return ReviewReport.model_validate_json(row[0]) if row else None

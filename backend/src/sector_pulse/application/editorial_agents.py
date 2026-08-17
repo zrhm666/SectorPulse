@@ -2,6 +2,11 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 from uuid import uuid4
 
+from sector_pulse.application.invocations import (
+    InvocationSink,
+    build_invocation,
+    noop_invocation_sink,
+)
 from sector_pulse.domain.article import ArticleDraft, ArticleOutline, ArticleSection
 from sector_pulse.domain.attribution import SectorAnalysisCard
 from sector_pulse.domain.llm import LLMRequest, LLMStatus
@@ -10,7 +15,10 @@ from sector_pulse.ports.llm import LLMPort
 
 
 async def run_editorial_agent(
-    cards: Sequence[SectorAnalysisCard], llm: LLMPort, prompt: Any
+    cards: Sequence[SectorAnalysisCard],
+    llm: LLMPort,
+    prompt: Any,
+    invocation_sink: InvocationSink = noop_invocation_sink,
 ) -> ArticleOutline:
     valid = tuple(cards[:6])
     if len(valid) < 3:
@@ -28,6 +36,15 @@ async def run_editorial_agent(
         fixture_key="editorial-outline",
     )
     result = await llm.generate_structured(request)
+    invocation_sink(
+        build_invocation(
+            valid[0].run_id,
+            "editorial",
+            request,
+            result,
+            getattr(llm, "provider_id", "unknown"),
+        )
+    )
     if result.status is LLMStatus.SUCCESS and result.data is not None:
         return cast(ArticleOutline, result.data)
     selected = tuple(card.sector_id for card in valid[:6])
@@ -48,6 +65,7 @@ async def run_writing_agent(
     cards: Mapping[str, SectorAnalysisCard],
     llm: LLMPort,
     prompt: Any,
+    invocation_sink: InvocationSink = noop_invocation_sink,
 ) -> ArticleDraft | None:
     request = LLMRequest[
         ArticleDraft
@@ -64,11 +82,24 @@ async def run_writing_agent(
         fixture_key="article-draft",
     )
     result = await llm.generate_structured(request)
+    invocation_sink(
+        build_invocation(
+            outline.run_id,
+            "writing",
+            request,
+            result,
+            getattr(llm, "provider_id", "unknown"),
+        )
+    )
     return result.data if result.status is LLMStatus.SUCCESS else None
 
 
 async def run_review_agent(
-    draft: ArticleDraft, cards: Mapping[str, SectorAnalysisCard], llm: LLMPort, prompt: Any
+    draft: ArticleDraft,
+    cards: Mapping[str, SectorAnalysisCard],
+    llm: LLMPort,
+    prompt: Any,
+    invocation_sink: InvocationSink = noop_invocation_sink,
 ) -> ReviewReport | None:
     request = LLMRequest[
         ReviewReport
@@ -85,6 +116,15 @@ async def run_review_agent(
         fixture_key=f"review:{draft.version}",
     )
     result = await llm.generate_structured(request)
+    invocation_sink(
+        build_invocation(
+            draft.run_id,
+            "review",
+            request,
+            result,
+            getattr(llm, "provider_id", "unknown"),
+        )
+    )
     return result.data if result.status is LLMStatus.SUCCESS else None
 
 

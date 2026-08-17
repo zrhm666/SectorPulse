@@ -4,6 +4,12 @@ from decimal import Decimal
 from typing import Any
 
 from sector_pulse.application.agent_validation import validate_analysis_card
+from sector_pulse.application.invocations import (
+    InvocationSink,
+    build_invocation,
+    noop_invocation_sink,
+)
+from sector_pulse.application.progress import NoopProgressSink, ProgressSink
 from sector_pulse.domain.attribution import (
     AttributionContext,
     AttributionGateResult,
@@ -49,10 +55,16 @@ async def run_attribution_agents(
     llm: LLMPort,
     prompt: Any,
     concurrency: int = 4,
+    progress_sink: ProgressSink | None = None,
+    invocation_sink: InvocationSink = noop_invocation_sink,
 ) -> tuple[AttributionAgentResult, ...]:
+    sink = progress_sink or NoopProgressSink()
     semaphore = asyncio.Semaphore(concurrency)
+    total = len(contexts)
+    completed = 0
 
     async def run_one(context: AttributionContext) -> AttributionAgentResult:
+        nonlocal completed
         gate = gates[context.sector_id]
         async with semaphore:
             request = LLMRequest[
@@ -68,13 +80,31 @@ async def run_attribution_agents(
                 fixture_key=f"sector-analysis:{context.sector_id}",
             )
             result = await llm.generate_structured(request)
+            invocation_sink(
+                build_invocation(
+                    context.run_id,
+                    "attribution",
+                    request,
+                    result,
+                    getattr(llm, "provider_id", "unknown"),
+                )
+            )
             if result.status is LLMStatus.SUCCESS and result.data is not None:
                 try:
-                    return AttributionAgentResult(
+                    value: AttributionAgentResult = AttributionAgentResult(
                         validate_analysis_card(result.data, gate, context)
                     )
                 except ValueError as exc:
-                    return _fallback(context, gate, type(exc).__name__)
-            return _fallback(context, gate, result.error.code if result.error else "AGENT_FAILED")
+                    value = _fallback(context, gate, type(exc).__name__)
+            else:
+                value = _fallback(
+                    context, gate, result.error.code if result.error else "AGENT_FAILED"
+                )
+        completed += 1
+        sink.emit(
+            "attribution.progress",
+            {"done": completed, "total": total, "sector_id": context.sector_id},
+        )
+        return value
 
     return tuple(await asyncio.gather(*(run_one(context) for context in contexts)))
