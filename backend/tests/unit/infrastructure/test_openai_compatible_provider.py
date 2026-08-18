@@ -68,3 +68,12 @@ async def test_http_429_is_retriable_and_secret_is_not_exposed() -> None:
     assert result.error.code == "LLM_RATE_LIMITED"
     assert result.error.retriable is True
     assert "secret-value" not in result.error.message
+
+
+def test_parses_fenced_json_and_text_blocks() -> None:
+    assert OpenAICompatibleProvider._parse_json_content(
+        "Here is the result:\n```json\n{\"value\":\"ok\"}\n```"
+    ) == {"value": "ok"}
+    assert OpenAICompatibleProvider._parse_json_content(
+        [{"type": "text", "text": '{"value":"ok"}'}]
+    ) == {"value": "ok"}

@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import json
+import os
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
@@ -239,7 +240,13 @@ class RunService:
                     "缺少 SECTOR_PULSE_LLM_API_KEY / BASE_URL / MODEL 环境变量"
                 )
             base_url, api_key, _model = config_value
-            return build_live_provider(base_url, api_key, self._config.pricing)
+            timeout_seconds = float(os.environ.get("SECTOR_PULSE_LLM_TIMEOUT_SECONDS", "60"))
+            return build_live_provider(
+                base_url,
+                api_key,
+                self._config.pricing,
+                timeout_seconds=timeout_seconds,
+            )
         factory = self._llm_factory.get(provider)
         if factory is None:
             raise ProviderUnavailable(f"unknown provider: {provider}")

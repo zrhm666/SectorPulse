@@ -12,6 +12,22 @@ class SQLiteNewsRepository:
 
     def save(self, documents: Sequence[NewsDocument], events: Sequence[NewsEvent]) -> None:
         with self._database.transaction() as connection:
+            canonical_ids: dict[str, str] = {}
+            canonical_to_id: dict[str, str] = {}
+            for document in documents:
+                if document.canonical_locator in canonical_to_id:
+                    canonical_ids[document.document_id] = canonical_to_id[
+                        document.canonical_locator
+                    ]
+                    continue
+                existing = connection.execute(
+                    "SELECT document_id FROM news_documents WHERE canonical_url = ?",
+                    (document.canonical_locator,),
+                ).fetchone()
+                canonical_to_id[document.canonical_locator] = (
+                    existing[0] if existing else document.document_id
+                )
+                canonical_ids[document.document_id] = canonical_to_id[document.canonical_locator]
             for document in documents:
                 connection.execute(
                     """
@@ -28,6 +44,7 @@ class SQLiteNewsRepository:
                         source_observed_at = excluded.source_observed_at,
                         quality_flags_json = excluded.quality_flags_json,
                         metadata_json = excluded.metadata_json
+                    ON CONFLICT(canonical_url) DO NOTHING
                     """,
                     (
                         document.document_id, document.source_id, document.canonical_locator,
@@ -42,6 +59,14 @@ class SQLiteNewsRepository:
                     ),
                 )
             for event in events:
+                normalized_event = event.model_copy(
+                    update={
+                        "document_ids": tuple(
+                            canonical_ids.get(document_id, document_id)
+                            for document_id in event.document_ids
+                        )
+                    }
+                )
                 connection.execute(
                     """
                     INSERT INTO news_events (
@@ -53,17 +78,22 @@ class SQLiteNewsRepository:
                         metadata_json = excluded.metadata_json
                     """,
                     (
-                        event.event_id, event.canonical_title,
-                        event.first_published_at.isoformat() if event.first_published_at else None,
-                        event.deduplication_reason, event.model_dump_json(),
+                        normalized_event.event_id, normalized_event.canonical_title,
+                        normalized_event.first_published_at.isoformat()
+                        if normalized_event.first_published_at else None,
+                        normalized_event.deduplication_reason, normalized_event.model_dump_json(),
                     ),
                 )
                 connection.execute(
-                    "DELETE FROM news_event_documents WHERE event_id = ?", (event.event_id,)
+                    "DELETE FROM news_event_documents WHERE event_id = ?",
+                    (normalized_event.event_id,),
                 )
                 connection.executemany(
                     "INSERT INTO news_event_documents (event_id, document_id) VALUES (?, ?)",
-                    [(event.event_id, document_id) for document_id in event.document_ids],
+                    [
+                        (normalized_event.event_id, document_id)
+                        for document_id in normalized_event.document_ids
+                    ],
                 )
 
     def get_event(self, event_id: str) -> NewsEvent | None:

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Protocol
@@ -21,6 +22,8 @@ from sector_pulse.domain.real_data_run import (
     RealDataRunStatus,
 )
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+
+logger = logging.getLogger(__name__)
 
 
 def decide_terminal_status(
@@ -119,6 +122,11 @@ async def run_real_data_workflow(
             run=real_run, status=status, quality=quality, downgrade_reasons=reasons
         )
     except Exception as exc:
+        logger.exception(
+            "real data workflow failed: run_id=%s error_type=%s",
+            real_run.run_id,
+            type(exc).__name__,
+        )
         # 异常只落安全错误码，避免把第三方响应或密钥写入数据库。
         finished_at = datetime.now(UTC)
         error_code = type(exc).__name__.upper()

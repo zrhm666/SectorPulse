@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
@@ -27,6 +28,7 @@ class OpenAICompatibleProvider:
     """调用 OpenAI-compatible chat/completions，并将网络错误转换为安全错误码。"""
 
     provider_id = "openai-compatible"
+    _logger = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -51,14 +53,10 @@ class OpenAICompatibleProvider:
             ],
             "temperature": 0,
             "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": request.response_model.__name__,
-                    "schema": request.response_model.model_json_schema(),
-                    "strict": True,
-                },
+                "type": "json_object",
             },
         }
+        body: Any = None
         try:
             response = await self._client.post(
                 f"{self._base_url}/chat/completions",
@@ -79,10 +77,28 @@ class OpenAICompatibleProvider:
         try:
             body = response.json()
             content = body["choices"][0]["message"]["content"]
-            parsed = json.loads(content) if isinstance(content, str) else content
+            parsed = self._parse_json_content(content)
             data = request.response_model.model_validate(parsed)
             usage = TokenUsage.model_validate(body.get("usage", {}))
-        except Exception:
+        except Exception as exc:
+            self._logger.warning(
+                "structured LLM response invalid: model=%s status=%s body_keys=%s "
+                "message_keys=%s content_type=%s content_length=%s error_type=%s",
+                request.model,
+                response.status_code,
+                sorted(body.keys()) if isinstance(body, dict) else type(body).__name__,
+                sorted(body.get("choices", [{}])[0].get("message", {}).keys())
+                if isinstance(body, dict) and body.get("choices")
+                else (),
+                type(body.get("choices", [{}])[0].get("message", {}).get("content"))
+                if isinstance(body, dict) and body.get("choices")
+                else type(None),
+                len(body.get("choices", [{}])[0].get("message", {}).get("content", ""))
+                if isinstance(body, dict) and body.get("choices")
+                and isinstance(body.get("choices", [{}])[0].get("message", {}).get("content"), str)
+                else 0,
+                type(exc).__name__,
+            )
             return self._failure(
                 "LLM_STRUCTURED_OUTPUT_INVALID", "provider returned invalid JSON", False
             )
@@ -92,6 +108,38 @@ class OpenAICompatibleProvider:
             usage=usage,
             estimated_cost_cny=self.estimate_cost(usage, request.model),
         )
+
+    @staticmethod
+    def _parse_json_content(content: Any) -> Any:
+        """兼容第三方服务返回的代码块、前后说明文字和文本块数组。"""
+        if isinstance(content, list):
+            content = "".join(
+                item.get("text", "") if isinstance(item, dict) else str(item)
+                for item in content
+            )
+        if not isinstance(content, str):
+            return content
+        text = content.strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            start = min(
+                (index for index in (text.find("{"), text.find("[")) if index >= 0),
+                default=-1,
+            )
+            if start < 0:
+                raise
+            end = max(text.rfind("}"), text.rfind("]"))
+            if end <= start:
+                raise
+            return json.loads(text[start : end + 1])
 
     def _failure(self, code: str, message: str, retriable: bool) -> LLMResult[Any]:
         return LLMResult(
