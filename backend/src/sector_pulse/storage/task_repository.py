@@ -276,6 +276,12 @@ class SQLiteTaskRepository:
             for row in rows
         ]
 
+    def get_schedule(self, schedule_id: UUID) -> dict[str, Any] | None:
+        return next(
+            (item for item in self.list_schedules() if item["schedule_id"] == str(schedule_id)),
+            None,
+        )
+
     def update_schedule_next_run(self, schedule_id: UUID, next_run_at: datetime) -> None:
         with self._database.transaction() as connection:
             connection.execute(

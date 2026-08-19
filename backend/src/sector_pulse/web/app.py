@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
@@ -14,6 +14,8 @@ from pydantic import ValidationError
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.run_commands import RunCommandService
 from sector_pulse.application.run_queries import RunQueryService
+from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
+from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
@@ -27,12 +29,14 @@ from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.task_repository import SQLiteTaskRepository
 from sector_pulse.web.data_run_schemas import NewDataRunRequest
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
+from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
 
 
 def create_app(
@@ -47,6 +51,9 @@ def create_app(
     if database_path == Path("data/sector-pulse.db"):
         database_path = settings.database_path
     database = SQLiteDatabase(database_path)
+    task_repository = SQLiteTaskRepository(database)
+    schedule_service = ScheduleService(task_repository)
+    task_run_service = TaskRunService(task_repository)
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
     if service is None:
@@ -103,6 +110,32 @@ def create_app(
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.post("/api/schedules", response_model=ScheduleResponse, status_code=201)
+    async def create_schedule(req: ScheduleCreateRequest) -> ScheduleResponse:
+        try:
+            schedule = schedule_service.create(ScheduleCreate(**req.model_dump()))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return ScheduleResponse.model_validate(schedule.model_dump())
+
+    @app.get("/api/schedules", response_model=list[ScheduleResponse])
+    async def list_schedules() -> list[ScheduleResponse]:
+        return [
+            ScheduleResponse.model_validate(item.model_dump())
+            for item in schedule_service.list()
+        ]
+
+    @app.post("/api/schedules/{schedule_id}/trigger", status_code=202)
+    async def trigger_schedule(
+        schedule_id: UUID,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    ) -> dict[str, UUID]:
+        try:
+            run_id = task_run_service.trigger_schedule(schedule_id, idempotency_key)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        return {"run_id": run_id}
 
     if data_run_service is not None:
         @app.post("/api/data-runs")
