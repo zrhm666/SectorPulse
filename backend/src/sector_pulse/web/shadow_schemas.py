@@ -19,3 +19,17 @@ class ShadowRunResponse(BaseModel):
     mode: str
     status: str
     created_at: datetime
+
+
+class RecoveryDrillRequest(BaseModel):
+    fault_type: str
+    recovered: bool
+    recovery_seconds: float
+    notes: str = ""
+
+
+class ComplianceRecordRequest(BaseModel):
+    rules_version: str
+    decision: str
+    reviewer: str
+    notes: str = ""

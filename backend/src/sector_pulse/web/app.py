@@ -54,7 +54,12 @@ from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
-from sector_pulse.web.shadow_schemas import ShadowRunRequest, ShadowRunResponse
+from sector_pulse.web.shadow_schemas import (
+    ComplianceRecordRequest,
+    RecoveryDrillRequest,
+    ShadowRunRequest,
+    ShadowRunResponse,
+)
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
 
 
@@ -167,6 +172,24 @@ def create_app(
     @app.get("/api/shadow-runs", response_model=list[ShadowRunResponse])
     async def list_shadow_runs() -> list[ShadowRunResponse]:
         return [ShadowRunResponse(shadow_id=item.shadow_id, run_id=item.run_id, trading_date=item.trading_date, mode=item.mode, status=item.status.value, created_at=item.created_at) for item in shadow_repository.list_runs()]
+
+    @app.post("/api/shadow-runs/{shadow_id}/recovery-drills", status_code=201)
+    async def record_recovery_drill(shadow_id: UUID, request: RecoveryDrillRequest) -> dict[str, str]:
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.shadow_acceptance import RecoveryDrill
+        item = RecoveryDrill(shadow_id=shadow_id, fault_type=request.fault_type, recovered=request.recovered, recovery_seconds=request.recovery_seconds, notes=request.notes, created_at=datetime.now(UTC))
+        shadow_repository.save_recovery(item)
+        return {"drill_id": str(item.drill_id), "status": "RECORDED"}
+
+    @app.post("/api/shadow-runs/{shadow_id}/compliance", status_code=201)
+    async def record_compliance(shadow_id: UUID, request: ComplianceRecordRequest) -> dict[str, str]:
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.shadow_acceptance import ComplianceRecord
+        item = ComplianceRecord(shadow_id=shadow_id, rules_version=request.rules_version, decision=request.decision, reviewer=request.reviewer, notes=request.notes, created_at=datetime.now(UTC))
+        shadow_repository.save_compliance(item)
+        return {"record_id": str(item.record_id), "status": "RECORDED"}
 
     @app.post(
         "/api/runs/{run_id}/drafts/{draft_id}/patches",
