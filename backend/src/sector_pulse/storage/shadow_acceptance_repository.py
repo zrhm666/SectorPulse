@@ -39,6 +39,16 @@ class SQLiteShadowAcceptanceRepository:
         from datetime import date
         return tuple(ShadowRun(shadow_id=UUID(r[0]), run_id=UUID(r[1]), trading_date=date.fromisoformat(r[2]), mode=r[3], status=ShadowRunStatus(r[4]), provider_status=json.loads(r[5]), cutoff_at=datetime.fromisoformat(r[6]) if r[6] else None, metrics=json.loads(r[7]), failure_reason=r[8], created_at=datetime.fromisoformat(r[9]), finished_at=datetime.fromisoformat(r[10]) if r[10] else None) for r in rows)
 
+    def update_run(self, shadow_id: UUID, item: ShadowRun) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                """UPDATE shadow_runs SET status = ?, provider_status_json = ?, cutoff_at = ?,
+                   metrics_json = ?, failure_reason = ?, finished_at = ? WHERE shadow_id = ?""",
+                (item.status.value, json.dumps(item.provider_status), item.cutoff_at.isoformat() if item.cutoff_at else None,
+                 json.dumps(item.metrics), item.failure_reason, item.finished_at.isoformat() if item.finished_at else None,
+                 str(shadow_id)),
+            )
+
     def save_recovery(self, item: RecoveryDrill) -> None:
         with self._database.transaction() as connection:
             connection.execute("INSERT INTO recovery_drills (drill_id, shadow_id, fault_type, recovered, recovery_seconds, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", (str(item.drill_id), str(item.shadow_id), item.fault_type, int(item.recovered), item.recovery_seconds, item.notes, item.created_at.isoformat()))

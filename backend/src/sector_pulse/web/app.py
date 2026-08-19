@@ -62,6 +62,7 @@ from sector_pulse.web.shadow_schemas import (
     ShadowProgressResponse,
     ShadowRunRequest,
     ShadowRunResponse,
+    ShadowRunUpdateRequest,
 )
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
 
@@ -189,6 +190,27 @@ def create_app(
             trading_days=days, passed=passed, failed=failed, blocked=blocked,
             remaining=max(0, 20 - days), complete=days >= 20,
         )
+
+    @app.patch("/api/shadow-runs/{shadow_id}", response_model=ShadowRunResponse)
+    async def update_shadow_run(shadow_id: UUID, request: ShadowRunUpdateRequest) -> ShadowRunResponse:
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.shadow_acceptance import ShadowRun, ShadowRunStatus
+        item = next((run for run in shadow_repository.list_runs(limit=1000) if run.shadow_id == shadow_id), None)
+        if item is None:
+            raise HTTPException(404, "shadow run not found")
+        try:
+            status = ShadowRunStatus(request.status)
+        except ValueError as exc:
+            raise HTTPException(422, "invalid shadow run status") from exc
+        values = item.model_dump()
+        values.update(status=status, provider_status=request.provider_status,
+                            cutoff_at=request.cutoff_at, metrics=request.metrics,
+                            failure_reason=request.failure_reason,
+                            finished_at=datetime.now(UTC) if status is not ShadowRunStatus.STARTED else None)
+        updated = ShadowRun(**values)
+        shadow_repository.update_run(shadow_id, updated)
+        return ShadowRunResponse(shadow_id=updated.shadow_id, run_id=updated.run_id, trading_date=updated.trading_date, mode=updated.mode, status=updated.status.value, created_at=updated.created_at)
 
     @app.post("/api/shadow-runs/{shadow_id}/recovery-drills", status_code=201)
     async def record_recovery_drill(shadow_id: UUID, request: RecoveryDrillRequest) -> dict[str, str]:

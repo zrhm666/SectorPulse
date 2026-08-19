@@ -42,3 +42,11 @@ class ShadowProgressResponse(BaseModel):
     blocked: int
     remaining: int
     complete: bool
+
+
+class ShadowRunUpdateRequest(BaseModel):
+    status: str
+    provider_status: dict[str, Any] = Field(default_factory=dict)
+    cutoff_at: datetime | None = None
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    failure_reason: str | None = None
