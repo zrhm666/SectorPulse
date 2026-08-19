@@ -270,6 +270,16 @@ class SQLiteTaskRepository:
             "events": [event.__dict__ for event in self.list_events(run_id)],
         }
 
+    def recover_expired_leases(self, now: datetime | None = None) -> int:
+        current = (now or datetime.now(UTC)).isoformat()
+        with self._database.transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE task_runs SET status = ?, worker_id = NULL, lease_until = NULL
+                   WHERE status = ? AND lease_until IS NOT NULL AND lease_until <= ?""",
+                (TaskRunStatus.RETRY_WAITING.value, TaskRunStatus.RUNNING.value, current),
+            )
+        return cursor.rowcount
+
     def insert_schedule(self, values: dict[str, Any]) -> None:
         with self._database.transaction() as connection:
             connection.execute(

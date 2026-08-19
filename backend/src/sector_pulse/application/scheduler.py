@@ -58,6 +58,9 @@ class EmbeddedScheduler:
             )
             await self._executor.execute(run_id, "live", "embedded-scheduler")
 
+    def recover(self, now: datetime | None = None) -> int:
+        return self._repository.recover_expired_leases(now)
+
     def start(self) -> None:
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._loop())
