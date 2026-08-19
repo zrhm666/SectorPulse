@@ -38,6 +38,7 @@ from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
+from sector_pulse.storage.shadow_acceptance_repository import SQLiteShadowAcceptanceRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
 from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
@@ -53,6 +54,7 @@ from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
+from sector_pulse.web.shadow_schemas import ShadowRunRequest, ShadowRunResponse
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
 
 
@@ -75,6 +77,7 @@ def create_app(
     governance_service = GovernanceService()
     release_audit_repository = SQLiteReleaseAuditRepository(database)
     review_analytics = ReviewAnalyticsQueries(database)
+    shadow_repository = SQLiteShadowAcceptanceRepository(database)
     scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
@@ -151,6 +154,19 @@ def create_app(
     @app.get("/api/analytics/runs/{run_id}", response_model=ReviewMetricsResponse)
     async def analytics_run(run_id: UUID) -> ReviewMetricsResponse:
         return ReviewMetricsResponse.model_validate(review_analytics.for_run(run_id).model_dump())
+
+    @app.post("/api/shadow-runs", response_model=ShadowRunResponse, status_code=201)
+    async def create_shadow_run(request: ShadowRunRequest) -> ShadowRunResponse:
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.shadow_acceptance import ShadowRun
+        item = ShadowRun(run_id=request.run_id, trading_date=request.trading_date, mode=request.mode, provider_status=request.provider_status, created_at=datetime.now(UTC))
+        shadow_repository.save_run(item)
+        return ShadowRunResponse(shadow_id=item.shadow_id, run_id=item.run_id, trading_date=item.trading_date, mode=item.mode, status=item.status.value, created_at=item.created_at)
+
+    @app.get("/api/shadow-runs", response_model=list[ShadowRunResponse])
+    async def list_shadow_runs() -> list[ShadowRunResponse]:
+        return [ShadowRunResponse(shadow_id=item.shadow_id, run_id=item.run_id, trading_date=item.trading_date, mode=item.mode, status=item.status.value, created_at=item.created_at) for item in shadow_repository.list_runs()]
 
     @app.post(
         "/api/runs/{run_id}/drafts/{draft_id}/patches",
