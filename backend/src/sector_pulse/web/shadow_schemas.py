@@ -33,3 +33,12 @@ class ComplianceRecordRequest(BaseModel):
     decision: str
     reviewer: str
     notes: str = ""
+
+
+class ShadowProgressResponse(BaseModel):
+    trading_days: int
+    passed: int
+    failed: int
+    blocked: int
+    remaining: int
+    complete: bool

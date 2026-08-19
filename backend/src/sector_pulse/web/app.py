@@ -57,6 +57,7 @@ from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
 from sector_pulse.web.shadow_schemas import (
     ComplianceRecordRequest,
     RecoveryDrillRequest,
+    ShadowProgressResponse,
     ShadowRunRequest,
     ShadowRunResponse,
 )
@@ -172,6 +173,19 @@ def create_app(
     @app.get("/api/shadow-runs", response_model=list[ShadowRunResponse])
     async def list_shadow_runs() -> list[ShadowRunResponse]:
         return [ShadowRunResponse(shadow_id=item.shadow_id, run_id=item.run_id, trading_date=item.trading_date, mode=item.mode, status=item.status.value, created_at=item.created_at) for item in shadow_repository.list_runs()]
+
+    @app.get("/api/shadow-runs/summary", response_model=ShadowProgressResponse)
+    async def shadow_progress() -> ShadowProgressResponse:
+        runs = shadow_repository.list_runs(limit=1000)
+        dates = {item.trading_date for item in runs}
+        passed = sum(item.status.value == "PASSED" for item in runs)
+        failed = sum(item.status.value == "FAILED" for item in runs)
+        blocked = sum(item.status.value == "BLOCKED" for item in runs)
+        days = len(dates)
+        return ShadowProgressResponse(
+            trading_days=days, passed=passed, failed=failed, blocked=blocked,
+            remaining=max(0, 20 - days), complete=days >= 20,
+        )
 
     @app.post("/api/shadow-runs/{shadow_id}/recovery-drills", status_code=201)
     async def record_recovery_drill(shadow_id: UUID, request: RecoveryDrillRequest) -> dict[str, str]:
