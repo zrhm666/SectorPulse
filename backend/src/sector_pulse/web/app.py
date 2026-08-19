@@ -43,6 +43,7 @@ def create_app(
     load_environment()
     yaml_config = load_llm_config(Path("config/llm.yaml"))
     settings = ApplicationSettings.from_environment(yaml_config)
+    runtime_config = settings.apply_runtime_overrides(yaml_config)
     if database_path == Path("data/sector-pulse.db"):
         database_path = settings.database_path
     database = SQLiteDatabase(database_path)
@@ -55,7 +56,7 @@ def create_app(
             invocation_repo=SQLiteAgentInvocationRepository(database),
             news_evidence=SQLiteNewsEvidenceRepository(database),
             prompts=PromptRegistry(Path("config/prompts")),
-            config=yaml_config,
+            config=runtime_config,
             bus=bus,
             fixture_responses=load_default_fixture_responses(),
             llm_factory={},

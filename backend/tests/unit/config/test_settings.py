@@ -36,3 +36,17 @@ def test_settings_read_shared_model_and_never_dump_secret(tmp_path, monkeypatch)
     settings = ApplicationSettings.from_environment(yaml_config(tmp_path))
     assert settings.llm_model == "code-assistant"
     assert "secret-value" not in settings.model_dump_json()
+
+
+def test_settings_apply_runtime_limits_from_environment(tmp_path, monkeypatch) -> None:
+    config = yaml_config(tmp_path)
+    monkeypatch.setenv("SECTOR_PULSE_LLM_BUDGET_CNY", "3.50")
+    monkeypatch.setenv("SECTOR_PULSE_LLM_MAX_ATTRIBUTION_CONCURRENCY", "1")
+    monkeypatch.setenv("SECTOR_PULSE_LLM_MAX_REVISION_ROUNDS", "0")
+
+    settings = ApplicationSettings.from_environment(config)
+    runtime = settings.apply_runtime_overrides(config)
+
+    assert runtime.budget_cny_per_run == 3.50
+    assert runtime.max_attribution_concurrency == 1
+    assert runtime.max_revision_rounds == 0

@@ -9,7 +9,7 @@ from sector_pulse.application.phase1b_pipeline import (
     run_phase1b_pipeline,
 )
 from sector_pulse.config.llm_config import LLMRoute, LLMRuntimeConfig
-from sector_pulse.domain.article import DraftStatus
+from sector_pulse.domain.article import ArticleSource, DraftStatus
 from sector_pulse.domain.attribution import AttributionContext, AttributionGateResult
 from sector_pulse.domain.evidence import EvidenceLevel
 from sector_pulse.domain.market import SectorKind
@@ -177,3 +177,63 @@ def test_phase1b_pipeline_produces_reviewable_draft(tmp_path) -> None:
     assert result.review is not None
     assert result.review.decision.value == "PASS"
     assert result.total_cost_cny.amount <= Decimal("2.00")
+
+
+def test_phase1b_pipeline_hydrates_verified_sources_when_writer_omits_them(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["article-draft"]["sources"] = []
+    responses["article-draft"]["status"] = "READY_FOR_HUMAN_REVIEW"
+    deps.llm = FixtureLLMProvider(responses)
+
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={context.sector_id: gate(context) for context in contexts()},
+                verified_sources_by_sector={
+                    context.sector_id: (
+                        ArticleSource(
+                            source_id="event-1",
+                            title="已持久化新闻来源",
+                            publisher="测试媒体",
+                            citation_url="https://example.test/news/1",
+                        ),
+                    )
+                    for context in contexts()[:3]
+                },
+            ),
+        )
+    )
+
+    assert result.status == "READY_FOR_HUMAN_REVIEW"
+    assert result.draft is not None
+    assert result.draft.sources[0].source_id == "event-1"
+
+
+def test_phase1b_pipeline_rejects_source_less_draft_before_review(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["article-draft"]["sources"] = [
+        {"source_id": "model-invented", "title": "未经验证的来源"}
+    ]
+    deps.llm = FixtureLLMProvider(responses)
+
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={context.sector_id: gate(context) for context in contexts()},
+                verified_sources_by_sector={},
+            ),
+        )
+    )
+
+    assert result.status == "DRAFT_GENERATION_FAILED"
+    assert result.review is None

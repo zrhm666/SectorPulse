@@ -27,17 +27,19 @@ class SQLiteNewsEvidenceRepository:
                     FROM news_events WHERE event_id IN ({placeholders})""",
                 tuple(event_ids),
             ).fetchall()
-            items: list[NewsEvidenceItem] = []
+            items_by_event_id: dict[str, NewsEvidenceItem] = {}
             for eid, title, published_at in event_rows:
                 doc_rows = conn.execute(
                     """SELECT nd.title, nd.citation_url, nd.publisher,
                               nd.published_at, nd.source_grade
                        FROM news_documents nd
                        JOIN news_event_documents ned ON ned.document_id = nd.document_id
-                       WHERE ned.event_id = ?""",
+                       WHERE ned.event_id = ?
+                       ORDER BY CASE WHEN nd.citation_url IS NULL THEN 1 ELSE 0 END,
+                                nd.published_at DESC, nd.document_id ASC""",
                     (eid,),
                 ).fetchall()
-                items.append(
+                items_by_event_id[eid] = (
                     NewsEvidenceItem(
                         event_id=eid,
                         canonical_title=title,
@@ -54,4 +56,8 @@ class SQLiteNewsEvidenceRepository:
                         ),
                     )
                 )
-        return tuple(items)
+        return tuple(
+            items_by_event_id[event_id]
+            for event_id in event_ids
+            if event_id in items_by_event_id
+        )

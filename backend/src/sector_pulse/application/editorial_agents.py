@@ -1,17 +1,42 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from sector_pulse.application.invocations import (
     InvocationSink,
     build_invocation,
     noop_invocation_sink,
 )
-from sector_pulse.domain.article import ArticleDraft, ArticleOutline, ArticleSection
+from sector_pulse.domain.article import (
+    ArticleDraft,
+    ArticleOutline,
+    ArticleSection,
+    ArticleSource,
+    DraftStatus,
+)
 from sector_pulse.domain.attribution import SectorAnalysisCard
 from sector_pulse.domain.llm import LLMRequest, LLMStatus
 from sector_pulse.domain.review import ReviewReport
 from sector_pulse.ports.llm import LLMPort
+
+
+class ArticleDraftCandidate(BaseModel):
+    """LLM 写作候选；终态规则由审校完成后统一执行。"""
+
+    model_config = ConfigDict(frozen=True)
+    draft_id: UUID
+    run_id: UUID
+    version: int = Field(ge=1)
+    status: DraftStatus
+    titles: tuple[str, ...]
+    introduction: str
+    sections: tuple[ArticleSection, ...]
+    conclusion: str
+    risk_notice: str
+    sources: tuple[ArticleSource, ...]
+    character_count: int = Field(ge=0)
 
 
 async def run_editorial_agent(
@@ -68,19 +93,24 @@ async def run_writing_agent(
     prompt: Any,
     invocation_sink: InvocationSink = noop_invocation_sink,
     model: str = "fixture",
+    verified_sources: Sequence[ArticleSource] | None = None,
 ) -> ArticleDraft | None:
-    request = LLMRequest[
-        ArticleDraft
-    ](
+    request = LLMRequest[ArticleDraftCandidate](
         agent_name="writing",
         model=model,
         prompt_id=getattr(prompt, "prompt_id", "writing"),
         prompt_version=getattr(prompt, "version", "1"),
         system_prompt=getattr(prompt, "system", ""),
-        user_payload={"outline": outline.model_dump(mode="json"), "cards": {
-            key: value.model_dump(mode="json") for key, value in cards.items()
-        }},
-        response_model=ArticleDraft,
+        user_payload={
+            "outline": outline.model_dump(mode="json"),
+            "cards": {
+                key: value.model_dump(mode="json") for key, value in cards.items()
+            },
+            "verified_sources": [
+                source.model_dump(mode="json") for source in verified_sources or ()
+            ],
+        },
+        response_model=ArticleDraftCandidate,
         fixture_key="article-draft",
     )
     result = await llm.generate_structured(request)
@@ -93,7 +123,16 @@ async def run_writing_agent(
             getattr(llm, "provider_id", "unknown"),
         )
     )
-    return result.data if result.status is LLMStatus.SUCCESS else None
+    if result.status is not LLMStatus.SUCCESS or result.data is None:
+        return None
+    candidate = cast(ArticleDraftCandidate, result.data)
+    payload = candidate.model_dump()
+    # LLM 只能生成候选稿，不能自行越过审校进入 ready 终态。
+    payload["status"] = DraftStatus.UNREVIEWED
+    if verified_sources is not None:
+        # 来源由持久化证据确定，禁止模型遗漏或生成未经验证的来源。
+        payload["sources"] = tuple(verified_sources)
+    return ArticleDraft.model_validate(payload)
 
 
 async def run_review_agent(

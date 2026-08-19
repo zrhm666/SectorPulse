@@ -47,3 +47,22 @@ def test_get_events_returns_events_with_documents(tmp_path) -> None:
     assert document["publisher"] == "东方财富"
     assert document["published_at"] == "2026-08-14T01:00:00Z"
     assert document["source_grade"] == "A1"
+
+
+def test_get_events_preserves_requested_event_order(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "t.db")
+    database.initialize()
+    with database.transaction() as connection:
+        connection.executemany(
+            """INSERT INTO news_events (
+                event_id, canonical_title, first_published_at, deduplication_reason, metadata_json
+            ) VALUES (?, ?, ?, ?, ?)""",
+            (
+                ("event-1", "第一条", None, "test", "{}"),
+                ("event-2", "第二条", None, "test", "{}"),
+            ),
+        )
+
+    events = SQLiteNewsEvidenceRepository(database).get_events(("event-2", "event-1"))
+
+    assert [event.event_id for event in events] == ["event-2", "event-1"]

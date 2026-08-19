@@ -26,6 +26,16 @@ class ApplicationSettings(BaseModel):
     max_attribution_concurrency: int = Field(default=4, ge=1, le=32)
     max_revision_rounds: int = Field(default=2, ge=0, le=2)
 
+    def apply_runtime_overrides(self, yaml_config: LLMRuntimeConfig) -> LLMRuntimeConfig:
+        """将环境变量中的运行限制合并到不可变的 YAML 配置副本。"""
+        return yaml_config.model_copy(
+            update={
+                "budget_cny_per_run": self.budget_cny_per_run,
+                "max_attribution_concurrency": self.max_attribution_concurrency,
+                "max_revision_rounds": self.max_revision_rounds,
+            }
+        )
+
     @classmethod
     def from_environment(cls, yaml_config: LLMRuntimeConfig) -> "ApplicationSettings":
         def value(name: str, default: str | None = None) -> str | None:

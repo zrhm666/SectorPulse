@@ -16,7 +16,7 @@ from sector_pulse.application.phase1b_pipeline import (
 from sector_pulse.application.progress import ProgressSink
 from sector_pulse.application.task_registry import RunTaskRegistry
 from sector_pulse.config.llm_config import LLMRuntimeConfig
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
@@ -72,6 +72,12 @@ class RunService:
                 return run_id
             raise ProviderUnavailable("run already has a terminal Phase 1B execution")
         request = Phase1BRequest.model_validate({"run_id": str(run_id), **input_json})
+        if provider == "live":
+            request = request.model_copy(
+                update={
+                    "verified_sources_by_sector": self._load_verified_sources(request)
+                }
+            )
         # 输入里的 contexts/gates 可能携带其它 run_id，统一归一到本次生成的 run_id，
         # 保证 attribution 落库与后续按 run_id 读取（雷达/证据）保持一致。
         request = request.model_copy(
@@ -114,6 +120,44 @@ class RunService:
         bridge = BridgeSink(self._bus, run_id)
         self._tasks.start(run_id, self._execute(run_id, request, provider, bridge))
         return run_id
+
+    def _load_verified_sources(
+        self, request: Phase1BRequest
+    ) -> dict[str, tuple[ArticleSource, ...]]:
+        """从已持久化新闻元数据构建可审计来源，不把来源生成权交给模型。"""
+        result: dict[str, tuple[ArticleSource, ...]] = {}
+        for context in request.contexts:
+            event_ids = tuple(
+                dict.fromkeys(
+                    context.eligible_event_ids
+                    + context.background_event_ids
+                    + context.event_ids
+                )
+            )
+            events = self._news_evidence.get_events(event_ids)
+            sources: list[ArticleSource] = []
+            for event in events[:5]:
+                document = next(
+                    (
+                        item
+                        for item in event.documents
+                        if item.get("citation_url")
+                    ),
+                    None,
+                )
+                if document is None:
+                    continue
+                sources.append(
+                    ArticleSource(
+                        source_id=event.event_id,
+                        title=document.get("title") or event.canonical_title,
+                        publisher=document.get("publisher"),
+                        citation_url=document.get("citation_url"),
+                        published_at=document.get("published_at") or event.first_published_at,
+                    )
+                )
+            result[context.sector_id] = tuple(sources)
+        return result
 
     async def _execute(
         self,

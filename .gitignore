@@ -43,3 +43,4 @@ Thumbs.db
 .tmp/
 web/test-results/
 web/tsconfig.tsbuildinfo
+.pytest-temp/

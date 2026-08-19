@@ -20,7 +20,7 @@ from sector_pulse.application.editorial_agents import (
 from sector_pulse.application.invocations import InvocationSink
 from sector_pulse.application.progress import NoopProgressSink, ProgressSink
 from sector_pulse.config.llm_config import LLMRuntimeConfig
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.attribution import (
     AttributionContext,
     AttributionGateResult,
@@ -51,6 +51,7 @@ class Phase1BRequest(BaseModel):
     output_dir: Path | None = None
     contexts: tuple[AttributionContext, ...]
     gates: dict[str, AttributionGateResult]
+    verified_sources_by_sector: dict[str, tuple[ArticleSource, ...]] | None = None
 
 
 @dataclass(frozen=True)
@@ -152,13 +153,25 @@ async def run_phase1b_pipeline(
     dependencies.repository.save_outline(outline)
     progress_sink.emit("editorial.done", {"sector_ids": list(outline.sector_ids)})
     cards_by_id = {card.sector_id: card for card in cards}
+    verified_sources = (
+        tuple(
+            {
+                source.source_id: source
+                for sector_id in outline.sector_ids
+                for source in request.verified_sources_by_sector.get(sector_id, ())
+            }.values()
+        )
+        if request.verified_sources_by_sector is not None
+        else None
+    )
     draft = await run_writing_agent(
         outline, cards_by_id, dependencies.llm, dependencies.prompts.get("writing"),
         invocation_sink=active_invocation_sink,
         model=dependencies.config.route_for("writing").model,
+        verified_sources=verified_sources,
     )
     progress_sink.emit("writing.done", {"version": draft.version if draft else None})
-    if draft is None:
+    if draft is None or not draft.sources:
         save_invocations()
         return Phase1BRunResult(
             status=PipelineStatus.DRAFT_GENERATION_FAILED,

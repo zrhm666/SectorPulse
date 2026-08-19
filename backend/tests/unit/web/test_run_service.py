@@ -2,11 +2,15 @@
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
+from sector_pulse.application.phase1b_pipeline import Phase1BRequest
 from sector_pulse.config.llm_config import LLMRuntimeConfig
+from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.news_repository import SQLiteNewsRepository
 from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
@@ -83,3 +87,45 @@ async def test_create_run_lifecycle(tmp_path) -> None:
     review = repo.get_review(run_id)
     assert review is not None
     assert review.decision.value == "PASS"
+
+
+async def test_create_run_uses_persisted_news_as_verified_draft_sources(tmp_path) -> None:
+    svc = _service(tmp_path)
+    now = datetime(2026, 8, 14, 2, tzinfo=UTC)
+    SQLiteNewsRepository(svc._news_evidence._database).save(
+        (
+            NewsDocument(
+                document_id="doc-1",
+                source_id="test-news",
+                canonical_locator="https://example.test/news/1",
+                citation_url="https://example.test/news/1",
+                title="已持久化新闻",
+                publisher="测试媒体",
+                published_at=now,
+                collected_at=now,
+                content_hash="hash-1",
+                source_grade=SourceGrade.REPUTABLE_MEDIA,
+            ),
+        ),
+        (
+            NewsEvent(
+                event_id="event-1",
+                canonical_title="已持久化新闻事件",
+                first_published_at=now,
+                document_ids=("doc-1",),
+                deduplication_reason="test",
+            ),
+        ),
+    )
+    input_json = _input_json()
+    for context in input_json["contexts"]:
+        context["event_ids"] = ["event-1"]
+        context["eligible_event_ids"] = ["event-1"]
+
+    request = Phase1BRequest.model_validate({"run_id": str(uuid4()), **input_json})
+    sources_by_sector = svc._load_verified_sources(request)
+
+    assert sources_by_sector
+    source = sources_by_sector[next(iter(sources_by_sector))][0]
+    assert source.source_id == "event-1"
+    assert source.citation_url == "https://example.test/news/1"
