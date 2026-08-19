@@ -1,0 +1,19 @@
+services:
+  sector-pulse:
+    build: .
+    ports:
+      - "8010:8010"
+    env_file:
+      - .env
+    environment:
+      SECTOR_PULSE_DATABASE_PATH: /app/data/sector-pulse.db
+    volumes:
+      - sector_pulse_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  sector_pulse_data:
