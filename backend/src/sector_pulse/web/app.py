@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
+from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.run_commands import RunCommandService
 from sector_pulse.application.run_queries import RunQueryService
@@ -26,6 +27,10 @@ from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixtu
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.draft_edit_repository import (
+    DraftVersionConflict,
+    SQLiteDraftEditRepository,
+)
 from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
 from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
@@ -35,6 +40,11 @@ from sector_pulse.storage.task_repository import SQLiteTaskRepository
 from sector_pulse.web.data_run_schemas import NewDataRunRequest
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
+from sector_pulse.web.editing_schemas import (
+    DraftPatchRequest,
+    DraftPatchResponse,
+    GovernanceResponse,
+)
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
@@ -56,6 +66,8 @@ def create_app(
     task_repository = SQLiteTaskRepository(database)
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
+    draft_edit_repository = SQLiteDraftEditRepository(database)
+    governance_service = GovernanceService()
     scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
@@ -119,6 +131,40 @@ def create_app(
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.post(
+        "/api/runs/{run_id}/drafts/{draft_id}/patches",
+        response_model=DraftPatchResponse,
+        status_code=201,
+    )
+    async def apply_draft_patch(
+        run_id: UUID,
+        draft_id: UUID,
+        request: DraftPatchRequest,
+        actor: str = Header(default="local-user", alias="X-Actor"),
+    ) -> DraftPatchResponse:
+        try:
+            draft = draft_edit_repository.apply_patch(
+                draft_id, request.base_version, request.operations, actor=actor
+            )
+        except DraftVersionConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        return DraftPatchResponse(
+            draft_id=draft.draft_id, version=draft.version, status=draft.status.value,
+            content=draft.model_dump(mode="json"),
+        )
+
+    @app.get("/api/runs/{run_id}/governance", response_model=GovernanceResponse)
+    async def get_governance(run_id: UUID) -> GovernanceResponse:
+        drafts = draft_edit_repository._drafts.get_drafts(run_id)
+        if not drafts:
+            raise HTTPException(404, "draft not found")
+        report = governance_service.check(drafts[-1])
+        return GovernanceResponse(
+            status=report.status, issues=report.issues, rules_version=report.rules_version
+        )
 
     @app.post("/api/schedules", response_model=ScheduleResponse, status_code=201)
     async def create_schedule(req: ScheduleCreateRequest) -> ScheduleResponse:

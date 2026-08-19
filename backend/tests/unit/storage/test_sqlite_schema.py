@@ -40,7 +40,7 @@ def test_initialize_is_idempotent(tmp_path: Path) -> None:
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
 
-    assert versions == [(1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,)]
+    assert versions == [(1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,), (9,)]
 
 
 def test_analysis_run_id_is_unique(tmp_path: Path) -> None:
