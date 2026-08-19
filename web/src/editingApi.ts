@@ -58,3 +58,20 @@ export async function revokeDraft(runId: string, draftId: string): Promise<Appro
 export function approvedExportUrl(runId: string, draftId: string): string {
   return `/api/runs/${runId}/drafts/${draftId}/export.json`
 }
+
+export interface ReviewMetrics {
+  run_id: string
+  review_duration_seconds: number
+  patch_count: number
+  revision_rounds: number
+  governance_failures: number
+  approval_count: number
+  export_count: number
+  llm_cost_cny: number
+}
+
+export async function fetchReviewMetrics(runId: string): Promise<ReviewMetrics> {
+  const response = await fetch(`/api/analytics/runs/${runId}`)
+  if (!response.ok) throw new Error(`analytics failed: ${response.status}`)
+  return response.json()
+}

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.real_data_queries import RealDataRunQueries
+from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.application.run_commands import RunCommandService
 from sector_pulse.application.run_queries import RunQueryService
 from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
@@ -39,6 +40,7 @@ from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepos
 from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
 from sector_pulse.web.data_run_schemas import NewDataRunRequest
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
@@ -72,6 +74,7 @@ def create_app(
     draft_edit_repository = SQLiteDraftEditRepository(database)
     governance_service = GovernanceService()
     release_audit_repository = SQLiteReleaseAuditRepository(database)
+    review_analytics = ReviewAnalyticsQueries(database)
     scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
@@ -135,6 +138,19 @@ def create_app(
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/analytics/summary", response_model=ReviewSummaryResponse)
+    async def analytics_summary(from_at: str, to_at: str) -> ReviewSummaryResponse:
+        from datetime import datetime
+        try:
+            result = review_analytics.summary(datetime.fromisoformat(from_at), datetime.fromisoformat(to_at))
+        except ValueError as exc:
+            raise HTTPException(422, "from_at and to_at must be ISO timestamps") from exc
+        return ReviewSummaryResponse.model_validate(result.model_dump())
+
+    @app.get("/api/analytics/runs/{run_id}", response_model=ReviewMetricsResponse)
+    async def analytics_run(run_id: UUID) -> ReviewMetricsResponse:
+        return ReviewMetricsResponse.model_validate(review_analytics.for_run(run_id).model_dump())
 
     @app.post(
         "/api/runs/{run_id}/drafts/{draft_id}/patches",

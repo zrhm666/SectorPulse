@@ -1,10 +1,11 @@
 // web/src/pages/tabs/DraftTab.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { draftUrl, DraftVersionView, fetchDraft, fetchRun } from '../../api'
-import { fetchGovernance, GovernanceResponse } from '../../editingApi'
+import { fetchGovernance, fetchReviewMetrics, GovernanceResponse, ReviewMetrics } from '../../editingApi'
 import GovernanceCard from './GovernanceCard'
 import ReviewEditor from './ReviewEditor'
 import ApprovalCard from './ApprovalCard'
+import AnalyticsCard from './AnalyticsCard'
 
 export default function DraftTab({ runId }: { runId: string }) {
   const [versions, setVersions] = useState<DraftVersionView[]>([])
@@ -12,6 +13,7 @@ export default function DraftTab({ runId }: { runId: string }) {
   const [right, setRight] = useState<number>(0)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [governance, setGovernance] = useState<GovernanceResponse | null>(null)
+  const [metrics, setMetrics] = useState<ReviewMetrics | null>(null)
   useEffect(() => {
     fetchDraft(runId)
       .then((d) => {
@@ -25,6 +27,7 @@ export default function DraftTab({ runId }: { runId: string }) {
       .catch(console.error)
     fetchRun(runId).then((run) => setDraftId(run.draft_id)).catch(console.error)
     fetchGovernance(runId).then(setGovernance).catch(() => setGovernance(null))
+    fetchReviewMetrics(runId).then(setMetrics).catch(() => setMetrics(null))
   }, [runId])
 
   const latest = versions[versions.length - 1]
@@ -126,6 +129,7 @@ export default function DraftTab({ runId }: { runId: string }) {
         ))}
       </div>
       {governance && <GovernanceCard report={governance} />}
+      {metrics && <AnalyticsCard metrics={metrics} />}
       {governance && draftId && (
         <ApprovalCard runId={runId} draftId={draftId} governance={governance} />
       )}
