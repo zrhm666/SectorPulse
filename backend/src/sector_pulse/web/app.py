@@ -15,6 +15,8 @@ from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.run_commands import RunCommandService
 from sector_pulse.application.run_queries import RunQueryService
 from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
+from sector_pulse.application.scheduled_data_bridge import ScheduledDataRunBridge
+from sector_pulse.application.scheduler import EmbeddedScheduler
 from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
@@ -54,6 +56,7 @@ def create_app(
     task_repository = SQLiteTaskRepository(database)
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
+    scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
     if service is None:
@@ -103,7 +106,13 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         database.initialize()
+        task_repository.recover_expired_leases()
+        if scheduler is not None and settings.scheduler_enabled:
+            scheduler.recover()
+            scheduler.start()
         yield
+        if scheduler is not None and settings.scheduler_enabled:
+            await scheduler.stop()
 
     app = FastAPI(title="SectorPulse Web", lifespan=lifespan)
 
@@ -199,6 +208,15 @@ def create_app(
             return {"run_id": run_id, "status": "CANCELLED"}
 
         writing_service = DataRunWritingService(database, service)
+        scheduler = EmbeddedScheduler(
+            task_repository,
+            schedule_service,
+            service,
+            poll_seconds=settings.scheduler_poll_seconds,
+            bridge=ScheduledDataRunBridge(
+                task_repository, real_repository, data_run_service, writing_service
+            ),
+        )
 
         @app.post("/api/data-runs/{run_id}/generate")
         async def generate_data_run_article(run_id: UUID) -> dict[str, object]:

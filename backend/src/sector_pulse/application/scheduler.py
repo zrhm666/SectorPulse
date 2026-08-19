@@ -24,11 +24,13 @@ class EmbeddedScheduler:
         executor: Executor,
         *,
         poll_seconds: int = 10,
+        bridge: object | None = None,
     ) -> None:
         self._repository = repository
         self._schedules = schedules
         self._executor = executor
         self._poll_seconds = poll_seconds
+        self._bridge = bridge
         self._task: asyncio.Task[None] | None = None
 
     async def poll_once(self, now: datetime | None = None) -> None:
@@ -56,10 +58,18 @@ class EmbeddedScheduler:
             self._repository.update_schedule_next_run(
                 schedule.schedule_id, due + timedelta(days=1)
             )
-            await self._executor.execute(run_id, "live", "embedded-scheduler")
+            if self._bridge is not None:
+                self._bridge.start(run_id, schedule)
+            else:
+                await self._executor.execute(run_id, "live", "embedded-scheduler")
 
     def recover(self, now: datetime | None = None) -> int:
         return self._repository.recover_expired_leases(now)
+
+    def advance_bridged_runs(self) -> int:
+        if self._bridge is None:
+            return 0
+        return self._bridge.advance()
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -76,4 +86,5 @@ class EmbeddedScheduler:
     async def _loop(self) -> None:
         while True:
             await self.poll_once()
+            self.advance_bridged_runs()
             await asyncio.sleep(self._poll_seconds)

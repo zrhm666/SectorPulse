@@ -280,6 +280,20 @@ class SQLiteTaskRepository:
             )
         return cursor.rowcount
 
+    def link_data_run(self, run_id: UUID, data_run_id: UUID) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                "UPDATE task_runs SET data_run_id = ? WHERE run_id = ?",
+                (str(data_run_id), str(run_id)),
+            )
+
+    def list_linked_runs(self) -> list[tuple[UUID, UUID]]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                "SELECT run_id, data_run_id FROM task_runs WHERE data_run_id IS NOT NULL"
+            ).fetchall()
+        return [(UUID(row[0]), UUID(row[1])) for row in rows]
+
     def insert_schedule(self, values: dict[str, Any]) -> None:
         with self._database.transaction() as connection:
             connection.execute(
