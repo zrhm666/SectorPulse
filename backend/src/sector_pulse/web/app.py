@@ -36,6 +36,7 @@ from sector_pulse.storage.draft_edit_repository import (
 from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
 from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
+from sector_pulse.storage.prompt_golden_repository import SQLitePromptGoldenRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
 from sector_pulse.storage.shadow_acceptance_repository import SQLiteShadowAcceptanceRepository
@@ -51,6 +52,7 @@ from sector_pulse.web.editing_schemas import (
     GovernanceResponse,
 )
 from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
@@ -84,6 +86,7 @@ def create_app(
     release_audit_repository = SQLiteReleaseAuditRepository(database)
     review_analytics = ReviewAnalyticsQueries(database)
     shadow_repository = SQLiteShadowAcceptanceRepository(database)
+    prompt_golden_repository = SQLitePromptGoldenRepository(database)
     scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
@@ -204,6 +207,19 @@ def create_app(
         item = ComplianceRecord(shadow_id=shadow_id, rules_version=request.rules_version, decision=request.decision, reviewer=request.reviewer, notes=request.notes, created_at=datetime.now(UTC))
         shadow_repository.save_compliance(item)
         return {"record_id": str(item.record_id), "status": "RECORDED"}
+
+    @app.post("/api/prompt-golden", response_model=PromptGoldenResponse, status_code=201)
+    async def create_prompt_golden(request: PromptGoldenRequest) -> PromptGoldenResponse:
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.prompt_golden import PromptGoldenCase
+        item = PromptGoldenCase(**request.model_dump(), created_at=datetime.now(UTC))
+        prompt_golden_repository.save(item)
+        return PromptGoldenResponse(**request.model_dump(), case_id=str(item.case_id), created_at=item.created_at)
+
+    @app.get("/api/prompt-golden", response_model=list[PromptGoldenResponse])
+    async def list_prompt_golden() -> list[PromptGoldenResponse]:
+        return [PromptGoldenResponse(prompt_id=item.prompt_id, prompt_version=item.prompt_version, input_hash=item.input_hash, expected_schema=item.expected_schema, result=item.result, notes=item.notes, case_id=str(item.case_id), created_at=item.created_at) for item in prompt_golden_repository.list()]
 
     @app.post(
         "/api/runs/{run_id}/drafts/{draft_id}/patches",
