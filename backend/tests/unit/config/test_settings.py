@@ -50,3 +50,15 @@ def test_settings_apply_runtime_limits_from_environment(tmp_path, monkeypatch) -
     assert runtime.budget_cny_per_run == 3.50
     assert runtime.max_attribution_concurrency == 1
     assert runtime.max_revision_rounds == 0
+
+
+def test_settings_read_scheduler_limits(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("SECTOR_PULSE_SCHEDULER_ENABLED", "true")
+    monkeypatch.setenv("SECTOR_PULSE_SCHEDULER_POLL_SECONDS", "15")
+    monkeypatch.setenv("SECTOR_PULSE_TASK_LEASE_SECONDS", "90")
+
+    settings = ApplicationSettings.from_environment(yaml_config(tmp_path))
+
+    assert settings.scheduler_enabled is True
+    assert settings.scheduler_poll_seconds == 15
+    assert settings.task_lease_seconds == 90
