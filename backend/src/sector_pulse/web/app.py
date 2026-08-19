@@ -258,6 +258,33 @@ def create_app(
             for e in release_audit_repository.audit(draft_id)
         ]
 
+    @app.get("/api/runs/{run_id}/drafts/{draft_id}/export.json")
+    async def export_approved_json(
+        run_id: UUID,
+        draft_id: UUID,
+        actor: str = Header(default="local-user", alias="X-Actor"),
+    ) -> dict[str, Any]:
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.release_audit import DraftExport
+
+        draft = draft_edit_repository.latest_version(draft_id)
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        approval = release_audit_repository.approval(draft_id, draft.version)
+        if approval is None or approval.status.value != "APPROVED_FOR_COPY":
+            raise HTTPException(409, "draft version is not approved for copy")
+        content = draft.model_dump(mode="json")
+        content_hash = release_audit_repository.content_hash(content)
+        release_audit_repository.record_export(
+            DraftExport(
+                run_id=run_id, draft_id=draft_id, version=draft.version,
+                format="json", content_hash=content_hash, actor=actor,
+                created_at=datetime.now(UTC),
+            )
+        )
+        return content
+
     @app.post("/api/schedules", response_model=ScheduleResponse, status_code=201)
     async def create_schedule(req: ScheduleCreateRequest) -> ScheduleResponse:
         try:

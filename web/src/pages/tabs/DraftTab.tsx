@@ -4,6 +4,7 @@ import { draftUrl, DraftVersionView, fetchDraft, fetchRun } from '../../api'
 import { fetchGovernance, GovernanceResponse } from '../../editingApi'
 import GovernanceCard from './GovernanceCard'
 import ReviewEditor from './ReviewEditor'
+import ApprovalCard from './ApprovalCard'
 
 export default function DraftTab({ runId }: { runId: string }) {
   const [versions, setVersions] = useState<DraftVersionView[]>([])
@@ -125,6 +126,9 @@ export default function DraftTab({ runId }: { runId: string }) {
         ))}
       </div>
       {governance && <GovernanceCard report={governance} />}
+      {governance && draftId && (
+        <ApprovalCard runId={runId} draftId={draftId} governance={governance} />
+      )}
       {draftId && latest.sections[0] && (
         <ReviewEditor
           runId={runId}

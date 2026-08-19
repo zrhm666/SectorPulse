@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from uuid import UUID
 
-from sector_pulse.domain.release_audit import ApprovalStatus, AuditEvent, DraftApproval
+from sector_pulse.domain.release_audit import ApprovalStatus, AuditEvent, DraftApproval, DraftExport
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 
@@ -88,6 +88,18 @@ class SQLiteReleaseAuditRepository:
             )
             for r in rows
         )
+
+    def record_export(self, export: DraftExport) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                """INSERT INTO draft_exports
+                (export_id, run_id, draft_id, version, format, content_hash, actor, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (str(export.export_id), str(export.run_id), str(export.draft_id), export.version,
+                 export.format, export.content_hash, export.actor, export.created_at.isoformat()),
+            )
+            self._event(connection, export.run_id, export.draft_id, export.version,
+                        "EXPORTED", export.actor, {"format": export.format, "content_hash": export.content_hash})
 
     @staticmethod
     def content_hash(content: dict) -> str:
