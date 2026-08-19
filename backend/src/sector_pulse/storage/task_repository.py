@@ -237,6 +237,39 @@ class SQLiteTaskRepository:
         with self._database.connection() as connection:
             return connection.execute("SELECT COUNT(*) FROM task_runs").fetchone()[0]
 
+    def get_task_detail(self, run_id: UUID) -> dict[str, Any] | None:
+        with self._database.connection() as connection:
+            row = connection.execute(
+                """SELECT run_id, status, provider, input_fingerprint, requested_at,
+                          started_at, finished_at, error_code, downgrade_reasons_json
+                   FROM task_runs WHERE run_id = ?""",
+                (str(run_id),),
+            ).fetchone()
+            if row is None:
+                return None
+            attempts = connection.execute(
+                """SELECT stage, attempt_no, status, input_fingerprint, provider,
+                          error_code, started_at, finished_at
+                   FROM run_stage_attempts WHERE run_id = ?
+                   ORDER BY started_at, stage, attempt_no""",
+                (str(run_id),),
+            ).fetchall()
+        return {
+            "run_id": row[0], "status": row[1], "provider": row[2],
+            "input_fingerprint": row[3], "requested_at": row[4],
+            "started_at": row[5], "finished_at": row[6], "error_code": row[7],
+            "downgrade_reasons": json.loads(row[8]),
+            "stages": [
+                {
+                    "stage": item[0], "attempt_no": item[1], "status": item[2],
+                    "input_fingerprint": item[3], "provider": item[4],
+                    "error_code": item[5], "started_at": item[6], "finished_at": item[7],
+                }
+                for item in attempts
+            ],
+            "events": [event.__dict__ for event in self.list_events(run_id)],
+        }
+
     def insert_schedule(self, values: dict[str, Any]) -> None:
         with self._database.transaction() as connection:
             connection.execute(

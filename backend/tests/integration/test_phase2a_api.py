@@ -41,3 +41,6 @@ def test_schedule_create_list_and_trigger(tmp_path):
     )
     assert repeated.status_code == 202
     assert repeated.json()["run_id"] == triggered.json()["run_id"]
+    detail = client.get(f"/api/task-runs/{triggered.json()['run_id']}")
+    assert detail.status_code == 200
+    assert {"run_id", "status", "stages", "events"} <= detail.json().keys()

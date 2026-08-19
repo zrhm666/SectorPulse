@@ -137,6 +137,27 @@ def create_app(
             raise HTTPException(404, str(exc)) from exc
         return {"run_id": run_id}
 
+    @app.get("/api/task-runs/{run_id}")
+    async def get_task_run(run_id: UUID) -> dict[str, object]:
+        detail = task_repository.get_task_detail(run_id)
+        if detail is None:
+            raise HTTPException(404, "task run not found")
+        return detail
+
+    @app.get("/api/task-runs/{run_id}/stages")
+    async def get_task_run_stages(run_id: UUID) -> list[dict[str, object]]:
+        detail = task_repository.get_task_detail(run_id)
+        if detail is None:
+            raise HTTPException(404, "task run not found")
+        return detail["stages"]
+
+    @app.get("/api/task-runs/{run_id}/events")
+    async def get_task_run_events(run_id: UUID) -> list[dict[str, object]]:
+        detail = task_repository.get_task_detail(run_id)
+        if detail is None:
+            raise HTTPException(404, "task run not found")
+        return detail["events"]
+
     if data_run_service is not None:
         @app.post("/api/data-runs")
         async def create_data_run(req: NewDataRunRequest) -> dict[str, object]:
