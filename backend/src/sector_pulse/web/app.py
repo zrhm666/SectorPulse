@@ -1,4 +1,5 @@
 # backend/src/sector_pulse/web/app.py
+# ruff: noqa: E501
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -35,6 +36,7 @@ from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepo
 from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
 from sector_pulse.web.data_run_schemas import NewDataRunRequest
@@ -46,6 +48,7 @@ from sector_pulse.web.editing_schemas import (
     GovernanceResponse,
 )
 from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
@@ -68,6 +71,7 @@ def create_app(
     task_run_service = TaskRunService(task_repository)
     draft_edit_repository = SQLiteDraftEditRepository(database)
     governance_service = GovernanceService()
+    release_audit_repository = SQLiteReleaseAuditRepository(database)
     scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
@@ -152,7 +156,9 @@ def create_app(
         if draft.run_id != run_id:
             raise HTTPException(404, "draft not found")
         return DraftPatchResponse(
-            draft_id=draft.draft_id, version=draft.version, status=draft.status.value,
+            draft_id=draft.draft_id,
+            version=draft.version,
+            status=draft.status.value,
             content=draft.model_dump(mode="json"),
         )
 
@@ -166,6 +172,92 @@ def create_app(
             status=report.status, issues=report.issues, rules_version=report.rules_version
         )
 
+    @app.post("/api/runs/{run_id}/drafts/{draft_id}/approve", response_model=ApprovalResponse)
+    async def approve_draft(
+        run_id: UUID, draft_id: UUID, actor: str = Header(default="local-user", alias="X-Actor")
+    ) -> ApprovalResponse:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        report = governance_service.check(draft)
+        if report.status != "PASS":
+            raise HTTPException(422, "governance check must pass before approval")
+        from datetime import UTC, datetime
+
+        from sector_pulse.domain.release_audit import DraftApproval
+
+        governance_hash = release_audit_repository.content_hash(
+            {
+                "status": report.status,
+                "issues": report.issues,
+                "rules_version": report.rules_version,
+            }
+        )
+        approval = DraftApproval(
+            run_id=run_id,
+            draft_id=draft_id,
+            version=draft.version,
+            governance_hash=governance_hash,
+            actor=actor,
+            approved_at=datetime.now(UTC),
+        )
+        try:
+            release_audit_repository.approve(approval)
+        except Exception as exc:
+            raise HTTPException(409, "draft version already approved") from exc
+        return ApprovalResponse(
+            draft_id=str(draft_id), version=draft.version, status=approval.status.value, actor=actor
+        )
+
+    @app.post("/api/runs/{run_id}/drafts/{draft_id}/revoke", response_model=ApprovalResponse)
+    async def revoke_draft(
+        run_id: UUID, draft_id: UUID, actor: str = Header(default="local-user", alias="X-Actor")
+    ) -> ApprovalResponse:
+        draft = draft_edit_repository.latest_version(draft_id)
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        from datetime import UTC, datetime
+
+        release_audit_repository.revoke(run_id, draft_id, draft.version, actor, datetime.now(UTC))
+        return ApprovalResponse(
+            draft_id=str(draft_id), version=draft.version, status="REVOKED", actor=actor
+        )
+
+    @app.get(
+        "/api/runs/{run_id}/drafts/{draft_id}/approval", response_model=ApprovalResponse | None
+    )
+    async def get_approval(run_id: UUID, draft_id: UUID) -> ApprovalResponse | None:
+        draft = draft_edit_repository.latest_version(draft_id)
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        approval = release_audit_repository.approval(draft_id, draft.version)
+        return (
+            None
+            if approval is None
+            else ApprovalResponse(
+                draft_id=str(draft_id),
+                version=approval.version,
+                status=approval.status.value,
+                actor=approval.actor,
+            )
+        )
+
+    @app.get("/api/runs/{run_id}/drafts/{draft_id}/audit", response_model=list[AuditEventResponse])
+    async def get_audit(run_id: UUID, draft_id: UUID) -> list[AuditEventResponse]:
+        return [
+            AuditEventResponse(
+                event_type=e.event_type,
+                version=e.version,
+                actor=e.actor,
+                created_at=e.created_at.isoformat(),
+                payload=e.payload,
+            )
+            for e in release_audit_repository.audit(draft_id)
+        ]
+
     @app.post("/api/schedules", response_model=ScheduleResponse, status_code=201)
     async def create_schedule(req: ScheduleCreateRequest) -> ScheduleResponse:
         try:
@@ -177,8 +269,7 @@ def create_app(
     @app.get("/api/schedules", response_model=list[ScheduleResponse])
     async def list_schedules() -> list[ScheduleResponse]:
         return [
-            ScheduleResponse.model_validate(item.model_dump())
-            for item in schedule_service.list()
+            ScheduleResponse.model_validate(item.model_dump()) for item in schedule_service.list()
         ]
 
     @app.post("/api/schedules/{schedule_id}/trigger", status_code=202)
@@ -214,6 +305,7 @@ def create_app(
         return detail["events"]
 
     if data_run_service is not None:
+
         @app.post("/api/data-runs")
         async def create_data_run(req: NewDataRunRequest) -> dict[str, object]:
             try:
@@ -305,6 +397,7 @@ def create_app(
     async def run_events(run_id: UUID) -> StreamingResponse:
         if queries.detail(run_id) is None:
             raise HTTPException(404, "run not found")
+
         async def event_stream() -> AsyncIterator[str]:
             async for event in bus.subscribe(run_id):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"

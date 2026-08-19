@@ -34,6 +34,12 @@ class SQLiteDraftEditRepository:
             raise KeyError(f"draft not found: {draft_id}")
         return versions[-1]
 
+    def latest_for_run(self, run_id: UUID) -> ArticleDraft:
+        versions = self._drafts.get_drafts(run_id)
+        if not versions:
+            raise KeyError(f"draft not found: {run_id}")
+        return versions[-1]
+
     def apply_patch(
         self,
         draft_id: UUID,

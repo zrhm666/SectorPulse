@@ -13,9 +13,17 @@ def test_patch_and_governance_are_versioned(tmp_path):
     database = SQLiteDatabase(database_path)
     repository = SQLitePhase1BRepository(database)
     draft = ArticleDraft(
-        draft_id=uuid4(), run_id=uuid4(), version=1, status=DraftStatus.INCOMPLETE,
-        titles=("标题",), introduction="导语", sections=(), conclusion="总结",
-        risk_notice="风险", sources=(), character_count=8,
+        draft_id=uuid4(),
+        run_id=uuid4(),
+        version=1,
+        status=DraftStatus.INCOMPLETE,
+        titles=("标题",),
+        introduction="导语",
+        sections=(),
+        conclusion="总结",
+        risk_notice="风险",
+        sources=(),
+        character_count=8,
     )
     repository.save_draft(draft)
     client = TestClient(create_app(database_path=database_path))
@@ -24,11 +32,13 @@ def test_patch_and_governance_are_versioned(tmp_path):
         f"/api/runs/{draft.run_id}/drafts/{draft.draft_id}/patches",
         json={
             "base_version": 1,
-            "operations": [{
-                "path": "introduction",
-                "old_value_hash": sha256("导语".encode()).hexdigest(),
-                "value": "新的导语",
-            }],
+            "operations": [
+                {
+                    "path": "introduction",
+                    "old_value_hash": sha256("导语".encode()).hexdigest(),
+                    "value": "新的导语",
+                }
+            ],
         },
     )
 
@@ -36,3 +46,9 @@ def test_patch_and_governance_are_versioned(tmp_path):
     assert response.json()["version"] == 2
     governance = client.get(f"/api/runs/{draft.run_id}/governance")
     assert governance.status_code == 200
+
+    approval = client.post(
+        f"/api/runs/{draft.run_id}/drafts/{draft.draft_id}/approve",
+        headers={"X-Actor": "reviewer"},
+    )
+    assert approval.status_code == 422
