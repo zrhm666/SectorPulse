@@ -4,6 +4,7 @@ import RunListPage from './pages/RunListPage'
 import DataRunPage from './pages/DataRunPage'
 import SchedulePage from './pages/SchedulePage'
 import TaskRunPage from './pages/TaskRunPage'
+import ShadowAcceptancePage from './pages/ShadowAcceptancePage'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/data-runs/:runId" element={<DataRunPage />} />
           <Route path="/schedules" element={<SchedulePage />} />
           <Route path="/task-runs/:runId" element={<TaskRunPage />} />
+          <Route path="/shadow-acceptance" element={<ShadowAcceptancePage />} />
         </Routes>
       </main>
     </BrowserRouter>
