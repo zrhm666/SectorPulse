@@ -13,4 +13,7 @@ docker compose up -d
 Invoke-RestMethod http://127.0.0.1:8010/api/health
 ```
 
+本次检查结果：Docker CLI 可用，但 Docker Desktop Linux Engine 未启动，连接
+`dockerDesktopLinuxEngine` 失败。因此 Compose 构建和容器健康检查属于环境阻断，未宣称通过。
+
 未执行 Docker 验收前，不标记 Phase 4 通过。
