@@ -2,7 +2,12 @@ import json
 from datetime import datetime
 from uuid import UUID
 
-from sector_pulse.domain.editing import EvidenceDecision, EvidenceDecisionKind
+from sector_pulse.domain.editing import (
+    EvidenceDecision,
+    EvidenceDecisionKind,
+    PreferenceCandidate,
+    PreferenceVersion,
+)
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 
@@ -43,3 +48,37 @@ class SQLiteGovernanceRepository:
             )
             for row in rows
         )
+
+    def save_preference_candidate(self, candidate: PreferenceCandidate) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                """INSERT INTO preference_candidates
+                (candidate_id, source_patch_id, content_json, status, created_at)
+                VALUES (?, ?, ?, ?, ?)""",
+                (str(candidate.candidate_id), str(candidate.source_patch_id),
+                 json.dumps(candidate.content), candidate.status, candidate.created_at.isoformat()),
+            )
+
+    def adopt_preference(self, candidate_id: UUID, adopted_at: datetime) -> PreferenceVersion:
+        with self._database.transaction() as connection:
+            row = connection.execute(
+                "SELECT content_json FROM preference_candidates WHERE candidate_id = ?",
+                (str(candidate_id),),
+            ).fetchone()
+            if row is None:
+                raise KeyError(str(candidate_id))
+            current = connection.execute(
+                "SELECT COALESCE(MAX(version), 0) FROM preference_versions"
+            ).fetchone()[0]
+            version = int(current) + 1
+            connection.execute("UPDATE preference_versions SET active = 0 WHERE active = 1")
+            connection.execute(
+                """INSERT INTO preference_versions
+                (version, content_json, adopted_at, active) VALUES (?, ?, ?, 1)""",
+                (version, row[0], adopted_at.isoformat()),
+            )
+            connection.execute(
+                "UPDATE preference_candidates SET status = 'ADOPTED' WHERE candidate_id = ?",
+                (str(candidate_id),),
+            )
+        return PreferenceVersion(version=version, content=json.loads(row[0]), adopted_at=adopted_at)
