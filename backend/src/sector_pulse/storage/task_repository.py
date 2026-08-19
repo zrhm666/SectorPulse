@@ -2,6 +2,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sector_pulse.domain.task import Checkpoint, TaskRunKey, TaskRunStatus, TaskStage
@@ -235,3 +236,49 @@ class SQLiteTaskRepository:
     def count_runs(self) -> int:
         with self._database.connection() as connection:
             return connection.execute("SELECT COUNT(*) FROM task_runs").fetchone()[0]
+
+    def insert_schedule(self, values: dict[str, Any]) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                """INSERT INTO schedules
+                (schedule_id, name, mode, timezone, local_time, trading_days,
+                 schedule_spec_json, input_template_json, enabled, version,
+                 next_run_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    values["schedule_id"], values["name"], values["mode"],
+                    values["timezone"], values["local_time"], values["trading_days"],
+                    json.dumps(values.get("schedule_spec", {}), sort_keys=True),
+                    json.dumps(
+                        values.get("input_template", {}), ensure_ascii=False, sort_keys=True
+                    ),
+                    int(values["enabled"]), values.get("version", 1),
+                    values.get("next_run_at"), values["created_at"], values["updated_at"],
+                ),
+            )
+
+    def list_schedules(self) -> list[dict[str, Any]]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                """SELECT schedule_id, name, mode, timezone, local_time, trading_days,
+                          schedule_spec_json, input_template_json, enabled, version,
+                          next_run_at, created_at, updated_at
+                   FROM schedules ORDER BY created_at, schedule_id"""
+            ).fetchall()
+        return [
+            {
+                "schedule_id": row[0], "name": row[1], "mode": row[2],
+                "timezone": row[3], "local_time": row[4], "trading_days": row[5],
+                "schedule_spec": json.loads(row[6]), "input_template": json.loads(row[7]),
+                "enabled": bool(row[8]), "version": row[9], "next_run_at": row[10],
+                "created_at": row[11], "updated_at": row[12],
+            }
+            for row in rows
+        ]
+
+    def update_schedule_next_run(self, schedule_id: UUID, next_run_at: datetime) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                "UPDATE schedules SET next_run_at = ?, updated_at = ? WHERE schedule_id = ?",
+                (next_run_at.isoformat(), datetime.now(UTC).isoformat(), str(schedule_id)),
+            )
