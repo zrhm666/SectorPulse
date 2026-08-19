@@ -1,11 +1,16 @@
 // web/src/pages/tabs/DraftTab.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { draftUrl, DraftVersionView, fetchDraft } from '../../api'
+import { draftUrl, DraftVersionView, fetchDraft, fetchRun } from '../../api'
+import { fetchGovernance, GovernanceResponse } from '../../editingApi'
+import GovernanceCard from './GovernanceCard'
+import ReviewEditor from './ReviewEditor'
 
 export default function DraftTab({ runId }: { runId: string }) {
   const [versions, setVersions] = useState<DraftVersionView[]>([])
   const [left, setLeft] = useState<number>(0)
   const [right, setRight] = useState<number>(0)
+  const [draftId, setDraftId] = useState<string | null>(null)
+  const [governance, setGovernance] = useState<GovernanceResponse | null>(null)
   useEffect(() => {
     fetchDraft(runId)
       .then((d) => {
@@ -17,6 +22,8 @@ export default function DraftTab({ runId }: { runId: string }) {
         }
       })
       .catch(console.error)
+    fetchRun(runId).then((run) => setDraftId(run.draft_id)).catch(console.error)
+    fetchGovernance(runId).then(setGovernance).catch(() => setGovernance(null))
   }, [runId])
 
   const latest = versions[versions.length - 1]
@@ -117,6 +124,18 @@ export default function DraftTab({ runId }: { runId: string }) {
           </div>
         ))}
       </div>
+      {governance && <GovernanceCard report={governance} />}
+      {draftId && latest.sections[0] && (
+        <ReviewEditor
+          runId={runId}
+          draftId={draftId}
+          version={latest.version}
+          sectionId={latest.sections[0].section_id}
+          heading={latest.sections[0].heading}
+          body={latest.sections[0].body}
+          onSaved={() => fetchDraft(runId).then((d) => setVersions(d.versions)).catch(console.error)}
+        />
+      )}
     </div>
   )
 }
