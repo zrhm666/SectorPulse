@@ -239,3 +239,12 @@ git commit -m "docs: record postgres runtime acceptance"
 - [ ] Every migrated repository has a real round-trip test.
 - [ ] Docker profile and local process startup use the same environment variable.
 - [ ] Phase 4 status distinguishes completed code, passed acceptance, and deferred work.
+
+## Execution checkpoint (2026-08-21)
+
+- [x] Runtime database factory and FastAPI lifespan selection implemented.
+- [x] PostgreSQL repository round-trip suite passes (`14 passed`).
+- [x] SQLite/full backend regression passes (`187 passed, 21 skipped`).
+- [x] Web PostgreSQL smoke passes for health, shadow summary, and Prompt Golden endpoints.
+- [x] Docker PostgreSQL profile configuration and image build pass.
+- [ ] Long-running production-like observation remains deployment-specific and must be recorded separately.
