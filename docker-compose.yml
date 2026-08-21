@@ -14,6 +14,38 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  sector-pulse-postgres:
+    build: .
+    profiles: ["postgres"]
+    ports:
+      - "8011:8010"
+    environment:
+      SECTOR_PULSE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sectorpulse}:${POSTGRES_PASSWORD:-sectorpulse-local-only}@postgres:5432/${POSTGRES_DB:-sectorpulse}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sectorpulse}
+      POSTGRES_USER: ${POSTGRES_USER:-sectorpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sectorpulse-local-only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - sector_pulse_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   sector_pulse_data:
+  sector_pulse_postgres_data:
