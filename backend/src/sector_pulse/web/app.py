@@ -28,21 +28,16 @@ from sector_pulse.domain.real_data_run import RealDataRunRequest
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
-from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.database_runtime import (
+    build_database,
+    close_database,
+    initialize_database,
+)
 from sector_pulse.storage.draft_edit_repository import (
     DraftVersionConflict,
-    SQLiteDraftEditRepository,
 )
-from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
-from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
-from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
-from sector_pulse.storage.prompt_golden_repository import SQLitePromptGoldenRepository
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
-from sector_pulse.storage.runtime_bundle import build_sqlite_storage
-from sector_pulse.storage.shadow_acceptance_repository import SQLiteShadowAcceptanceRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
-from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.postgres import PostgresDatabase
+from sector_pulse.storage.runtime_bundle import build_postgres_storage, build_sqlite_storage
 from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
 from sector_pulse.web.data_run_schemas import NewDataRunRequest
 from sector_pulse.web.data_run_service import DataRunService
@@ -79,26 +74,32 @@ def create_app(
     runtime_config = settings.apply_runtime_overrides(yaml_config)
     if database_path == Path("data/sector-pulse.db"):
         database_path = settings.database_path
-    database = SQLiteDatabase(database_path)
-    storage = build_sqlite_storage(database)
-    task_repository = SQLiteTaskRepository(database)
+    database = build_database(settings, database_path)
+    storage = (
+        build_postgres_storage(database)
+        if isinstance(database, PostgresDatabase)
+        else build_sqlite_storage(database)
+    )
+    task_repository = storage.task
+    if task_repository is None:
+        raise RuntimeError("task repository is not configured")
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
-    draft_edit_repository = SQLiteDraftEditRepository(database)
+    draft_edit_repository = storage.draft_edit
     governance_service = GovernanceService()
-    release_audit_repository = SQLiteReleaseAuditRepository(database)
-    review_analytics = ReviewAnalyticsQueries(database)
-    shadow_repository = SQLiteShadowAcceptanceRepository(database)
-    prompt_golden_repository = SQLitePromptGoldenRepository(database)
+    release_audit_repository = storage.release_audit
+    review_analytics = storage.review_analytics or ReviewAnalyticsQueries(database)
+    shadow_repository = storage.shadow
+    prompt_golden_repository = storage.prompt_golden
     scheduler: EmbeddedScheduler | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
     if service is None:
         service = RunService(
-            runs_repo=SQLitePhase1BRunsRepository(database),
-            phase1b_repo=SQLitePhase1BRepository(database),
-            invocation_repo=SQLiteAgentInvocationRepository(database),
-            news_evidence=SQLiteNewsEvidenceRepository(database),
+            runs_repo=storage.phase1b_runs,
+            phase1b_repo=storage.phase1b,
+            invocation_repo=storage.invocations,
+            news_evidence=storage.news_evidence,
             prompts=PromptRegistry(Path("config/prompts")),
             config=runtime_config,
             bus=bus,
@@ -108,7 +109,7 @@ def create_app(
 
     commands = RunCommandService(service)
     queries = RunQueryService(service)
-    real_repository = SQLiteRealDataRunRepository(database)
+    real_repository = storage.real_data_runs
     real_queries = RealDataRunQueries(real_repository)
     data_run_service = overrides.get("data_run_service") if overrides else None
     if data_run_service is None:
@@ -140,7 +141,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        database.initialize()
+        await initialize_database(database)
         task_repository.recover_expired_leases()
         if scheduler is not None and settings.scheduler_enabled:
             scheduler.recover()
@@ -148,6 +149,7 @@ def create_app(
         yield
         if scheduler is not None and settings.scheduler_enabled:
             await scheduler.stop()
+        await close_database(database)
 
     app = FastAPI(title="SectorPulse Web", lifespan=lifespan)
 

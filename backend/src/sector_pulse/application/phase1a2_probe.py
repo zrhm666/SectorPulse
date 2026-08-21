@@ -39,6 +39,7 @@ from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
 from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
 from sector_pulse.storage.news_repository import SQLiteNewsRepository
 from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRepository
+from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 
@@ -155,7 +156,10 @@ async def run_phase1a2_probe(
     """执行 Phase 1A.2 的真实数据链路；Provider 由依赖注入提供，编排器不创建具体实现。"""
     started = time.perf_counter()
     database = dependencies.database
-    database.initialize()
+    if isinstance(database, SQLiteDatabase):
+        database.initialize()
+    elif isinstance(database, PostgresDatabase):
+        await database.initialize()
     run = AnalysisRun.create_live(request.requested_at, request.run_id)
     industry, concept = await __import__("asyncio").gather(
         dependencies.market.fetch_sector_universe(SectorKind.INDUSTRY, AnalysisMode.LIVE),

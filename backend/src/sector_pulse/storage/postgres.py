@@ -3,6 +3,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.pool import NullPool
 
 
 @dataclass
@@ -14,7 +15,9 @@ class PostgresDatabase:
 
     def start(self) -> AsyncEngine:
         if self.engine is None:
-            self.engine = create_async_engine(self.url, pool_pre_ping=True)
+            # Legacy synchronous services bridge calls through short-lived event loops;
+            # NullPool prevents asyncpg connections from being reused across loops.
+            self.engine = create_async_engine(self.url, pool_pre_ping=True, poolclass=NullPool)
         return self.engine
 
     async def healthcheck(self) -> bool:

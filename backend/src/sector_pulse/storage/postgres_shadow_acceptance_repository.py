@@ -63,3 +63,36 @@ class PostgresShadowAcceptanceRepository:
             created_at=row["created_at"],
             finished_at=row["finished_at"],
         )
+
+    async def list_runs(self, limit: int = 20) -> tuple[ShadowRun, ...]:
+        async with self._database.engine.connect() as connection:
+            result = await connection.execute(
+                text("SELECT shadow_id FROM shadow_runs ORDER BY trading_date DESC, created_at DESC LIMIT :limit"),
+                {"limit": limit},
+            )
+            ids = [UUID(row[0]) for row in result.fetchall()]
+        values = [await self.get(item) for item in ids]
+        return tuple(item for item in values if item is not None)
+
+    async def update_run(self, shadow_id: UUID, item: ShadowRun) -> None:
+        await self.save_run(item)
+
+    async def save_recovery(self, item) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text("INSERT INTO recovery_drills (drill_id, shadow_id, fault_type, recovered, recovery_seconds, notes, created_at) "
+                     "VALUES (:drill_id, :shadow_id, :fault_type, :recovered, :recovery_seconds, :notes, :created_at)"),
+                {"drill_id": str(item.drill_id), "shadow_id": str(item.shadow_id), "fault_type": item.fault_type,
+                 "recovered": int(item.recovered), "recovery_seconds": item.recovery_seconds,
+                 "notes": item.notes, "created_at": item.created_at.isoformat()},
+            )
+
+    async def save_compliance(self, item) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text("INSERT INTO compliance_records (record_id, shadow_id, rules_version, decision, reviewer, notes, created_at) "
+                     "VALUES (:record_id, :shadow_id, :rules_version, :decision, :reviewer, :notes, :created_at)"),
+                {"record_id": str(item.record_id), "shadow_id": str(item.shadow_id), "rules_version": item.rules_version,
+                 "decision": item.decision, "reviewer": item.reviewer, "notes": item.notes,
+                 "created_at": item.created_at.isoformat()},
+            )

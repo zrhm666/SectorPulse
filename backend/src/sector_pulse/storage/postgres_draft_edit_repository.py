@@ -9,11 +9,12 @@ from sqlalchemy import text
 
 from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.editing import DraftPatch
+from sector_pulse.storage.draft_edit_repository import DraftVersionConflict
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_phase1b_repository import PostgresPhase1BRepository
 
 
-class PostgresDraftVersionConflict(ValueError):
+class PostgresDraftVersionConflict(DraftVersionConflict):
     pass
 
 

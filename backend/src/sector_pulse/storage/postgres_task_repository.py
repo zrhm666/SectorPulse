@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -141,3 +142,36 @@ class PostgresTaskRepository:
             }
             for row in rows
         ]
+
+    async def recover_expired_leases(self, now: datetime | None = None) -> int:
+        current = (now or datetime.now(UTC)).isoformat()
+        async with self._database.engine.begin() as connection:
+            result = await connection.execute(
+                text("UPDATE task_runs SET status = :retry, worker_id = NULL, lease_until = NULL "
+                     "WHERE status = :running AND lease_until IS NOT NULL AND lease_until <= :now"),
+                {"retry": TaskRunStatus.RETRY_WAITING.value, "running": TaskRunStatus.RUNNING.value, "now": current},
+            )
+            return result.rowcount
+
+    async def insert_schedule(self, values: dict[str, Any]) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text("INSERT INTO schedules (schedule_id, name, mode, timezone, local_time, trading_days, schedule_spec_json, input_template_json, enabled, version, next_run_at, created_at, updated_at) "
+                     "VALUES (:schedule_id, :name, :mode, :timezone, :local_time, :trading_days, :schedule_spec, :input_template, :enabled, :version, :next_run_at, :created_at, :updated_at)"),
+                {"schedule_id": values["schedule_id"], "name": values["name"], "mode": values["mode"],
+                 "timezone": values["timezone"], "local_time": values["local_time"], "trading_days": values["trading_days"],
+                 "schedule_spec": json.dumps(values.get("schedule_spec", {})), "input_template": json.dumps(values.get("input_template", {})),
+                 "enabled": int(values["enabled"]), "version": values.get("version", 1), "next_run_at": values.get("next_run_at"),
+                 "created_at": values["created_at"], "updated_at": values["updated_at"]},
+            )
+
+    async def get_schedule(self, schedule_id: UUID) -> dict[str, Any] | None:
+        values = [item for item in await self.list_schedules() if item["schedule_id"] == str(schedule_id)]
+        return values[0] if values else None
+
+    async def update_schedule_next_run(self, schedule_id: UUID, next_run_at: datetime) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text("UPDATE schedules SET next_run_at = :next_run_at, updated_at = :updated_at WHERE schedule_id = :schedule_id"),
+                {"next_run_at": next_run_at.isoformat(), "updated_at": datetime.now(UTC).isoformat(), "schedule_id": str(schedule_id)},
+            )
