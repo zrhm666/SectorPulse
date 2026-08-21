@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from datetime import datetime
 from uuid import UUID
 
@@ -20,7 +21,7 @@ class PostgresPromptGoldenRepository:
                      result, notes, created_at)
                     VALUES (:case_id, :prompt_id, :prompt_version, :input_hash,
                      :expected_schema, :result, :notes, :created_at)
-                    ON CONFLICT (case_id) DO UPDATE SET result = EXCLUDED.result,
+                    ON CONFLICT (prompt_id, prompt_version, input_hash) DO UPDATE SET result = EXCLUDED.result,
                      notes = EXCLUDED.notes"""
                 ),
                 {

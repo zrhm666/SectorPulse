@@ -1,5 +1,6 @@
 import os
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.prompt_golden import PromptGoldenCase
@@ -15,7 +16,7 @@ async def test_postgres_prompt_golden_round_trip() -> None:
     database = PostgresDatabase(url)
     await database.initialize()
     item = PromptGoldenCase(
-        prompt_id="postgres-test", prompt_version=1, input_hash="hash",
+        prompt_id="postgres-test", prompt_version=1, input_hash=f"hash-{uuid4()}",
         expected_schema="schema", result="result", created_at=datetime.now(UTC),
     )
     repository = PostgresPromptGoldenRepository(database)
