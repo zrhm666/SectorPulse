@@ -3,6 +3,7 @@
 状态：开发中。
 
 - Dockerfile 和 Compose 示例已添加。
+- SQLite 备份与恢复脚本已添加：`scripts/backup_sqlite.ps1`、`scripts/restore_sqlite.ps1`。
 - 默认使用 SQLite 数据卷。
 - 健康检查使用 `/api/health`。
 - 当前环境尚未执行真实 Docker 启动验收；需本机安装 Docker Desktop 后执行：
