@@ -24,8 +24,14 @@ class RealDataBridgeIncomplete(ValueError):
     pass
 
 
-def build_phase1b_request(database: SQLiteDatabase, run_id: UUID) -> Phase1BRequest:
-    runs = SQLiteRealDataRunRepository(database)
+def build_phase1b_request(
+    database: SQLiteDatabase, run_id: UUID, storage: object | None = None
+) -> Phase1BRequest:
+    runs = (
+        storage.real_data_runs
+        if storage is not None
+        else SQLiteRealDataRunRepository(database)
+    )
     real_run = runs.get_run(run_id)
     if real_run is None:
         raise RealDataRunNotReady("REAL_DATA_RUN_NOT_FOUND")
@@ -41,24 +47,34 @@ def build_phase1b_request(database: SQLiteDatabase, run_id: UUID) -> Phase1BRequ
         run_cutoff_at=real_run.cutoff_at,
         cutoff_locked_at=real_run.cutoff_at,
     )
-    snapshots = SQLiteMarketSnapshotRepository(database)
+    snapshots = (
+        storage.market_snapshots
+        if storage is not None
+        else SQLiteMarketSnapshotRepository(database)
+    )
     industry = snapshots.get(run_id, SectorKind.INDUSTRY)
     concept = snapshots.get(run_id, SectorKind.CONCEPT)
     if industry is None or concept is None:
         raise RealDataBridgeIncomplete("REAL_DATA_BRIDGE_INCOMPLETE")
 
     candidates = runs.get_candidates(run_id)
-    packs = SQLiteEvidenceRepository(database).list_for_run(run_id)
+    evidence = storage.evidence if storage is not None else SQLiteEvidenceRepository(database)
+    packs = evidence.list_for_run(run_id)
     if len(candidates) < 3 or len(packs) < len(candidates):
         raise RealDataBridgeIncomplete("REAL_DATA_BRIDGE_INCOMPLETE")
     pack_by_sector = {pack.sector_id: pack for pack in packs}
     event_ids = tuple(dict.fromkeys(event_id for pack in packs for event_id in pack.event_ids))
-    news = SQLiteNewsRepository(database)
+    news = storage.news if storage is not None else SQLiteNewsRepository(database)
     events = news.get_events(event_ids)
     documents = news.get_documents(
         tuple(dict.fromkeys(document_id for event in events for document_id in event.document_ids))
     )
-    links = SQLiteNewsRetrievalRepository(database).list_links(run_id)
+    retrieval = (
+        storage.news_retrieval
+        if storage is not None
+        else SQLiteNewsRetrievalRepository(database)
+    )
+    links = retrieval.list_links(run_id)
     links_by_sector: dict[str, list] = {}
     for link in links:
         links_by_sector.setdefault(link.sector_id, []).append(link)

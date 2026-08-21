@@ -70,6 +70,8 @@ class Phase1A2Dependencies(Protocol):
     def database(self) -> SQLiteDatabase: ...
     @property
     def entity_config(self) -> SectorEntityConfig: ...
+    @property
+    def storage(self) -> object: ...
 
 
 class SourceMetricSummary(BaseModel):
@@ -177,8 +179,24 @@ async def run_phase1a2_probe(
     cutoff = run.run_cutoff_at
     if cutoff is None:  # 防御性检查，保证后续新闻查询始终使用已锁定 cutoff。
         return _empty_report(request, run, started, market_quality, "CUTOFF_NOT_LOCKED")
-    SQLiteMarketSnapshotRepository(database).save(run, industry)
-    SQLiteMarketSnapshotRepository(database).save(run, concept)
+    storage = getattr(dependencies, "storage", None)
+    market_snapshots = (
+        storage.market_snapshots if storage is not None
+        else SQLiteMarketSnapshotRepository(database)
+    )
+    news_repository = (
+        storage.news if storage is not None else SQLiteNewsRepository(database)
+    )
+    evidence_repository = (
+        storage.evidence if storage is not None else SQLiteEvidenceRepository(database)
+    )
+    retrieval_repository = (
+        storage.news_retrieval
+        if storage is not None
+        else SQLiteNewsRetrievalRepository(database)
+    )
+    market_snapshots.save(run, industry)
+    market_snapshots.save(run, concept)
     precandidates = select_market_precandidates(
         industry.data, concept.data, request.precandidate_limit
     )
@@ -251,9 +269,9 @@ async def run_phase1a2_probe(
         build_evidence_pack(candidate, (industry.data, concept.data), events, run.run_id)
         for candidate in final_candidates
     )
-    SQLiteNewsRepository(database).save(documents, events)
-    SQLiteEvidenceRepository(database).save(packs)
-    SQLiteNewsRetrievalRepository(database).save_audit(
+    news_repository.save(documents, events)
+    evidence_repository.save(packs)
+    retrieval_repository.save_audit(
         run.run_id,
         (),
         tuple(

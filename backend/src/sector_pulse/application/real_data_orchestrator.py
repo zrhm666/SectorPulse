@@ -60,7 +60,12 @@ async def run_real_data_workflow(
 ) -> RealDataRunResult:
     """复用已验证的采集链路，并在外层增加真实数据状态和持久化边界。"""
     real_run = RealDataRun(run_id=run_id or UUID(int=0), request=request)
-    repository = SQLiteRealDataRunRepository(dependencies.database)
+    storage = getattr(dependencies, "storage", None)
+    repository = (
+        storage.real_data_runs
+        if storage is not None
+        else SQLiteRealDataRunRepository(dependencies.database)
+    )
     repository.insert(real_run)
 
     def emit(status: RealDataRunStatus) -> None:

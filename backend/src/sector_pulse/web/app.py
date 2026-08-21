@@ -39,6 +39,7 @@ from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsReposi
 from sector_pulse.storage.prompt_golden_repository import SQLitePromptGoldenRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
+from sector_pulse.storage.runtime_bundle import build_sqlite_storage
 from sector_pulse.storage.shadow_acceptance_repository import SQLiteShadowAcceptanceRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
@@ -79,6 +80,7 @@ def create_app(
     if database_path == Path("data/sector-pulse.db"):
         database_path = settings.database_path
     database = SQLiteDatabase(database_path)
+    storage = build_sqlite_storage(database)
     task_repository = SQLiteTaskRepository(database)
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
@@ -125,6 +127,7 @@ def create_app(
                     "keyword_news": bundle.keyword_news,
                     "disclosure_news": bundle.disclosure_news,
                     "database": database,
+                    "storage": storage,
                     "entity_config": entity_config,
                 },
             )()
@@ -479,7 +482,7 @@ def create_app(
                 raise HTTPException(404, "run not found or not running")
             return {"run_id": run_id, "status": "CANCELLED"}
 
-        writing_service = DataRunWritingService(database, service)
+        writing_service = DataRunWritingService(database, service, storage=storage)
         scheduler = EmbeddedScheduler(
             task_repository,
             schedule_service,

@@ -16,10 +16,14 @@ class DataRunWritingService:
         database: SQLiteDatabase,
         run_service: RunService,
         consent_file: Path | None = None,
+        storage: object | None = None,
     ) -> None:
         self._database = database
         self._run_service = run_service
         self._repository = SQLiteRealDataRunRepository(database)
+        if storage is not None:
+            self._repository = storage.real_data_runs
+        self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")
 
     def generate(self, run_id: UUID) -> UUID:
@@ -30,5 +34,5 @@ class DataRunWritingService:
             raise ValueError("REAL_DATA_RUN_NOT_FOUND")
         if run.status is not RealDataRunStatus.READY_FOR_ATTRIBUTION:
             raise ValueError("REAL_DATA_RUN_NOT_READY")
-        request = build_phase1b_request(self._database, run_id)
+        request = build_phase1b_request(self._database, run_id, self._storage)
         return self._run_service.create_run(request.model_dump(mode="json"), "live", run_id=run_id)
