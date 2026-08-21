@@ -78,6 +78,8 @@ git commit -m "feat: add runtime database selection"
 
 ### Task 2: 完成剩余 PostgreSQL 业务仓储
 
+**Progress checkpoint (2026-08-21):** PostgreSQL implementations and live round-trip tests now exist for shadow acceptance, real-data runs, prompt golden, task/schedule reads, Phase 1B runs and payloads, LLM invocation audit, evidence, news metadata/evidence/retrieval, market snapshots, governance, release audit, and draft editing. Do not mark this task complete until the Web runtime consumes these implementations without synchronous SQLite calls.
+
 **Files:**
 - Create: `backend/src/sector_pulse/storage/postgres_phase1b_repository.py`, `postgres_task_repository.py`, `postgres_news_repository.py`, `postgres_evidence_repository.py`, `postgres_governance_repository.py`, `postgres_agent_invocation_repository.py`, `postgres_market_snapshot_repository.py`, and `postgres_release_audit_repository.py`
 - Modify: `backend/src/sector_pulse/storage/__init__.py` only if public exports are needed

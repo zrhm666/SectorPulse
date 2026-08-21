@@ -1,6 +1,6 @@
 # Phase 4 自托管部署记录
 
-状态：SQLite/Docker 自托管、PostgreSQL schema 初始化，以及首批业务仓储（影子验收、真实数据运行）真实读写通过；其余业务仓储切换和插件生产化路径仍待后续演进。
+状态：SQLite/Docker 自托管、PostgreSQL schema 初始化，以及 PostgreSQL 业务仓储层的真实读写验证通过；Web 运行时的全量异步依赖注入和 Compose PostgreSQL profile 仍待完成。
 
 - Dockerfile 和 Compose 示例已添加。
 - SQLite 备份与恢复脚本已添加：`scripts/backup_sqlite.ps1`、`scripts/restore_sqlite.ps1`。
@@ -8,6 +8,7 @@
 - `PostgresShadowAcceptanceRepository` 已完成真实 PostgreSQL round-trip 集成测试；应用默认仍使用 SQLite，尚未切换全量业务读写。
 - `PostgresRealDataRunRepository` 已完成真实 PostgreSQL round-trip 集成测试；当前仅作为可切换实现，未改变现有 SQLite 默认运行路径。
 - 全量后端回归通过：184 passed、9 skipped；Ruff 全部通过。PostgreSQL 集成测试在未设置连接变量的普通回归中按预期跳过。
+- 当前 PostgreSQL 仓储集成回归：11 passed；覆盖影子验收、真实数据运行、Prompt Golden、任务、Phase 1B、LLM 审计、证据、新闻、市场快照、治理、发布审计和新闻检索等域。
 - 默认使用 SQLite 数据卷。
 - 健康检查使用 `/api/health`。
 - 当前环境尚未执行真实 Docker 启动验收；需本机安装 Docker Desktop 后执行：
