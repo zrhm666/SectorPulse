@@ -7,6 +7,7 @@
 - PostgreSQL `sectorpulse` 数据库已执行 12 个 migration，`schema_migrations` 为 12 条且最大版本为 12。
 - `PostgresShadowAcceptanceRepository` 已完成真实 PostgreSQL round-trip 集成测试；应用默认仍使用 SQLite，尚未切换全量业务读写。
 - `PostgresRealDataRunRepository` 已完成真实 PostgreSQL round-trip 集成测试；当前仅作为可切换实现，未改变现有 SQLite 默认运行路径。
+- 全量后端回归通过：184 passed、9 skipped；Ruff 全部通过。PostgreSQL 集成测试在未设置连接变量的普通回归中按预期跳过。
 - 默认使用 SQLite 数据卷。
 - 健康检查使用 `/api/health`。
 - 当前环境尚未执行真实 Docker 启动验收；需本机安装 Docker Desktop 后执行：
