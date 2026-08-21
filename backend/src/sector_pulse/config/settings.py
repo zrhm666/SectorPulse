@@ -17,6 +17,7 @@ class ApplicationSettings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     database_path: Path = Path("data/sector-pulse.db")
+    database_url: str | None = None
     llm_provider: str = "fixture"
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
@@ -55,6 +56,7 @@ class ApplicationSettings(BaseModel):
 
         return cls(
             database_path=value("SECTOR_PULSE_DATABASE_PATH", "data/sector-pulse.db"),
+            database_url=value("SECTOR_PULSE_DATABASE_URL"),
             llm_provider=value("SECTOR_PULSE_LLM_PROVIDER", "fixture"),
             llm_base_url=value("SECTOR_PULSE_LLM_BASE_URL"),
             llm_api_key=SecretStr(value("SECTOR_PULSE_LLM_API_KEY"))
