@@ -31,7 +31,7 @@
 - `initialize_database(database: SQLiteDatabase | PostgresDatabase) -> Awaitable[None]`
 - SQLite 保持同步初始化；PostgreSQL 在 FastAPI lifespan 中异步初始化。
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_build_database_defaults_to_sqlite(tmp_path):
@@ -45,13 +45,13 @@ def test_build_database_selects_postgres(monkeypatch):
     assert isinstance(database, PostgresDatabase)
 ```
 
-- [ ] **Step 2: Run focused tests and verify they fail**
+- [x] **Step 2: Run focused tests and verify they fail**
 
 Run: `.\.venv\Scripts\python.exe -m pytest backend/tests/unit/storage/test_database_runtime.py -q -p no:cacheprovider`
 
 Expected: FAIL because `database_runtime.py` and `build_database` do not yet exist.
 
-- [ ] **Step 3: Implement the runtime factory**
+- [x] **Step 3: Implement the runtime factory**
 
 ```python
 def build_database(settings, database_path):
@@ -63,13 +63,13 @@ def build_database(settings, database_path):
 
 Keep initialization separate so the sync SQLite path is not forced through an event loop. In `create_app`, construct the selected backend once and initialize it in lifespan; reject PostgreSQL startup only when the optional `postgres` dependencies are missing, with a clear error naming the extra.
 
-- [ ] **Step 4: Run focused tests and app tests**
+- [x] **Step 4: Run focused tests and app tests**
 
 Run: `.\.venv\Scripts\python.exe -m pytest backend/tests/unit/storage/test_database_runtime.py backend/tests/unit/web/test_app.py -q -p no:cacheprovider`
 
 Expected: PASS; SQLite app tests continue to use temporary SQLite files.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/sector_pulse/storage/database_runtime.py backend/src/sector_pulse/storage/database_config.py backend/src/sector_pulse/web/app.py backend/tests/unit/storage/test_database_runtime.py
