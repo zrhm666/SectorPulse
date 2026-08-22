@@ -1,26 +1,19 @@
-// web/src/pages/RunListPage.tsx
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { fetchRuns, RunSummary } from '../api'
-import Badge from '../components/Badge'
+import { Link, useNavigate } from 'react-router-dom'
+import { fetchRuns, type RunSummary } from '../api'
+import EmptyState from '../components/ui/EmptyState'
+import InlineAlert from '../components/ui/InlineAlert'
+import LoadingState from '../components/ui/LoadingState'
+import PageHeader from '../components/ui/PageHeader'
+import Panel from '../components/ui/Panel'
+import StatusBadge from '../components/ui/StatusBadge'
 import NewRunDialog from '../components/NewRunDialog'
 import { createDataRun } from '../dataRunsApi'
-import { useNavigate } from 'react-router-dom'
-
-const STATUS_TONE: Record<string, 'gray' | 'blue' | 'green' | 'red' | 'orange'> = {
-  RUNNING: 'blue',
-  READY_FOR_HUMAN_REVIEW: 'green',
-  FAILED: 'red',
-  CANCELLED: 'gray',
-  REVISE_REQUIRED: 'orange',
-  UNREVIEWED: 'orange',
-  BUDGET_EXCEEDED: 'orange',
-  ATTRIBUTION_BLOCKED: 'orange',
-  DRAFT_GENERATION_FAILED: 'red',
-}
 
 export default function RunListPage() {
   const [runs, setRuns] = useState<RunSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const navigate = useNavigate()
 
@@ -30,36 +23,64 @@ export default function RunListPage() {
   }
 
   useEffect(() => {
-    fetchRuns().then(setRuns).catch(console.error)
+    let active = true
+
+    fetchRuns()
+      .then((result) => {
+        if (active) setRuns(result)
+      })
+      .catch(() => {
+        if (active) setLoadError(true)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>运行历史</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => startDataRun('intraday')}>盘中分析</button>
-          <button onClick={() => startDataRun('post_close')}>盘后分析</button>
-          <button onClick={() => setShowNew(true)}>新建运行</button>
-        </div>
-      </div>
+    <section>
+      <PageHeader
+        title="分析运行"
+        description="查看真实运行记录，或立即发起一次分析。"
+        actions={(
+          <>
+            <button className="button button-secondary" type="button" onClick={() => startDataRun('intraday')}>盘中分析</button>
+            <button className="button button-secondary" type="button" onClick={() => startDataRun('post_close')}>盘后分析</button>
+            <button className="button button-primary" type="button" onClick={() => setShowNew(true)}>新建运行</button>
+          </>
+        )}
+      />
       {showNew && <NewRunDialog onClose={() => setShowNew(false)} />}
-      {runs.length === 0 && <p>还没有运行记录，点击「新建运行」开始。</p>}
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {runs.map((r) => (
-          <li key={r.run_id} className="card">
-            <Link to={`/runs/${r.run_id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <Badge text={r.status} tone={STATUS_TONE[r.status] ?? 'gray'} />
-                <span style={{ fontFamily: 'ui-monospace, monospace' }}>{r.run_id.slice(0, 8)}</span>
-                <span>{r.provider}</span>
-                <span>{r.elapsed_ms != null ? `${r.elapsed_ms}ms` : '…'}</span>
-                <span>{r.total_cost_cny != null ? `¥${r.total_cost_cny}` : ''}</span>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+      <Panel title="运行历史" description="所有数据均来自现有运行接口。">
+        {loading && <LoadingState label="正在加载运行记录…" />}
+        {!loading && loadError && (
+          <InlineAlert tone="error" title="无法加载运行记录">请稍后刷新页面重试。</InlineAlert>
+        )}
+        {!loading && !loadError && runs.length === 0 && (
+          <EmptyState
+            title="还没有运行记录"
+            description="创建第一次分析后，运行状态、耗时和成本会显示在这里。"
+            action={<button className="button button-primary" type="button" onClick={() => setShowNew(true)}>新建运行</button>}
+          />
+        )}
+        {!loading && !loadError && runs.length > 0 && (
+          <ul aria-label="运行记录">
+            {runs.map((run) => (
+              <li key={run.run_id} className="card">
+                <Link to={`/runs/${run.run_id}`}>
+                  <StatusBadge status={run.status} />
+                  {' '}{run.run_id.slice(0, 8)} · {run.provider} · {run.elapsed_ms != null ? `${run.elapsed_ms}ms` : '耗时待定'}
+                  {run.total_cost_cny != null ? ` · ¥${run.total_cost_cny}` : ''}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </section>
   )
 }
