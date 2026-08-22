@@ -44,3 +44,7 @@ Thumbs.db
 web/test-results/
 web/tsconfig.tsbuildinfo
 .pytest-temp/
+.tmp-test/
+.pip-cache/
+web/.npm-cache/
+.worktrees/
