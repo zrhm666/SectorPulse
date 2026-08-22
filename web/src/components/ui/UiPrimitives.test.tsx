@@ -1,0 +1,31 @@
+import { render, screen } from '@testing-library/react'
+import { expect, it } from 'vitest'
+import EmptyState from './EmptyState'
+import InlineAlert from './InlineAlert'
+import PageHeader from './PageHeader'
+import StatusBadge from './StatusBadge'
+
+it('renders one page heading and its primary action', () => {
+  render(<PageHeader title="分析运行" description="查看全部运行" actions={<button>新建分析</button>} />)
+
+  expect(screen.getByRole('heading', { level: 1, name: '分析运行' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '新建分析' })).toBeInTheDocument()
+})
+
+it('exposes status and alert semantics as text', () => {
+  render(
+    <>
+      <StatusBadge status="FAILED" />
+      <InlineAlert tone="error" title="运行失败">Provider 超时</InlineAlert>
+    </>,
+  )
+
+  expect(screen.getByText('失败')).toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('Provider 超时')
+})
+
+it('renders a guided empty state action', () => {
+  render(<EmptyState title="还没有运行记录" description="创建第一次分析。" action={<button>新建分析</button>} />)
+
+  expect(screen.getByRole('button', { name: '新建分析' })).toBeInTheDocument()
+})
