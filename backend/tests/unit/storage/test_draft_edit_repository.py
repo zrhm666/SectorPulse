@@ -37,6 +37,24 @@ def test_patch_creates_new_version_without_mutating_base(tmp_path):
     assert repository.get_version(draft.draft_id, 1).introduction == "导语"
 
 
+def test_patch_can_replace_one_title_without_mutating_base(tmp_path):
+    database = SQLiteDatabase(tmp_path / "title-edits.db")
+    repository = SQLiteDraftEditRepository(database)
+    draft = make_draft()
+    repository.save_draft(draft)
+    operation = DraftPatch(
+        path="titles/0",
+        old_value_hash=sha256(draft.titles[0].encode()).hexdigest(),
+        value="新标题",
+    )
+
+    result = repository.apply_patch(draft.draft_id, 1, (operation,), actor="tester")
+
+    assert result.version == 2
+    assert result.titles == ("新标题",)
+    assert repository.get_version(draft.draft_id, 1).titles == ("标题",)
+
+
 def test_stale_base_version_is_conflict(tmp_path):
     database = SQLiteDatabase(tmp_path / "edits.db")
     repository = SQLiteDraftEditRepository(database)

@@ -66,6 +66,11 @@ class PostgresReleaseAuditRepository:
             for row in rows
         )
 
+    async def record_event(self, run_id: UUID, draft_id: UUID, version: int,
+                           event_type: str, actor: str, payload: dict) -> None:
+        async with self._database.engine.begin() as connection:
+            await self._event(connection, run_id, draft_id, version, event_type, actor, payload)
+
     @staticmethod
     def content_hash(content: dict) -> str:
         payload = json.dumps(content, ensure_ascii=False, sort_keys=True).encode()

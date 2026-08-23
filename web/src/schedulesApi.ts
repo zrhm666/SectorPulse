@@ -11,6 +11,16 @@ export interface ScheduleView {
   next_run_at: string | null
 }
 
+export type NewScheduleInput = {
+  name: string
+  mode: string
+  timezone: string
+  local_time: string
+  trading_days: string
+  enabled: boolean
+  input_template: Record<string, unknown>
+}
+
 export interface TaskRunView {
   run_id: string
   status: string
@@ -29,6 +39,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchSchedules(): Promise<ScheduleView[]> {
   return request<ScheduleView[]>('/schedules')
+}
+
+export function createSchedule(input: NewScheduleInput): Promise<ScheduleView> {
+  return request<ScheduleView>('/schedules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
 }
 
 export function triggerSchedule(scheduleId: string): Promise<{ run_id: string }> {

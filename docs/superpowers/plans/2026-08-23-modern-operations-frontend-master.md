@@ -53,7 +53,7 @@ Phase 2 plan will be written only after Phase 1 contracts are verified. Its requ
 - [x] Add `/system` with PostgreSQL database name/status, data/news Provider status, LLM provider/model/budget, consent readiness, and recent redacted failures.
 - [x] Add automatic refresh with visible last-updated time and a manual retry action; do not silently poll failed endpoints.
 - [x] Test populated, empty, loading, partial degradation, request failure, and secret-redaction states.
-- [ ] Verify the dashboard against a Fixture-populated test database (empty PostgreSQL runtime has been verified).
+- [x] Verify the dashboard against a Fixture-populated test database (empty PostgreSQL runtime has been verified).
 
 ## Phase 3: Analysis Run Workflow
 
@@ -70,15 +70,16 @@ Acceptance: `docs/superpowers/reports/2026-08-23-modern-operations-frontend-phas
 
 ## Phase 4: Review And Operations Completion
 
-Phase 4 plan will be written after the Phase 3 run/detail contracts are stable.
+Detailed plan: `docs/superpowers/plans/2026-08-23-modern-operations-frontend-phase4.md`.
+Acceptance: `docs/superpowers/reports/2026-08-23-modern-operations-frontend-phase4-acceptance.md`
 
-- [ ] Add `/review` with draft queue, readable/editor center pane, and evidence/compliance decision pane.
-- [ ] Preserve append-only draft versions and expose the current version before approve/return actions.
-- [ ] Convert schedule management to status summaries plus a responsive table and explicit timezone forms.
-- [ ] Finalize the paused shadow acceptance page and retain historical real records read-only.
-- [ ] Standardize global success/error feedback, confirmation dialogs, focus handling, keyboard paths, and reduced-motion behavior.
-- [ ] Run the entire frontend suite, production build, Fixture browser flow, empty-database flow, and 1440/1024/768/390 px visual checks.
-- [ ] Record final browser evidence and obtain user acceptance before declaring the frontend complete.
+- [x] Add `/review` with draft queue, readable/editor center pane, and evidence/compliance decision pane.
+- [x] Preserve append-only draft versions and expose the current version before approve/return actions.
+- [x] Convert schedule management to status summaries plus a responsive table and explicit timezone forms.
+- [x] Finalize the paused shadow acceptance page and retain historical real records read-only.
+- [x] Standardize global success/error feedback, confirmation dialogs, focus handling, keyboard paths, and reduced-motion behavior.
+- [x] Run the entire frontend suite, production build, Fixture browser flow, empty-database flow, and 1440/1024/768/390 px visual checks.
+- [ ] Record final browser evidence and obtain user acceptance before declaring the frontend complete. Technical evidence is recorded; final user acceptance remains the handoff gate.
 
 ## Phase Boundary Rules
 

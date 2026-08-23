@@ -14,6 +14,7 @@ describe('SchedulePage', () => {
       { schedule_id: 'schedule-1', name: '盘后', mode: 'post_close', timezone: 'Asia/Shanghai', local_time: '16:00', trading_days: 'weekdays', enabled: true, next_run_at: null },
     ])
     vi.mocked(api.triggerSchedule).mockResolvedValue({ run_id: 'run-1' })
+    vi.mocked(api.createSchedule).mockResolvedValue({ schedule_id: 'schedule-2', name: '盘中', mode: 'intraday', timezone: 'Asia/Shanghai', local_time: '10:30', trading_days: 'weekdays', enabled: true, next_run_at: null })
   })
 
   it('shows next trigger and allows manual trigger', async () => {
@@ -45,5 +46,20 @@ describe('SchedulePage', () => {
     render(<MemoryRouter><SchedulePage /></MemoryRouter>)
 
     expect(await screen.findByRole('heading', { level: 2, name: '还没有调度计划' })).toBeInTheDocument()
+  })
+
+  it('creates a schedule and adds it to the table', async () => {
+    render(<MemoryRouter><SchedulePage /></MemoryRouter>)
+    await screen.findByText('盘后')
+
+    await userEvent.click(screen.getByRole('button', { name: '新建计划' }))
+    await userEvent.type(screen.getByLabelText('计划名称'), '盘中')
+    await userEvent.selectOptions(screen.getByLabelText('分析模式'), 'intraday')
+    await userEvent.clear(screen.getByLabelText('执行时间'))
+    await userEvent.type(screen.getByLabelText('执行时间'), '10:30')
+    await userEvent.click(screen.getByRole('button', { name: '保存计划' }))
+
+    expect(api.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ name: '盘中', mode: 'intraday', local_time: '10:30', timezone: 'Asia/Shanghai' }))
+    expect(await screen.findByText('盘中')).toBeInTheDocument()
   })
 })

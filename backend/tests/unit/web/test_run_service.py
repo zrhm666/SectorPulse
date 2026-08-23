@@ -91,6 +91,25 @@ async def test_create_run_lifecycle(tmp_path) -> None:
     assert review.decision.value == "PASS"
 
 
+async def test_consecutive_fixture_runs_receive_distinct_draft_ids(tmp_path) -> None:
+    svc = _service(tmp_path)
+    completed = []
+    for _ in range(2):
+        run_id = svc.create_run(_input_json(), "fixture")
+        for _ in range(50):
+            detail = svc.get_run(run_id)
+            if detail is not None and detail.status != "RUNNING":
+                break
+            await asyncio.sleep(0.1)
+        detail = svc.get_run(run_id)
+        assert detail is not None
+        assert detail.status == "READY_FOR_HUMAN_REVIEW"
+        assert detail.draft_id is not None
+        completed.append(detail)
+
+    assert completed[0].draft_id != completed[1].draft_id
+
+
 async def test_create_run_uses_persisted_news_as_verified_draft_sources(tmp_path) -> None:
     svc = _service(tmp_path)
     now = datetime(2026, 8, 14, 2, tzinfo=UTC)

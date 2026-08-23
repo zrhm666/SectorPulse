@@ -9,6 +9,7 @@ import ShadowAcceptancePage from './pages/ShadowAcceptancePage'
 import OperationsDashboardPage from './pages/OperationsDashboardPage'
 import SystemStatusPage from './pages/SystemStatusPage'
 import NewAnalysisPage from './pages/NewAnalysisPage'
+import ReviewWorkspacePage from './pages/ReviewWorkspacePage'
 
 export function AppRoutes() {
   return (
@@ -18,6 +19,7 @@ export function AppRoutes() {
         <Route path="/runs" element={<RunListPage />} />
         <Route path="/runs/new" element={<NewAnalysisPage />} />
         <Route path="/runs/:runId" element={<RunDetailPage />} />
+        <Route path="/review" element={<ReviewWorkspacePage />} />
         <Route path="/data-runs/:runId" element={<DataRunPage />} />
         <Route path="/schedules" element={<SchedulePage />} />
         <Route path="/task-runs/:runId" element={<TaskRunPage />} />

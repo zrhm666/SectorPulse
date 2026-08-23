@@ -6,7 +6,7 @@ import os
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 from sector_pulse.application.phase1b_pipeline import (
     Phase1BDependencies,
@@ -217,12 +217,14 @@ class RunService:
 
     @staticmethod
     def _rebind_run_id(node: Any, run_id: UUID) -> Any:
-        """深度拷贝 fixture 响应，并把所有 "run_id" 字段替换为本次运行的 run_id。"""
+        """深度拷贝 fixture，并为每次运行生成独立且内部一致的产物标识。"""
         if isinstance(node, dict):
             return {
                 key: (
                     str(run_id)
                     if key == "run_id"
+                    else str(uuid5(run_id, f"{key}:{value}"))
+                    if key in {"draft_id", "outline_id", "review_id"}
                     else RunService._rebind_run_id(value, run_id)
                 )
                 for key, value in node.items()

@@ -34,14 +34,14 @@
 - Consumes: latest draft from `storage.draft_edit`, evidence decisions from a new `storage.governance` bundle field.
 - Produces: GET/POST evidence-decision routes and POST return route defined in the design spec.
 
-- [ ] Write an integration test that creates a Fixture run, posts `{"source_id":"event-1","decision":"KEEP","reason":"来源可信"}`, and asserts the persisted response and list route.
-- [ ] Run `python -m pytest backend/tests/integration/test_phase4_review_api.py -q`; verify failure is 404 because the route is absent.
-- [ ] Add `governance` to `RuntimeStorageBundle` using `SQLiteGovernanceRepository` and `BlockingAsyncRepository(PostgresGovernanceRepository(...))`.
-- [ ] Add Pydantic request/response models with `reason: Field(min_length=1)` and decision validation through `EvidenceDecisionKind`.
-- [ ] Implement list/create routes, verify run/draft ownership, call `EvidenceDecisionService.record`, and serialize only safe fields.
-- [ ] Write a failing test that posts `{"reason":"需要补充证据"}` to `/return` and expects `RETURNED` for the latest version plus an audit event.
-- [ ] Add public `record_event(...)` methods to SQLite and PostgreSQL release-audit repositories; implement `/return` without mutating or deleting a draft.
-- [ ] Run the integration test and the release-audit repository tests; commit.
+- [x] Write an integration test that creates a Fixture run, posts `{"source_id":"event-1","decision":"KEEP","reason":"来源可信"}`, and asserts the persisted response and list route.
+- [x] Run `python -m pytest backend/tests/integration/test_phase4_review_api.py -q`; verify failure is 404 because the route is absent.
+- [x] Add `governance` to `RuntimeStorageBundle` using `SQLiteGovernanceRepository` and `BlockingAsyncRepository(PostgresGovernanceRepository(...))`.
+- [x] Add Pydantic request/response models with `reason: Field(min_length=1)` and decision validation through `EvidenceDecisionKind`.
+- [x] Implement list/create routes, verify run/draft ownership, call `EvidenceDecisionService.record`, and serialize only safe fields.
+- [x] Write a failing test that posts `{"reason":"需要补充证据"}` to `/return` and expects `RETURNED` for the latest version plus an audit event.
+- [x] Add public `record_event(...)` methods to SQLite and PostgreSQL release-audit repositories; implement `/return` without mutating or deleting a draft.
+- [x] Run the integration test and the release-audit repository tests; commit.
 
 ### Task 2: Shared feedback and confirmation primitives
 
@@ -56,11 +56,11 @@
 **Interfaces:**
 - Produces: `useFeedback(): {success(message): void; error(message): void}` and `ConfirmDialog` props `{open,title,description,confirmLabel,tone,onConfirm,onCancel}`.
 
-- [ ] Write failing tests for `aria-live` success/error messages, manual dismissal, Escape cancellation, initial cancel focus, and focus restoration.
-- [ ] Run the two test files and verify missing-module failures.
-- [ ] Implement the provider with generated notification IDs and 5-second timers; implement native `<dialog>` confirmation with cancel-first focus.
-- [ ] Add restrained notification stack and dialog styles with reduced-motion handling.
-- [ ] Wrap the AppShell outlet with `FeedbackProvider`, rerun tests, and commit.
+- [x] Write failing tests for `aria-live` success/error messages, manual dismissal, Escape cancellation, initial cancel focus, and focus restoration.
+- [x] Run the two test files and verify missing-module failures.
+- [x] Implement the provider with generated notification IDs and 5-second timers; implement native `<dialog>` confirmation with cancel-first focus.
+- [x] Add restrained notification stack and dialog styles with reduced-motion handling.
+- [x] Wrap the AppShell outlet with `FeedbackProvider`, rerun tests, and commit.
 
 ### Task 3: Review API client and three-pane workspace
 
@@ -79,14 +79,14 @@
 - Consumes: `fetchRuns`, `fetchDraft`, `fetchEvidence`, governance, approval, evidence-decision, return and patch clients.
 - Produces: `/review`, queue selection, version-safe editing, evidence decisions, approve/revoke/return actions.
 
-- [ ] Write a failing route test that loads two real run summaries, filters the queue, and selects the first reviewable run.
-- [ ] Add typed API clients; fix `applyDraftPatch` to send `{base_version, operations:[{path,old_value_hash,value}]}`.
-- [ ] Implement the route, navigation entry and loading/error/empty states.
-- [ ] Write a failing editor test proving an old version is read-only and the latest version saves one operation with the current hash.
-- [ ] Implement title, introduction, section, conclusion and risk-notice selection with append-only refresh after save.
-- [ ] Write failing tests for evidence reason validation, approve confirmation showing `vN`, return confirmation and current approval loading.
-- [ ] Implement the compliance pane and actions using shared feedback/confirmation; never render a missing citation as `href="#"`.
-- [ ] Run review tests and commit.
+- [x] Write a failing route test that loads two real run summaries, filters the queue, and selects the first reviewable run.
+- [x] Add typed API clients; fix `applyDraftPatch` to send `{base_version, operations:[{path,old_value_hash,value}]}`.
+- [x] Implement the route, navigation entry and loading/error/empty states.
+- [x] Write a failing editor test proving an old version is read-only and the latest version saves one operation with the current hash.
+- [x] Implement title, introduction, section, conclusion and risk-notice selection with append-only refresh after save.
+- [x] Write failing tests for evidence reason validation, approve confirmation showing `vN`, return confirmation and current approval loading.
+- [x] Implement the compliance pane and actions using shared feedback/confirmation; never render a missing citation as `href="#"`.
+- [x] Run review tests and commit.
 
 ### Task 4: Schedule operations page
 
@@ -99,11 +99,11 @@
 **Interfaces:**
 - Adds: `createSchedule(input: NewScheduleInput): Promise<ScheduleView>`.
 
-- [ ] Write failing tests for four status summaries, explicit timezone form submission, responsive table semantics, trigger busy state and safe error feedback.
-- [ ] Implement the typed create client with `input_template: {}` and the existing POST endpoint.
-- [ ] Implement inline progressive creation form with `Asia/Shanghai` default, `type="time"`, mode and trading-day controls.
-- [ ] Replace cards with a responsive table and shared feedback; disable only the schedule currently being triggered.
-- [ ] Run schedule tests and commit.
+- [x] Write failing tests for four status summaries, explicit timezone form submission, responsive table semantics, trigger busy state and safe error feedback.
+- [x] Implement the typed create client with `input_template: {}` and the existing POST endpoint.
+- [x] Implement inline progressive creation form with `Asia/Shanghai` default, `type="time"`, mode and trading-day controls.
+- [x] Replace cards with a responsive table and shared feedback; disable only the schedule currently being triggered.
+- [x] Run schedule tests and commit.
 
 ### Task 5: Read-only shadow history
 
@@ -116,10 +116,10 @@
 **Interfaces:**
 - Consumes only `fetchShadowRuns()` and `fetchShadowProgress()`; produces no mutation calls.
 
-- [ ] Write failing tests for paused copy, five historical summary values, complete run table and absence of mutation controls.
-- [ ] Implement the summary strip and responsive historical table with Chinese status labels.
-- [ ] Ensure remaining target copy says historical gap, not active progress.
-- [ ] Run shadow tests and commit.
+- [x] Write failing tests for paused copy, five historical summary values, complete run table and absence of mutation controls.
+- [x] Implement the summary strip and responsive historical table with Chinese status labels.
+- [x] Ensure remaining target copy says historical gap, not active progress.
+- [x] Run shadow tests and commit.
 
 ### Task 6: Full acceptance and documentation
 
@@ -130,9 +130,9 @@
 **Interfaces:**
 - Consumes all completed Phase 4 routes and components.
 
-- [ ] Run `python -m pytest backend/tests -q` with worktree `PYTHONPATH`; record passed and skipped counts.
-- [ ] Run `npm.cmd test -- --run` and `npm.cmd run build`; record exact results.
-- [ ] Run Impeccable detector on `/review`, `/schedules`, and `/shadow-acceptance`; fix all findings in one batch.
-- [ ] Use a Fixture run in the production build to edit one section, verify version increment, record an evidence decision, return it, approve it, and verify export availability.
-- [ ] Verify empty and Fixture-populated states at 1440, 1024, 768 and 390px, including keyboard focus and no horizontal overflow.
-- [ ] Record browser evidence, update all Phase 4 master checkboxes, commit, and leave only known cache artifacts untracked.
+- [x] Run `python -m pytest backend/tests -q` with worktree `PYTHONPATH`; record passed and skipped counts.
+- [x] Run `npm.cmd test -- --run` and `npm.cmd run build`; record exact results.
+- [x] Run Impeccable detector on `/review`, `/schedules`, and `/shadow-acceptance`; fix all findings in one batch.
+- [x] Use a Fixture run in the production build to edit one section, verify version increment, record an evidence decision, return it, approve it, and verify export availability.
+- [x] Verify empty and Fixture-populated states at 1440, 1024, 768 and 390px, including keyboard focus and no horizontal overflow.
+- [x] Record browser evidence, update all Phase 4 master checkboxes, commit, and leave only known cache artifacts untracked.

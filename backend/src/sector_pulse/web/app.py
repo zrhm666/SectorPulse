@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from sector_pulse.application.governance_service import GovernanceService
+from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.application.run_commands import RunCommandService
@@ -62,6 +63,7 @@ from sector_pulse.web.operations_schemas import (
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
+from sector_pulse.web.review_schemas import EvidenceDecisionRequest, EvidenceDecisionResponse, ReturnDraftRequest, ReturnDraftResponse
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
 from sector_pulse.web.shadow_schemas import (
@@ -100,6 +102,8 @@ def create_app(
     draft_edit_repository = storage.draft_edit
     governance_service = GovernanceService()
     release_audit_repository = storage.release_audit
+    evidence_decision_repository = storage.governance
+    evidence_decision_service = EvidenceDecisionService(evidence_decision_repository)
     review_analytics = storage.review_analytics or ReviewAnalyticsQueries(database)
     shadow_repository = storage.shadow
     prompt_golden_repository = storage.prompt_golden
@@ -422,6 +426,42 @@ def create_app(
             )
             for e in release_audit_repository.audit(draft_id)
         ]
+
+    @app.get("/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions", response_model=list[EvidenceDecisionResponse])
+    async def list_evidence_decisions(run_id: UUID, draft_id: UUID) -> list[EvidenceDecisionResponse]:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        return [EvidenceDecisionResponse.model_validate(item.model_dump()) for item in evidence_decision_repository.list_evidence_decisions(draft_id)]
+
+    @app.post("/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions", response_model=EvidenceDecisionResponse, status_code=201)
+    async def create_evidence_decision(run_id: UUID, draft_id: UUID, request: EvidenceDecisionRequest, actor: str = Header(default="local-user", alias="X-Actor")) -> EvidenceDecisionResponse:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        try:
+            evidence_decision_service.record(draft, request.source_id, request.decision, request.reason, actor=actor)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        item = evidence_decision_repository.list_evidence_decisions(draft_id)[-1]
+        return EvidenceDecisionResponse.model_validate(item.model_dump())
+
+    @app.post("/api/runs/{run_id}/drafts/{draft_id}/return", response_model=ReturnDraftResponse, status_code=201)
+    async def return_draft(run_id: UUID, draft_id: UUID, request: ReturnDraftRequest, actor: str = Header(default="local-user", alias="X-Actor")) -> ReturnDraftResponse:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        release_audit_repository.record_event(run_id, draft_id, draft.version, "RETURNED", actor, {"reason": request.reason})
+        return ReturnDraftResponse(draft_id=draft_id, version=draft.version, status="RETURNED", actor=actor)
 
     @app.get("/api/runs/{run_id}/drafts/{draft_id}/export.json")
     async def export_approved_json(

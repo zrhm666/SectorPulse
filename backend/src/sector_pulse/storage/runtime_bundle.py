@@ -20,6 +20,7 @@ from sector_pulse.storage.postgres_agent_invocation_repository import (
     PostgresAgentInvocationRepository,
 )
 from sector_pulse.storage.postgres_draft_edit_repository import PostgresDraftEditRepository
+from sector_pulse.storage.postgres_governance_repository import PostgresGovernanceRepository
 from sector_pulse.storage.postgres_evidence_repository import PostgresEvidenceRepository
 from sector_pulse.storage.postgres_market_snapshot_repository import (
     PostgresMarketSnapshotRepository,
@@ -37,6 +38,7 @@ from sector_pulse.storage.postgres_shadow_acceptance_repository import (
 )
 from sector_pulse.storage.postgres_task_repository import PostgresTaskRepository
 from sector_pulse.storage.prompt_golden_repository import SQLitePromptGoldenRepository
+from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
 from sector_pulse.storage.shadow_acceptance_repository import SQLiteShadowAcceptanceRepository
@@ -99,6 +101,7 @@ class RuntimeStorageBundle:
     prompt_golden: object | None = None
     release_audit: object | None = None
     shadow: object | None = None
+    governance: object | None = None
 
 
 def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
@@ -113,7 +116,7 @@ def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
         phase1b=SQLitePhase1BRepository(database), invocations=SQLiteAgentInvocationRepository(database),
         news_evidence=SQLiteNewsEvidenceRepository(database), draft_edit=SQLiteDraftEditRepository(database),
         prompt_golden=SQLitePromptGoldenRepository(database), release_audit=SQLiteReleaseAuditRepository(database),
-        shadow=SQLiteShadowAcceptanceRepository(database),
+        shadow=SQLiteShadowAcceptanceRepository(database), governance=SQLiteGovernanceRepository(database),
     )
 
 
@@ -133,5 +136,5 @@ def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
         draft_edit=BlockingAsyncRepository(PostgresDraftEditRepository(database)),
         prompt_golden=BlockingAsyncRepository(PostgresPromptGoldenRepository(database)),
         release_audit=BlockingAsyncRepository(PostgresReleaseAuditRepository(database)),
-        shadow=BlockingAsyncRepository(PostgresShadowAcceptanceRepository(database)),
+        shadow=BlockingAsyncRepository(PostgresShadowAcceptanceRepository(database)), governance=BlockingAsyncRepository(PostgresGovernanceRepository(database)),
     )
