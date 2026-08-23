@@ -9,6 +9,7 @@ from sector_pulse.application.postgres_review_analytics import PostgresReviewAna
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.draft_edit_repository import SQLiteDraftEditRepository
 from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
+from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
 from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
 from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
 from sector_pulse.storage.news_repository import SQLiteNewsRepository
@@ -20,8 +21,8 @@ from sector_pulse.storage.postgres_agent_invocation_repository import (
     PostgresAgentInvocationRepository,
 )
 from sector_pulse.storage.postgres_draft_edit_repository import PostgresDraftEditRepository
-from sector_pulse.storage.postgres_governance_repository import PostgresGovernanceRepository
 from sector_pulse.storage.postgres_evidence_repository import PostgresEvidenceRepository
+from sector_pulse.storage.postgres_governance_repository import PostgresGovernanceRepository
 from sector_pulse.storage.postgres_market_snapshot_repository import (
     PostgresMarketSnapshotRepository,
 )
@@ -38,7 +39,6 @@ from sector_pulse.storage.postgres_shadow_acceptance_repository import (
 )
 from sector_pulse.storage.postgres_task_repository import PostgresTaskRepository
 from sector_pulse.storage.prompt_golden_repository import SQLitePromptGoldenRepository
-from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.release_audit_repository import SQLiteReleaseAuditRepository
 from sector_pulse.storage.shadow_acceptance_repository import SQLiteShadowAcceptanceRepository

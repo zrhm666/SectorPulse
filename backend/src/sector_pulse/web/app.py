@@ -13,8 +13,8 @@ from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
+from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.application.run_commands import RunCommandService
@@ -26,6 +26,7 @@ from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
+from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.real_data_run import RealDataRunRequest
 from sector_pulse.infrastructure.llm.fixture_resources import (
     load_default_fixture_input,
@@ -63,7 +64,12 @@ from sector_pulse.web.operations_schemas import (
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
-from sector_pulse.web.review_schemas import EvidenceDecisionRequest, EvidenceDecisionResponse, ReturnDraftRequest, ReturnDraftResponse
+from sector_pulse.web.review_schemas import (
+    EvidenceDecisionRequest,
+    EvidenceDecisionResponse,
+    ReturnDraftRequest,
+    ReturnDraftResponse,
+)
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
 from sector_pulse.web.shadow_schemas import (
@@ -79,7 +85,7 @@ from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleRespons
 
 def create_app(
     database_path: Path = Path("data/sector-pulse.db"),
-    static_dir: Path | None = None,
+    static_dir: Path | None = Path("web/dist"),
     overrides: dict[str, Any] | None = None,
 ) -> FastAPI:
     load_environment()
@@ -305,6 +311,15 @@ def create_app(
     async def list_prompt_golden() -> list[PromptGoldenResponse]:
         return [PromptGoldenResponse(prompt_id=item.prompt_id, prompt_version=item.prompt_version, input_hash=item.input_hash, expected_schema=item.expected_schema, result=item.result, notes=item.notes, case_id=str(item.case_id), created_at=item.created_at) for item in prompt_golden_repository.list()]
 
+    def latest_owned_draft(run_id: UUID, draft_id: UUID) -> ArticleDraft:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        return draft
+
     @app.post(
         "/api/runs/{run_id}/drafts/{draft_id}/patches",
         response_model=DraftPatchResponse,
@@ -316,6 +331,7 @@ def create_app(
         request: DraftPatchRequest,
         actor: str = Header(default="local-user", alias="X-Actor"),
     ) -> DraftPatchResponse:
+        latest_owned_draft(run_id, draft_id)
         try:
             draft = draft_edit_repository.apply_patch(
                 draft_id, request.base_version, request.operations, actor=actor
@@ -385,9 +401,7 @@ def create_app(
     async def revoke_draft(
         run_id: UUID, draft_id: UUID, actor: str = Header(default="local-user", alias="X-Actor")
     ) -> ApprovalResponse:
-        draft = draft_edit_repository.latest_version(draft_id)
-        if draft.run_id != run_id:
-            raise HTTPException(404, "draft not found")
+        draft = latest_owned_draft(run_id, draft_id)
         from datetime import UTC, datetime
 
         release_audit_repository.revoke(run_id, draft_id, draft.version, actor, datetime.now(UTC))
@@ -399,9 +413,7 @@ def create_app(
         "/api/runs/{run_id}/drafts/{draft_id}/approval", response_model=ApprovalResponse | None
     )
     async def get_approval(run_id: UUID, draft_id: UUID) -> ApprovalResponse | None:
-        draft = draft_edit_repository.latest_version(draft_id)
-        if draft.run_id != run_id:
-            raise HTTPException(404, "draft not found")
+        draft = latest_owned_draft(run_id, draft_id)
         approval = release_audit_repository.approval(draft_id, draft.version)
         return (
             None
@@ -416,6 +428,7 @@ def create_app(
 
     @app.get("/api/runs/{run_id}/drafts/{draft_id}/audit", response_model=list[AuditEventResponse])
     async def get_audit(run_id: UUID, draft_id: UUID) -> list[AuditEventResponse]:
+        latest_owned_draft(run_id, draft_id)
         return [
             AuditEventResponse(
                 event_type=e.event_type,
@@ -473,9 +486,7 @@ def create_app(
 
         from sector_pulse.domain.release_audit import DraftExport
 
-        draft = draft_edit_repository.latest_version(draft_id)
-        if draft.run_id != run_id:
-            raise HTTPException(404, "draft not found")
+        draft = latest_owned_draft(run_id, draft_id)
         approval = release_audit_repository.approval(draft_id, draft.version)
         if approval is None or approval.status.value != "APPROVED_FOR_COPY":
             raise HTTPException(409, "draft version is not approved for copy")
@@ -697,7 +708,7 @@ def create_app(
         @app.get("/{path:path}", response_model=None)
         async def spa_fallback(path: str) -> FileResponse | dict[str, str]:
             if path.startswith("api/"):
-                return {"detail": "not found"}
+                raise HTTPException(404, "not found")
             return FileResponse(static_dir / "index.html")
 
     return app

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
@@ -24,4 +25,15 @@ it('loads the review queue and edits only the latest draft version', async () =>
   expect(screen.getByRole('button', { name: /run-1/ })).toBeVisible()
   expect(await screen.findByDisplayValue('新正文')).toBeEnabled()
   expect(screen.getByText('当前编辑版本 v2')).toBeVisible()
+})
+
+it('reports approval failures without leaving an unhandled action', async () => {
+  vi.mocked(editing.approveDraft).mockRejectedValue(new Error('conflict'))
+  render(<MemoryRouter><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
+  await screen.findByDisplayValue('新正文')
+
+  await userEvent.click(screen.getByRole('button', { name: '批准复制' }))
+  await userEvent.click(screen.getByRole('button', { name: '确认批准' }))
+
+  expect(await screen.findByText('批准失败，请刷新草稿状态后重试。')).toBeVisible()
 })

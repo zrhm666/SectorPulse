@@ -3,9 +3,14 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.release_audit import ApprovalStatus, DraftApproval
+from sector_pulse.domain.release_audit import ApprovalStatus, DraftApproval, DraftExport
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_release_audit_repository import PostgresReleaseAuditRepository
+
+
+def test_postgres_release_audit_matches_runtime_contract() -> None:
+    for method in ("approve", "approval", "revoke", "audit", "record_event", "record_export"):
+        assert callable(getattr(PostgresReleaseAuditRepository, method, None)), method
 
 
 @pytest.mark.asyncio
@@ -26,4 +31,25 @@ async def test_postgres_release_audit_round_trip() -> None:
     loaded = await repository.approval(item.draft_id, 1)
     assert loaded is not None
     assert loaded.approval_id == item.approval_id
+    revoked_at = datetime.now(UTC)
+    await repository.revoke(item.run_id, item.draft_id, 1, "postgres-test", revoked_at)
+    revoked = await repository.approval(item.draft_id, 1)
+    assert revoked is not None
+    assert revoked.status is ApprovalStatus.REVOKED
+    await repository.record_export(
+        DraftExport(
+            run_id=item.run_id,
+            draft_id=item.draft_id,
+            version=1,
+            format="json",
+            content_hash="export-hash",
+            actor="postgres-test",
+            created_at=datetime.now(UTC),
+        )
+    )
+    assert [event.event_type for event in await repository.audit(item.draft_id)] == [
+        "APPROVED",
+        "REVOKED",
+        "EXPORTED",
+    ]
     await database.engine.dispose()

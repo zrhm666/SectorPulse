@@ -8,8 +8,8 @@ Phase 4 技术验收通过。审核工作台、调度计划管理、只读影子
 
 ## 自动验证
 
-- 后端：`192 passed, 21 skipped`；跳过项为未配置 PostgreSQL 环境变量或受显式 consent 保护的 live 测试。
-- 前端：`49 passed`（26 个测试文件）。
+- 后端：`203 passed, 21 skipped`；另使用本机 PostgreSQL 连接执行全部 PostgreSQL 仓储测试，`15 passed`。跳过项为默认套件中未注入 PostgreSQL 环境变量或受显式 consent 保护的 live 测试。
+- 前端：`51 passed`（27 个测试文件）。
 - 生产构建：TypeScript 与 Vite 构建成功，79 个模块完成转换。
 - Impeccable：`web/src` 全量检测结果为 `[]`。
 

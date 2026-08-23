@@ -1,8 +1,13 @@
 from datetime import UTC, datetime
 
 from sector_pulse.application.real_data_queries import RealDataRunQueries
-from sector_pulse.domain.real_data_run import RealDataQualitySummary, RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.domain.quality import QualityStatus
+from sector_pulse.domain.real_data_run import (
+    RealDataQualitySummary,
+    RealDataRun,
+    RealDataRunRequest,
+    RealDataRunStatus,
+)
 
 
 def test_serializes_frontend_data_run_contract() -> None:
