@@ -17,7 +17,7 @@ export default function SystemStatusPage() {
   useEffect(() => { void load() }, [load])
 
   return <section>
-    <PageHeader eyebrow="本地运行环境" title="系统状态" description="仅显示可安全公开的连接和授权状态，不显示密钥、密码或连接串。" actions={<button className="button button-secondary" type="button" onClick={() => void load()}>刷新状态</button>} />
+    <PageHeader title="系统状态" description="仅显示可安全公开的连接和授权状态，不显示密钥、密码或连接串。" actions={<button className="button button-secondary" type="button" onClick={() => void load()}>刷新状态</button>} />
     {loading && <LoadingState label="正在加载系统状态…" />}
     {!loading && error && <InlineAlert tone="error" title="无法读取系统状态">请确认后端服务已启动后重试。</InlineAlert>}
     {!loading && !error && summary && <div className="status-grid">

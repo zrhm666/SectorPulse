@@ -42,7 +42,6 @@ export default function OperationsDashboardPage() {
   return (
     <section>
       <PageHeader
-        eyebrow="日常管理"
         title="运营总览"
         description="查看真实运行、复核队列与系统就绪状态。"
         actions={<><span className="page-header__updated">{lastUpdated ? `最后更新 ${lastUpdated.toLocaleTimeString('zh-CN')}` : '等待首次更新'}</span><button className="button button-secondary" type="button" onClick={() => void load()}>刷新状态</button><Link className="button button-primary" to="/runs">新建分析</Link></>}
