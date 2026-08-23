@@ -35,6 +35,17 @@ class PostgresPhase1BRunsRepository:
             row = result.first()
         return self._row_to_model(row) if row else None
 
+    async def list_runs(self, limit: int = 50) -> list[Phase1BRunRow]:
+        async with self._database.engine.connect() as connection:
+            result = await connection.execute(
+                text(
+                    "SELECT * FROM phase1b_runs ORDER BY requested_at DESC LIMIT :limit"
+                ),
+                {"limit": limit},
+            )
+            rows = result.fetchall()
+        return [self._row_to_model(row) for row in rows]
+
     @staticmethod
     def _values(run: Phase1BRunRow) -> dict[str, object]:
         return {

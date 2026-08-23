@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import FastAPI, Header, HTTPException
@@ -25,7 +26,10 @@ from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
 from sector_pulse.domain.real_data_run import RealDataRunRequest
-from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
+from sector_pulse.infrastructure.llm.fixture_resources import (
+    load_default_fixture_input,
+    load_default_fixture_responses,
+)
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.database_runtime import (
@@ -46,6 +50,14 @@ from sector_pulse.web.editing_schemas import (
     DraftPatchRequest,
     DraftPatchResponse,
     GovernanceResponse,
+)
+from sector_pulse.web.operations_schemas import (
+    OperationsConsentStatus,
+    OperationsDatabaseStatus,
+    OperationsLlmStatus,
+    OperationsProviderStatus,
+    OperationsRunSummary,
+    OperationsSummaryResponse,
 )
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
@@ -156,6 +168,47 @@ def create_app(
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/operations/summary", response_model=OperationsSummaryResponse)
+    async def operations_summary() -> OperationsSummaryResponse:
+        runs = queries.list()
+        preflight = RealDataProviderFactory().preflight()
+        database_name = (
+            urlparse(settings.database_url).path.lstrip("/")
+            if settings.database_url
+            else database_path.name
+        ) or "default"
+        return OperationsSummaryResponse(
+            database=OperationsDatabaseStatus(
+                backend="postgresql" if isinstance(database, PostgresDatabase) else "sqlite",
+                name=database_name,
+            ),
+            llm=OperationsLlmStatus(
+                provider=settings.llm_provider,
+                model=settings.llm_model,
+                budget_cny_per_run=settings.budget_cny_per_run,
+                configured=settings.llm_provider == "fixture" or bool(
+                    settings.llm_base_url and settings.llm_api_key
+                ),
+            ),
+            consent=OperationsConsentStatus(
+                live_data=Path(".live-data-consent").is_file(),
+                live_llm=Path(".live-llm-consent").is_file(),
+            ),
+            providers=OperationsProviderStatus(
+                live_data_available=preflight.available,
+                missing_requirements=preflight.missing,
+            ),
+            runs=OperationsRunSummary(
+                total=len(runs),
+                running=sum(run.status == "RUNNING" for run in runs),
+                awaiting_review=sum(
+                    run.status == "READY_FOR_HUMAN_REVIEW" for run in runs
+                ),
+                failed=sum(run.status == "FAILED" for run in runs),
+                recent=runs[:8],
+            ),
+        )
 
     @app.get("/api/analytics/summary", response_model=ReviewSummaryResponse)
     async def analytics_summary(from_at: str, to_at: str) -> ReviewSummaryResponse:
@@ -506,10 +559,7 @@ def create_app(
     @app.get("/api/fixture-input")
     async def fixture_input() -> dict[str, Any]:
         # 提供开发期可复现的示例输入，避免用户手工编写内部 Phase 1B JSON。
-        path = Path("data/phase1b/fixture-input.json")
-        if not path.is_file():
-            raise HTTPException(404, "fixture input not found")
-        return json.loads(path.read_text(encoding="utf-8"))
+        return load_default_fixture_input()
 
     @app.get("/api/runs")
     async def list_runs() -> list[Any]:
