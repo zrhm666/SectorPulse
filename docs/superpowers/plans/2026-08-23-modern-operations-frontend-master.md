@@ -35,13 +35,13 @@
 
 Detailed plan: `docs/superpowers/plans/2026-08-23-modern-operations-frontend-phase1.md`
 
-- [ ] Establish CSS tokens and reset rules for color, spacing, typography, radius, shadow, focus, and responsive breakpoints.
-- [ ] Add typed shared primitives for page headers, panels, status badges, empty states, alerts, loading states, and buttons.
-- [ ] Add `AppShell`, responsive `SidebarNav`, and `TopBar` around all existing routes.
-- [ ] Introduce `/runs` and redirect `/` to it until the real dashboard is delivered in Phase 2.
-- [ ] Migrate the current run list, schedules, and shadow acceptance page away from inline presentation styles.
-- [ ] Mark shadow acceptance as paused without altering persisted data.
-- [ ] Pass Phase 1 unit, build, desktop, and narrow-screen checks.
+- [x] Establish CSS tokens and reset rules for color, spacing, typography, radius, shadow, focus, and responsive breakpoints.
+- [x] Add typed shared primitives for page headers, panels, status badges, empty states, alerts, loading states, and buttons.
+- [x] Add `AppShell`, responsive `SidebarNav`, and `TopBar` around all existing routes.
+- [x] Introduce `/runs` and redirect `/` to it until the real dashboard is delivered in Phase 2.
+- [x] Migrate the current run list, schedules, and shadow acceptance page away from inline presentation styles.
+- [x] Mark shadow acceptance as paused without altering persisted data.
+- [x] Pass Phase 1 unit, build, desktop, and narrow-screen checks.
 
 ## Phase 2: Operations Dashboard And System Status
 
