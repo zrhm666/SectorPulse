@@ -8,6 +8,7 @@ import TaskRunPage from './pages/TaskRunPage'
 import ShadowAcceptancePage from './pages/ShadowAcceptancePage'
 import OperationsDashboardPage from './pages/OperationsDashboardPage'
 import SystemStatusPage from './pages/SystemStatusPage'
+import NewAnalysisPage from './pages/NewAnalysisPage'
 
 export function AppRoutes() {
   return (
@@ -15,6 +16,7 @@ export function AppRoutes() {
       <Route element={<AppShell />}>
         <Route index element={<OperationsDashboardPage />} />
         <Route path="/runs" element={<RunListPage />} />
+        <Route path="/runs/new" element={<NewAnalysisPage />} />
         <Route path="/runs/:runId" element={<RunDetailPage />} />
         <Route path="/data-runs/:runId" element={<DataRunPage />} />
         <Route path="/schedules" element={<SchedulePage />} />

@@ -13,6 +13,7 @@ export interface RunSummary {
   error_message?: string | null
   sector_count?: number
   review_decision?: string | null
+  retryable?: boolean
 }
 
 /** 前端与后端证据接口共享的最小 DTO，避免页面继续依赖 unknown[]。 */

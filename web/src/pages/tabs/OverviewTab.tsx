@@ -24,23 +24,20 @@ export default function OverviewTab({
     (e) => e.type === 'progress' && e.stage === 'attribution.progress',
   )
   const last = attribution[attribution.length - 1]
+  const labels: Record<string, string> = { 'phase1b.start': '启动', 'attribution.start': '归因开始', 'attribution.done': '归因完成', 'editorial.done': '编辑完成', 'writing.done': '写作完成', 'review.done': '审核完成' }
+  const historicalComplete = done && run?.status !== 'RUNNING'
   return (
     <div>
-      {!done && <p>运行中… SSE 阶段进度如下：</p>}
-      {done && <p>运行已结束。</p>}
-      <ul>
-        {stages.map((s) => (
-          <li key={s} style={{ color: seen.has(s) ? '#0f9d58' : '#9aa0a6' }}>
-            {seen.has(s) ? '✓' : '○'} {s}
-          </li>
-        ))}
-      </ul>
+      <p>{done ? '运行已结束。' : '运行正在执行，阶段状态会自动更新。'}</p>
+      <ol className="timeline">
+        {stages.map((s) => <li key={s} data-complete={seen.has(s) || historicalComplete}><span aria-hidden="true" /><strong>{labels[s]}</strong><small>{seen.has(s) || historicalComplete ? '已完成' : '等待中'}</small></li>)}
+      </ol>
       {last && (
         <p>
           归因进度：{String(last.detail?.done)} / {String(last.detail?.total)}
         </p>
       )}
-      {run?.status === 'READY_FOR_HUMAN_REVIEW' && <p>草案已就绪，请切换到「草案」标签查看。</p>}
+      {run?.status === 'READY_FOR_HUMAN_REVIEW' && <p>草稿已就绪，请切换到“草稿”查看并审核。</p>}
     </div>
   )
 }

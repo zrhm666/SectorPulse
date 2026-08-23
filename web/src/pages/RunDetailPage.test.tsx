@@ -19,6 +19,7 @@ vi.mock('./tabs/RadarTab', () => ({ default: () => <div>雷达内容</div> }))
 vi.mock('./tabs/DraftTab', () => ({ default: () => <div>草稿内容</div> }))
 vi.mock('./tabs/EvidenceTab', () => ({ default: () => <div>证据内容</div> }))
 vi.mock('./tabs/ReviewTab', () => ({ default: () => <div>审核内容</div> }))
+vi.mock('./tabs/GovernanceTab', () => ({ default: () => <div>治理内容</div> }))
 
 describe('RunDetailPage', () => {
   beforeEach(() => {
@@ -30,6 +31,8 @@ describe('RunDetailPage', () => {
       elapsed_ms: 120,
       total_cost_cny: '0',
       draft_id: 'draft-1',
+      sector_count: 8,
+      retryable: true,
     })
   })
 
@@ -42,9 +45,10 @@ describe('RunDetailPage', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('状态：READY_FOR_HUMAN_REVIEW')).toBeVisible()
-    expect(screen.getByText('Provider：fixture')).toBeVisible()
-    expect(screen.getByRole('button', { name: '重试' })).toBeEnabled()
+    expect(await screen.findByText('待人工审核')).toBeVisible()
+    expect(screen.getByText('fixture')).toBeVisible()
+    expect(screen.getByRole('button', { name: '重新运行' })).toBeEnabled()
+    expect(screen.getByRole('tab', { name: '治理' })).toBeVisible()
     await waitFor(() => expect(fetchRun).toHaveBeenCalledWith('run-1'))
   })
 })

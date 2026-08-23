@@ -12,6 +12,7 @@ const STATUS_DETAILS: Record<string, { label: string; tone: StatusTone }> = {
   RETRY_WAITING: { label: '等待重试', tone: 'warning' },
   READY: { label: '就绪', tone: 'success' },
   READY_FOR_HUMAN_REVIEW: { label: '待人工审核', tone: 'success' },
+  READY_FOR_ATTRIBUTION: { label: '等待生成分析稿', tone: 'success' },
   APPROVED_FOR_COPY: { label: '已批准', tone: 'success' },
   SUCCESS: { label: '成功', tone: 'success' },
   FAILED: { label: '失败', tone: 'danger' },

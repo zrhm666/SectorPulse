@@ -57,15 +57,16 @@ Phase 2 plan will be written only after Phase 1 contracts are verified. Its requ
 
 ## Phase 3: Analysis Run Workflow
 
-Phase 3 plan will be written after Phase 2 determines the stable status/preflight interfaces.
+Detailed plan: `docs/superpowers/plans/2026-08-23-modern-operations-frontend-phase3.md`.
+Acceptance: `docs/superpowers/reports/2026-08-23-modern-operations-frontend-phase3-acceptance.md`
 
-- [ ] Replace the current run cards with a responsive table/list supporting status, mode, date, duration, cost, and details.
-- [ ] Implement the three-step new-analysis flow: mode, preflight/cutoff/LLM confirmation, submission.
-- [ ] Prevent submission when consent or required Provider configuration is unavailable and show a specific resolution.
-- [ ] Navigate successful creation directly to the correct real-data or writing-run detail page.
-- [ ] Build the run summary, stage timeline, and overview/radar/evidence/draft/review/governance tabs from existing APIs.
-- [ ] Show redacted failure cause, impact, and retry only when the backend contract permits retry.
-- [ ] Verify a complete Fixture workflow without making a real LLM call.
+- [x] Replace the current run cards with a responsive table/list supporting status, mode, date, duration, cost, and details.
+- [x] Implement the three-step new-analysis flow: mode, preflight/cutoff/LLM confirmation, submission.
+- [x] Prevent submission when consent or required Provider configuration is unavailable and show a specific resolution.
+- [x] Navigate successful creation directly to the correct real-data or writing-run detail page.
+- [x] Build the run summary, stage timeline, and overview/radar/evidence/draft/review/governance tabs from existing APIs.
+- [x] Show redacted failure cause, impact, and retry only when the backend contract permits retry.
+- [x] Verify a complete Fixture workflow without making a real LLM call.
 
 ## Phase 4: Review And Operations Completion
 

@@ -337,6 +337,7 @@ class RunService:
             error_message=row.error_message,
             sector_count=len(cards),
             review_decision=review.decision.value if review else None,
+            retryable=row.status != "RUNNING" and row.input_json is not None,
         )
 
     def get_radar(self, run_id: UUID) -> dict[str, Any]:

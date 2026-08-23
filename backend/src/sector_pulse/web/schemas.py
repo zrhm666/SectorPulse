@@ -30,6 +30,7 @@ class RunDetail(RunSummary):
     error_message: str | None
     sector_count: int
     review_decision: str | None
+    retryable: bool
 
 
 class RadarCard(BaseModel):

@@ -13,8 +13,9 @@ it('shows degraded reasons and source states', async () => {
   })
   vi.mocked(api.fetchDataRunCandidates).mockResolvedValue([])
   render(<MemoryRouter initialEntries={['/data-runs/run-1']}><Routes><Route path="/data-runs/:runId" element={<DataRunPage />} /></Routes></MemoryRouter>)
-  expect(await screen.findByText('DEGRADED')).toBeVisible()
+  expect(await screen.findAllByText('已降级')).toHaveLength(2)
   expect(screen.getByText('NEWS_SOURCE_PARTIAL')).toBeVisible()
+  expect(screen.getByText('数据处理进度')).toBeVisible()
 })
 
 it('offers article generation only when attribution is ready', async () => {

@@ -23,4 +23,16 @@ class RealDataRunQueries:
 
     @staticmethod
     def _serialize(run: object) -> dict[str, object]:
-        return run.model_dump(mode="json")  # type: ignore[union-attr]
+        payload = run.model_dump(mode="json")  # type: ignore[union-attr]
+        request = payload["request"]
+        quality = payload["quality"]
+        return {
+            "run_id": payload["run_id"],
+            "mode": request["mode"],
+            "status": payload["status"],
+            "requested_at": request["requested_at"],
+            "quality": {**quality["market_quality"], **quality["news_quality"]},
+            "downgrade_reasons": quality["downgrade_reasons"],
+            "error_code": payload["error_code"],
+            "finished_at": payload["finished_at"],
+        }
