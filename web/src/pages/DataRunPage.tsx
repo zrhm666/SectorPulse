@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DataRunCandidateView, DataRunView, fetchDataRun, fetchDataRunCandidates, generateDataRunArticle } from '../dataRunsApi'
 import InlineAlert from '../components/ui/InlineAlert'
@@ -7,6 +7,8 @@ import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
 import StatusBadge from '../components/ui/StatusBadge'
 import { formatDate } from '../runPresentation'
+
+const TERMINAL_STATUSES = new Set(['READY_FOR_ATTRIBUTION', 'DEGRADED', 'FAILED', 'CANCELLED'])
 
 export default function DataRunPage() {
   const { runId = '' } = useParams()
@@ -17,16 +19,22 @@ export default function DataRunPage() {
   const [generating, setGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const load = () => {
-    setLoading(true)
+  const load = useCallback((showLoading = true) => {
+    if (showLoading) setLoading(true)
     setError(null)
     Promise.all([fetchDataRun(runId), fetchDataRunCandidates(runId)])
       .then(([data, items]) => { setRun(data); setCandidates(items) })
       .catch(() => setError('无法加载数据运行，请确认服务可用后重试。'))
-      .finally(() => setLoading(false))
-  }
+      .finally(() => { if (showLoading) setLoading(false) })
+  }, [runId])
 
-  useEffect(load, [runId])
+  useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (!run || TERMINAL_STATUSES.has(run.status)) return
+    const timer = window.setInterval(() => { void load(false) }, 2000)
+    return () => window.clearInterval(timer)
+  }, [load, run])
 
   const generate = async () => {
     setGenerating(true)
@@ -42,10 +50,10 @@ export default function DataRunPage() {
   }
 
   if (loading) return <LoadingState label="正在加载数据运行…" />
-  if (error && !run) return <InlineAlert tone="error" title="无法加载数据运行">{error}<div><button className="button button-secondary" type="button" onClick={load}>重新加载</button></div></InlineAlert>
+  if (error && !run) return <InlineAlert tone="error" title="无法加载数据运行">{error}<div><button className="button button-secondary" type="button" onClick={() => void load()}>重新加载</button></div></InlineAlert>
   if (!run) return null
 
-  const terminal = ['READY_FOR_ATTRIBUTION', 'DEGRADED', 'FAILED', 'CANCELLED'].includes(run.status)
+  const terminal = TERMINAL_STATUSES.has(run.status)
   const stages = ['采集数据', '质量校验', '筛选候选', '归因就绪']
 
   return <section>
