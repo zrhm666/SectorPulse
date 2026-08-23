@@ -18,12 +18,14 @@ export default function OperationsDashboardPage() {
   const [summary, setSummary] = useState<OperationsSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
       setSummary(await fetchOperationsSummary())
+      setLastUpdated(new Date())
     } catch {
       setError(true)
     } finally {
@@ -32,6 +34,10 @@ export default function OperationsDashboardPage() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const timer = window.setInterval(() => { void load() }, 60_000)
+    return () => window.clearInterval(timer)
+  }, [load])
 
   return (
     <section>
@@ -39,7 +45,7 @@ export default function OperationsDashboardPage() {
         eyebrow="日常管理"
         title="运营总览"
         description="查看真实运行、复核队列与系统就绪状态。"
-        actions={<><button className="button button-secondary" type="button" onClick={() => void load()}>刷新状态</button><Link className="button button-primary" to="/runs">新建分析</Link></>}
+        actions={<><span className="page-header__updated">{lastUpdated ? `最后更新 ${lastUpdated.toLocaleTimeString('zh-CN')}` : '等待首次更新'}</span><button className="button button-secondary" type="button" onClick={() => void load()}>刷新状态</button><Link className="button button-primary" to="/runs">新建分析</Link></>}
       />
       {loading && <LoadingState label="正在加载运营概览…" />}
       {!loading && error && <InlineAlert tone="error" title="无法加载运营概览">请检查本地服务和数据库连接后重试。<p><button className="button button-secondary" type="button" onClick={() => void load()}>重新加载</button></p></InlineAlert>}

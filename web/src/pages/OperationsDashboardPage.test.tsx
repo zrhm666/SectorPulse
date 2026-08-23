@@ -41,6 +41,7 @@ describe('OperationsDashboardPage', () => {
     expect(screen.getByText('待复核')).toBeInTheDocument()
     expect(screen.getByText('12345678')).toBeInTheDocument()
     expect(screen.getByText('PostgreSQL 已连接')).toBeInTheDocument()
+    expect(screen.getByText(/最后更新/)).toBeInTheDocument()
   })
 
   it('shows a recovery action when the summary request fails', async () => {
