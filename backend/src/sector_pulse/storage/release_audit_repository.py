@@ -101,6 +101,11 @@ class SQLiteReleaseAuditRepository:
             self._event(connection, export.run_id, export.draft_id, export.version,
                         "EXPORTED", export.actor, {"format": export.format, "content_hash": export.content_hash})
 
+    def record_event(self, run_id: UUID, draft_id: UUID, version: int,
+                     event_type: str, actor: str, payload: dict) -> None:
+        with self._database.transaction() as connection:
+            self._event(connection, run_id, draft_id, version, event_type, actor, payload)
+
     @staticmethod
     def content_hash(content: dict) -> str:
         return hashlib.sha256(

@@ -13,6 +13,8 @@ export interface DataRunView {
   requested_at: string
   quality: Record<string, string>
   downgrade_reasons: string[]
+  error_code?: string | null
+  finished_at?: string | null
 }
 
 export interface DataRunCandidateView {
@@ -31,6 +33,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchDataRun(runId: string): Promise<DataRunView> {
   return request(`/data-runs/${runId}`)
+}
+
+export function fetchDataRuns(): Promise<DataRunView[]> {
+  return request('/data-runs')
 }
 
 export function fetchDataRunCandidates(runId: string): Promise<DataRunCandidateView[]> {

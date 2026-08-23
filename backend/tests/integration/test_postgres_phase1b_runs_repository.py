@@ -25,4 +25,5 @@ async def test_postgres_phase1b_runs_round_trip() -> None:
     assert loaded is not None
     assert loaded.run_id == item.run_id
     assert loaded.input_json == {"test": True}
+    assert any(run.run_id == item.run_id for run in await repository.list_runs())
     await database.engine.dispose()

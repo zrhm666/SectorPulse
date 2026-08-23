@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import FastAPI, Header, HTTPException
@@ -12,6 +13,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
+from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
@@ -24,8 +26,12 @@ from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
+from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.real_data_run import RealDataRunRequest
-from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
+from sector_pulse.infrastructure.llm.fixture_resources import (
+    load_default_fixture_input,
+    load_default_fixture_responses,
+)
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.database_runtime import (
@@ -47,9 +53,23 @@ from sector_pulse.web.editing_schemas import (
     DraftPatchResponse,
     GovernanceResponse,
 )
+from sector_pulse.web.operations_schemas import (
+    OperationsConsentStatus,
+    OperationsDatabaseStatus,
+    OperationsLlmStatus,
+    OperationsProviderStatus,
+    OperationsRunSummary,
+    OperationsSummaryResponse,
+)
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
+from sector_pulse.web.review_schemas import (
+    EvidenceDecisionRequest,
+    EvidenceDecisionResponse,
+    ReturnDraftRequest,
+    ReturnDraftResponse,
+)
 from sector_pulse.web.run_service import ProviderUnavailable, RunService
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
 from sector_pulse.web.shadow_schemas import (
@@ -65,7 +85,7 @@ from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleRespons
 
 def create_app(
     database_path: Path = Path("data/sector-pulse.db"),
-    static_dir: Path | None = None,
+    static_dir: Path | None = Path("web/dist"),
     overrides: dict[str, Any] | None = None,
 ) -> FastAPI:
     load_environment()
@@ -88,6 +108,8 @@ def create_app(
     draft_edit_repository = storage.draft_edit
     governance_service = GovernanceService()
     release_audit_repository = storage.release_audit
+    evidence_decision_repository = storage.governance
+    evidence_decision_service = EvidenceDecisionService(evidence_decision_repository)
     review_analytics = storage.review_analytics or ReviewAnalyticsQueries(database)
     shadow_repository = storage.shadow
     prompt_golden_repository = storage.prompt_golden
@@ -156,6 +178,47 @@ def create_app(
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/operations/summary", response_model=OperationsSummaryResponse)
+    async def operations_summary() -> OperationsSummaryResponse:
+        runs = queries.list()
+        preflight = RealDataProviderFactory().preflight()
+        database_name = (
+            urlparse(settings.database_url).path.lstrip("/")
+            if settings.database_url
+            else database_path.name
+        ) or "default"
+        return OperationsSummaryResponse(
+            database=OperationsDatabaseStatus(
+                backend="postgresql" if isinstance(database, PostgresDatabase) else "sqlite",
+                name=database_name,
+            ),
+            llm=OperationsLlmStatus(
+                provider=settings.llm_provider,
+                model=settings.llm_model,
+                budget_cny_per_run=settings.budget_cny_per_run,
+                configured=settings.llm_provider == "fixture" or bool(
+                    settings.llm_base_url and settings.llm_api_key
+                ),
+            ),
+            consent=OperationsConsentStatus(
+                live_data=Path(".live-data-consent").is_file(),
+                live_llm=Path(".live-llm-consent").is_file(),
+            ),
+            providers=OperationsProviderStatus(
+                live_data_available=preflight.available,
+                missing_requirements=preflight.missing,
+            ),
+            runs=OperationsRunSummary(
+                total=len(runs),
+                running=sum(run.status == "RUNNING" for run in runs),
+                awaiting_review=sum(
+                    run.status == "READY_FOR_HUMAN_REVIEW" for run in runs
+                ),
+                failed=sum(run.status == "FAILED" for run in runs),
+                recent=runs[:8],
+            ),
+        )
 
     @app.get("/api/analytics/summary", response_model=ReviewSummaryResponse)
     async def analytics_summary(from_at: str, to_at: str) -> ReviewSummaryResponse:
@@ -248,6 +311,15 @@ def create_app(
     async def list_prompt_golden() -> list[PromptGoldenResponse]:
         return [PromptGoldenResponse(prompt_id=item.prompt_id, prompt_version=item.prompt_version, input_hash=item.input_hash, expected_schema=item.expected_schema, result=item.result, notes=item.notes, case_id=str(item.case_id), created_at=item.created_at) for item in prompt_golden_repository.list()]
 
+    def latest_owned_draft(run_id: UUID, draft_id: UUID) -> ArticleDraft:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        return draft
+
     @app.post(
         "/api/runs/{run_id}/drafts/{draft_id}/patches",
         response_model=DraftPatchResponse,
@@ -259,6 +331,7 @@ def create_app(
         request: DraftPatchRequest,
         actor: str = Header(default="local-user", alias="X-Actor"),
     ) -> DraftPatchResponse:
+        latest_owned_draft(run_id, draft_id)
         try:
             draft = draft_edit_repository.apply_patch(
                 draft_id, request.base_version, request.operations, actor=actor
@@ -328,9 +401,7 @@ def create_app(
     async def revoke_draft(
         run_id: UUID, draft_id: UUID, actor: str = Header(default="local-user", alias="X-Actor")
     ) -> ApprovalResponse:
-        draft = draft_edit_repository.latest_version(draft_id)
-        if draft.run_id != run_id:
-            raise HTTPException(404, "draft not found")
+        draft = latest_owned_draft(run_id, draft_id)
         from datetime import UTC, datetime
 
         release_audit_repository.revoke(run_id, draft_id, draft.version, actor, datetime.now(UTC))
@@ -342,9 +413,7 @@ def create_app(
         "/api/runs/{run_id}/drafts/{draft_id}/approval", response_model=ApprovalResponse | None
     )
     async def get_approval(run_id: UUID, draft_id: UUID) -> ApprovalResponse | None:
-        draft = draft_edit_repository.latest_version(draft_id)
-        if draft.run_id != run_id:
-            raise HTTPException(404, "draft not found")
+        draft = latest_owned_draft(run_id, draft_id)
         approval = release_audit_repository.approval(draft_id, draft.version)
         return (
             None
@@ -359,6 +428,7 @@ def create_app(
 
     @app.get("/api/runs/{run_id}/drafts/{draft_id}/audit", response_model=list[AuditEventResponse])
     async def get_audit(run_id: UUID, draft_id: UUID) -> list[AuditEventResponse]:
+        latest_owned_draft(run_id, draft_id)
         return [
             AuditEventResponse(
                 event_type=e.event_type,
@@ -370,6 +440,42 @@ def create_app(
             for e in release_audit_repository.audit(draft_id)
         ]
 
+    @app.get("/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions", response_model=list[EvidenceDecisionResponse])
+    async def list_evidence_decisions(run_id: UUID, draft_id: UUID) -> list[EvidenceDecisionResponse]:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        return [EvidenceDecisionResponse.model_validate(item.model_dump()) for item in evidence_decision_repository.list_evidence_decisions(draft_id)]
+
+    @app.post("/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions", response_model=EvidenceDecisionResponse, status_code=201)
+    async def create_evidence_decision(run_id: UUID, draft_id: UUID, request: EvidenceDecisionRequest, actor: str = Header(default="local-user", alias="X-Actor")) -> EvidenceDecisionResponse:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        try:
+            evidence_decision_service.record(draft, request.source_id, request.decision, request.reason, actor=actor)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        item = evidence_decision_repository.list_evidence_decisions(draft_id)[-1]
+        return EvidenceDecisionResponse.model_validate(item.model_dump())
+
+    @app.post("/api/runs/{run_id}/drafts/{draft_id}/return", response_model=ReturnDraftResponse, status_code=201)
+    async def return_draft(run_id: UUID, draft_id: UUID, request: ReturnDraftRequest, actor: str = Header(default="local-user", alias="X-Actor")) -> ReturnDraftResponse:
+        try:
+            draft = draft_edit_repository.latest_version(draft_id)
+        except KeyError as exc:
+            raise HTTPException(404, "draft not found") from exc
+        if draft.run_id != run_id:
+            raise HTTPException(404, "draft not found")
+        release_audit_repository.record_event(run_id, draft_id, draft.version, "RETURNED", actor, {"reason": request.reason})
+        return ReturnDraftResponse(draft_id=draft_id, version=draft.version, status="RETURNED", actor=actor)
+
     @app.get("/api/runs/{run_id}/drafts/{draft_id}/export.json")
     async def export_approved_json(
         run_id: UUID,
@@ -380,9 +486,7 @@ def create_app(
 
         from sector_pulse.domain.release_audit import DraftExport
 
-        draft = draft_edit_repository.latest_version(draft_id)
-        if draft.run_id != run_id:
-            raise HTTPException(404, "draft not found")
+        draft = latest_owned_draft(run_id, draft_id)
         approval = release_audit_repository.approval(draft_id, draft.version)
         if approval is None or approval.status.value != "APPROVED_FOR_COPY":
             raise HTTPException(409, "draft version is not approved for copy")
@@ -506,10 +610,7 @@ def create_app(
     @app.get("/api/fixture-input")
     async def fixture_input() -> dict[str, Any]:
         # 提供开发期可复现的示例输入，避免用户手工编写内部 Phase 1B JSON。
-        path = Path("data/phase1b/fixture-input.json")
-        if not path.is_file():
-            raise HTTPException(404, "fixture input not found")
-        return json.loads(path.read_text(encoding="utf-8"))
+        return load_default_fixture_input()
 
     @app.get("/api/runs")
     async def list_runs() -> list[Any]:
@@ -607,7 +708,7 @@ def create_app(
         @app.get("/{path:path}", response_model=None)
         async def spa_fallback(path: str) -> FileResponse | dict[str, str]:
             if path.startswith("api/"):
-                return {"detail": "not found"}
+                raise HTTPException(404, "not found")
             return FileResponse(static_dir / "index.html")
 
     return app

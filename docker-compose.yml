@@ -2,7 +2,7 @@ services:
   sector-pulse:
     build: .
     ports:
-      - "8010:8010"
+      - "127.0.0.1:8010:8010"
     env_file:
       - .env
     environment:
@@ -18,7 +18,9 @@ services:
     build: .
     profiles: ["postgres"]
     ports:
-      - "8011:8010"
+      - "127.0.0.1:8011:8010"
+    env_file:
+      - .env
     environment:
       SECTOR_PULSE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sectorpulse}:${POSTGRES_PASSWORD:-sectorpulse-local-only}@postgres:5432/${POSTGRES_DB:-sectorpulse}
     depends_on:
@@ -37,7 +39,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-sectorpulse}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sectorpulse-local-only}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - sector_pulse_postgres_data:/var/lib/postgresql/data
     healthcheck:

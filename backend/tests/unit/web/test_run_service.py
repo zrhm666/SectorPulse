@@ -56,6 +56,7 @@ async def test_create_run_lifecycle(tmp_path) -> None:
     detail = svc.get_run(run_id)
     assert detail is not None
     assert detail.status == "RUNNING"
+    assert detail.retryable is False
     # 后台任务在 asyncio 事件循环里运行；轮询直到状态离开 RUNNING（最多 5s）。
     for _ in range(50):
         if svc.get_run(run_id).status != "RUNNING":
@@ -64,6 +65,7 @@ async def test_create_run_lifecycle(tmp_path) -> None:
     detail = svc.get_run(run_id)
     assert detail is not None
     assert detail.status == "READY_FOR_HUMAN_REVIEW"
+    assert detail.retryable is True
     assert detail.sector_count == 8
     # 给后台任务的 finally 收尾（保存 invocations / 关闭 bus）留出时间。
     await asyncio.sleep(0.2)
@@ -87,6 +89,25 @@ async def test_create_run_lifecycle(tmp_path) -> None:
     review = repo.get_review(run_id)
     assert review is not None
     assert review.decision.value == "PASS"
+
+
+async def test_consecutive_fixture_runs_receive_distinct_draft_ids(tmp_path) -> None:
+    svc = _service(tmp_path)
+    completed = []
+    for _ in range(2):
+        run_id = svc.create_run(_input_json(), "fixture")
+        for _ in range(50):
+            detail = svc.get_run(run_id)
+            if detail is not None and detail.status != "RUNNING":
+                break
+            await asyncio.sleep(0.1)
+        detail = svc.get_run(run_id)
+        assert detail is not None
+        assert detail.status == "READY_FOR_HUMAN_REVIEW"
+        assert detail.draft_id is not None
+        completed.append(detail)
+
+    assert completed[0].draft_id != completed[1].draft_id
 
 
 async def test_create_run_uses_persisted_news_as_verified_draft_sources(tmp_path) -> None:

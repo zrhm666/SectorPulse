@@ -11,7 +11,7 @@ export default function ReviewTab({ runId }: { runId: string }) {
   return (
     <div>
       <p>
-        决策：<strong>{review.decision ?? '—'}</strong>，返工轮次：{review.revision_round ?? '—'}
+        决策：<strong>{review.decision ?? '暂无'}</strong>，返工轮次：{review.revision_round ?? '暂无'}
       </p>
       {review.issues.length === 0 && <p>无审核问题。</p>}
       {review.issues.map((issue) => (

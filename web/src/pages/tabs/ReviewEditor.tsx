@@ -28,7 +28,7 @@ export default function ReviewEditor(props: {
         base_version: props.version,
         path: `sections/${props.sectionId}/body`,
         old_value_hash: await sha256(props.body),
-        new_value: value,
+        value,
       })
       props.onSaved()
     } catch (err) {

@@ -5,7 +5,12 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import text
 
-from sector_pulse.domain.release_audit import ApprovalStatus, AuditEvent, DraftApproval
+from sector_pulse.domain.release_audit import (
+    ApprovalStatus,
+    AuditEvent,
+    DraftApproval,
+    DraftExport,
+)
 from sector_pulse.storage.postgres import PostgresDatabase
 
 
@@ -66,13 +71,84 @@ class PostgresReleaseAuditRepository:
             for row in rows
         )
 
+    async def revoke(
+        self,
+        run_id: UUID,
+        draft_id: UUID,
+        version: int,
+        actor: str,
+        created_at: datetime,
+    ) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE draft_approvals SET status = 'REVOKED' "
+                    "WHERE draft_id = :draft_id AND version = :version"
+                ),
+                {"draft_id": str(draft_id), "version": version},
+            )
+            await self._event(
+                connection,
+                run_id,
+                draft_id,
+                version,
+                "REVOKED",
+                actor,
+                {},
+                created_at=created_at,
+            )
+
+    async def record_event(self, run_id: UUID, draft_id: UUID, version: int,
+                           event_type: str, actor: str, payload: dict) -> None:
+        async with self._database.engine.begin() as connection:
+            await self._event(connection, run_id, draft_id, version, event_type, actor, payload)
+
+    async def record_export(self, export: DraftExport) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO draft_exports (export_id, run_id, draft_id, version, format, "
+                    "content_hash, actor, created_at) VALUES (:export_id, :run_id, :draft_id, "
+                    ":version, :format, :content_hash, :actor, :created_at)"
+                ),
+                {
+                    "export_id": str(export.export_id),
+                    "run_id": str(export.run_id),
+                    "draft_id": str(export.draft_id),
+                    "version": export.version,
+                    "format": export.format,
+                    "content_hash": export.content_hash,
+                    "actor": export.actor,
+                    "created_at": export.created_at.isoformat(),
+                },
+            )
+            await self._event(
+                connection,
+                export.run_id,
+                export.draft_id,
+                export.version,
+                "EXPORTED",
+                export.actor,
+                {"format": export.format, "content_hash": export.content_hash},
+                created_at=export.created_at,
+            )
+
     @staticmethod
     def content_hash(content: dict) -> str:
         payload = json.dumps(content, ensure_ascii=False, sort_keys=True).encode()
         return hashlib.sha256(payload).hexdigest()
 
     async def _event(
-        self, connection, run_id, draft_id, version, event_type, actor, payload
+        self,
+        connection,
+        run_id,
+        draft_id,
+        version,
+        event_type,
+        actor,
+        payload,
+        *,
+        created_at: datetime | None = None,
     ) -> None:
         await connection.execute(
             text(
@@ -83,5 +159,5 @@ class PostgresReleaseAuditRepository:
             {"event_id": str(uuid4()), "run_id": str(run_id), "draft_id": str(draft_id),
              "version": version, "event_type": event_type, "actor": actor,
              "payload_json": json.dumps(payload),
-             "created_at": datetime.now(UTC).isoformat()},
+             "created_at": (created_at or datetime.now(UTC)).isoformat()},
         )

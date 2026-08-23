@@ -96,6 +96,8 @@ class SQLiteDraftEditRepository:
         parts = path.split("/")
         if len(parts) == 1:
             return values[parts[0]]
+        if parts[0] == "titles" and len(parts) == 2:
+            return values["titles"][int(parts[1])]
         if parts[0] == "sections" and len(parts) == 3:
             section = next(item for item in values["sections"] if item["section_id"] == parts[1])
             return section[parts[2]]
@@ -106,6 +108,11 @@ class SQLiteDraftEditRepository:
         parts = path.split("/")
         if len(parts) == 1:
             values[parts[0]] = value
+            return
+        if parts[0] == "titles" and len(parts) == 2:
+            titles = list(values["titles"])
+            titles[int(parts[1])] = value
+            values["titles"] = titles
             return
         if parts[0] == "sections" and len(parts) == 3:
             sections = list(values["sections"])

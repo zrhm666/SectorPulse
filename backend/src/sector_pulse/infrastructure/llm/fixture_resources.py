@@ -14,3 +14,12 @@ def load_default_fixture_responses() -> dict[str, object]:
     if not isinstance(raw, dict):
         raise ValueError("default fixture responses must be an object")
     return cast(dict[str, object], raw)
+
+
+def load_default_fixture_input() -> dict[str, object]:
+    """读取 Web 管理台使用的可重复 Phase 1B 输入。"""
+    resource = files("sector_pulse.resources").joinpath("phase1b/fixture_input.json")
+    raw = json.loads(resource.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("default fixture input must be an object")
+    return cast(dict[str, object], raw)
