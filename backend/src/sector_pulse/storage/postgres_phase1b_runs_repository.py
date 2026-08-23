@@ -35,6 +35,35 @@ class PostgresPhase1BRunsRepository:
             row = result.first()
         return self._row_to_model(row) if row else None
 
+    async def update_status(
+        self,
+        run_id: UUID,
+        status: str,
+        elapsed_ms: int | None = None,
+        total_cost_cny: str | None = None,
+        draft_id: UUID | None = None,
+        error_message: str | None = None,
+        finished_at: datetime | None = None,
+    ) -> None:
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE phase1b_runs SET status = :status, elapsed_ms = :elapsed_ms, "
+                    "total_cost_cny = :total_cost_cny, draft_id = :draft_id, "
+                    "error_message = :error_message, finished_at = :finished_at "
+                    "WHERE run_id = :run_id"
+                ),
+                {
+                    "run_id": str(run_id),
+                    "status": status,
+                    "elapsed_ms": elapsed_ms,
+                    "total_cost_cny": total_cost_cny,
+                    "draft_id": str(draft_id) if draft_id else None,
+                    "error_message": error_message,
+                    "finished_at": finished_at.isoformat() if finished_at else None,
+                },
+            )
+
     async def list_runs(self, limit: int = 50) -> list[Phase1BRunRow]:
         async with self._database.engine.connect() as connection:
             result = await connection.execute(

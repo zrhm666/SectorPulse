@@ -153,7 +153,7 @@ class PostgresPhase1BRepository:
         await connection.execute(
             text(f"INSERT INTO {table} ({keys}, payload_json, payload_hash) VALUES "
                  "(:run_id, :sector_id, :sector_kind, :payload, :hash) "
-                 "ON CONFLICT DO UPDATE SET payload_json = EXCLUDED.payload_json, "
+                 f"ON CONFLICT ({keys}) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
                  "payload_hash = EXCLUDED.payload_hash"),
             {"run_id": run_id, "sector_id": sector_id, "sector_kind": sector_kind,
              "payload": payload, "hash": _hash(payload)},

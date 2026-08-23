@@ -6,6 +6,7 @@ import pytest
 from sector_pulse.storage.phase1b_runs_repository import Phase1BRunRow
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_phase1b_runs_repository import PostgresPhase1BRunsRepository
+from sqlalchemy import text
 
 
 @pytest.mark.asyncio
@@ -27,3 +28,38 @@ async def test_postgres_phase1b_runs_round_trip() -> None:
     assert loaded.input_json == {"test": True}
     assert any(run.run_id == item.run_id for run in await repository.list_runs())
     await database.engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_postgres_phase1b_runs_can_update_failure_status() -> None:
+    url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
+    if not url:
+        pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
+    database = PostgresDatabase(url)
+    await database.initialize()
+    item = Phase1BRunRow(
+        run_id=uuid4(), requested_at=datetime.now(UTC), provider="postgres-test",
+        status="RUNNING", input_json={"test": True},
+    )
+    repository = PostgresPhase1BRunsRepository(database)
+    try:
+        await repository.insert(item)
+        finished_at = datetime.now(UTC)
+        await repository.update_status(
+            item.run_id,
+            status="FAILED",
+            error_message="database write failed",
+            finished_at=finished_at,
+        )
+        updated = await repository.get_run(item.run_id)
+        assert updated is not None
+        assert updated.status == "FAILED"
+        assert updated.error_message == "database write failed"
+        assert updated.finished_at == finished_at
+    finally:
+        async with database.engine.begin() as connection:
+            await connection.execute(
+                text("DELETE FROM phase1b_runs WHERE run_id = :run_id"),
+                {"run_id": str(item.run_id)},
+            )
+        await database.close()
