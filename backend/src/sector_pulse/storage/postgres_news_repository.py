@@ -55,8 +55,11 @@ class PostgresNewsRepository:
                     },
                 )
             for event in events:
+                document_ids = tuple(dict.fromkeys(
+                    canonical_ids.get(item, item) for item in event.document_ids
+                ))
                 normalized = event.model_copy(update={
-                    "document_ids": tuple(canonical_ids.get(item, item) for item in event.document_ids)
+                    "document_ids": document_ids,
                 })
                 await connection.execute(
                     text("INSERT INTO news_events (event_id, canonical_title, first_published_at, "
@@ -74,7 +77,11 @@ class PostgresNewsRepository:
                 )
                 for document_id in normalized.document_ids:
                     await connection.execute(
-                        text("INSERT INTO news_event_documents (event_id, document_id) VALUES (:event_id, :document_id)"),
+                        text(
+                            "INSERT INTO news_event_documents (event_id, document_id) "
+                            "VALUES (:event_id, :document_id) "
+                            "ON CONFLICT (event_id, document_id) DO NOTHING"
+                        ),
                         {"event_id": normalized.event_id, "document_id": document_id},
                     )
 
