@@ -18,3 +18,16 @@ def test_operations_summary_is_redacted_and_describes_empty_runtime(tmp_path, mo
     assert payload["runs"]["total"] == 0
     assert "must-never-appear" not in response.text
     assert "api_key" not in payload["llm"]
+
+
+def test_explicit_database_path_overrides_configured_postgres_url(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv(
+        "SECTOR_PULSE_DATABASE_URL",
+        "postgresql+asyncpg://sectorpulse:secret@127.0.0.1:5432/sectorpulse",
+    )
+    client = TestClient(create_app(database_path=tmp_path / "isolated.db"))
+
+    response = client.get("/api/operations/summary")
+
+    assert response.status_code == 200
+    assert response.json()["database"] == {"backend": "sqlite", "name": "isolated.db"}

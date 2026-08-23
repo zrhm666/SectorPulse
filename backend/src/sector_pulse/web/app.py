@@ -94,6 +94,8 @@ def create_app(
     runtime_config = settings.apply_runtime_overrides(yaml_config)
     if database_path == Path("data/sector-pulse.db"):
         database_path = settings.database_path
+    else:
+        settings = settings.model_copy(update={"database_url": None})
     database = build_database(settings, database_path)
     storage = (
         build_postgres_storage(database)
