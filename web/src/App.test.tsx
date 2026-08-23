@@ -2,23 +2,41 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as api from './api'
+import * as operationsApi from './operationsApi'
 
 vi.mock('./api')
 vi.mock('./dataRunsApi')
+vi.mock('./operationsApi')
 
 describe('App routes', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(api.fetchRuns).mockResolvedValue([])
+    vi.mocked(operationsApi.fetchOperationsSummary).mockResolvedValue({
+      database: { backend: 'postgresql', name: 'runtime' },
+      llm: { provider: 'fixture', model: null, budget_cny_per_run: '2.00', configured: true },
+      consent: { live_data: false, live_llm: false },
+      providers: { live_data_available: false, missing_requirements: ['live-data-consent'] },
+      runs: { total: 0, running: 0, awaiting_review: 0, failed: 0, recent: [] },
+    })
   })
 
-  it('redirects the root route to the analysis run page', async () => {
+  it('renders the operations dashboard on the root route', async () => {
     window.history.pushState({}, '', '/')
 
     render(<App />)
 
-    expect(await screen.findByRole('heading', { level: 1, name: '分析运行' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '分析运行' })).toHaveAttribute('aria-current', 'page')
+    expect(await screen.findByRole('heading', { level: 1, name: '运营总览' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '运营总览' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('renders the system status route inside the navigation shell', async () => {
+    window.history.pushState({}, '', '/system')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: '系统状态' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '系统状态' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('renders the runs route inside the main navigation shell', async () => {

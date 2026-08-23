@@ -196,6 +196,21 @@ a { color: var(--color-primary); }
 .button-ghost { color: var(--color-primary); background: transparent; border-color: transparent; }
 .button-ghost:hover { background: #eff6ff; }
 
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4); }
+.metric-card { display: grid; gap: var(--space-1); padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.metric-card p, .metric-card span { margin: 0; color: var(--color-muted-text); font-size: 0.875rem; }
+.metric-card strong { font-size: 2rem; line-height: 1.1; }
+.metric-card--warning { border-top: 3px solid #f59e0b; }
+.metric-card--danger { border-top: 3px solid #ef4444; }
+.dashboard-grid, .status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.dashboard-grid .panel, .status-grid .panel { margin-bottom: 0; }
+.compact-list, .check-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.compact-list li { padding: var(--space-3); background: var(--color-surface-muted); border-radius: var(--radius-md); }
+.compact-list a { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text); text-decoration: none; }
+.compact-list small { margin-left: auto; color: var(--color-muted-text); }
+.check-list { list-style: disc; padding-left: var(--space-5); color: var(--color-text); }
+.status-detail { margin: var(--space-3) 0 0; color: var(--color-muted-text); }
+
 /* Temporary compatibility aliases for pages migrating in later Phase 1 tasks. */
 .app-layout { max-width: 1100px; margin: 0 auto; padding: var(--space-4); }
 .card { margin-bottom: var(--space-3); padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
@@ -212,6 +227,8 @@ a { color: var(--color-primary); }
 @media (max-width: 768px) {
   .page-header { flex-direction: column; }
   .page-header__actions { justify-content: flex-start; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-grid, .status-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {

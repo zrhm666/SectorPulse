@@ -9,8 +9,10 @@ function renderShellAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route element={<AppShell />}>
+          <Route path="/" element={<h1>运营总览内容</h1>} />
           <Route path="/runs" element={<h1>分析运行内容</h1>} />
           <Route path="/schedules" element={<h1>定时任务内容</h1>} />
+          <Route path="/system" element={<h1>系统状态内容</h1>} />
           <Route path="/shadow-acceptance" element={<h1>影子验收内容</h1>} />
         </Route>
       </Routes>
@@ -22,7 +24,9 @@ it('renders available navigation and marks the current route', () => {
   renderShellAt('/runs')
 
   expect(screen.getByRole('link', { name: '分析运行' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('link', { name: '运营总览' })).toHaveAttribute('href', '/')
   expect(screen.getByRole('link', { name: '定时任务' })).toHaveAttribute('href', '/schedules')
+  expect(screen.getByRole('link', { name: '系统状态' })).toHaveAttribute('href', '/system')
   expect(screen.getByRole('link', { name: '影子验收' })).toHaveAttribute('href', '/shadow-acceptance')
 })
 
