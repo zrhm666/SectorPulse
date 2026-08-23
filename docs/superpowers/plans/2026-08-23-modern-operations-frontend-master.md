@@ -47,13 +47,13 @@ Detailed plan: `docs/superpowers/plans/2026-08-23-modern-operations-frontend-pha
 
 Phase 2 plan will be written only after Phase 1 contracts are verified. Its required scope is fixed here.
 
-- [ ] Inventory existing endpoints for runs, schedules, shadow progress, provider preflight, LLM audits, and review analytics.
-- [ ] Define one redacted `OperationsSummary` frontend type and add a backend aggregation endpoint only for fields that cannot be composed reliably client-side.
-- [ ] Add `/` operations dashboard with real status, four metrics, recent runs, current workflow, actionable issues, and guided empty states.
-- [ ] Add `/system` with PostgreSQL database name/status, data/news Provider status, LLM provider/model/budget, consent readiness, and recent redacted failures.
-- [ ] Add automatic refresh with visible last-updated time and a manual retry action; do not silently poll failed endpoints.
-- [ ] Test populated, empty, loading, partial degradation, request failure, and secret-redaction states.
-- [ ] Verify the dashboard against an empty PostgreSQL runtime and a Fixture-populated test database.
+- [x] Inventory existing endpoints for runs, schedules, shadow progress, provider preflight, LLM audits, and review analytics.
+- [x] Define one redacted `OperationsSummary` frontend type and add a backend aggregation endpoint only for fields that cannot be composed reliably client-side.
+- [x] Add `/` operations dashboard with real status, four metrics, recent runs, current workflow, actionable issues, and guided empty states.
+- [x] Add `/system` with PostgreSQL database name/status, data/news Provider status, LLM provider/model/budget, consent readiness, and recent redacted failures.
+- [x] Add automatic refresh with visible last-updated time and a manual retry action; do not silently poll failed endpoints.
+- [x] Test populated, empty, loading, partial degradation, request failure, and secret-redaction states.
+- [ ] Verify the dashboard against a Fixture-populated test database (empty PostgreSQL runtime has been verified).
 
 ## Phase 3: Analysis Run Workflow
 
