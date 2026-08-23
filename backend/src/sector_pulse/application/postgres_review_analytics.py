@@ -20,7 +20,7 @@ class PostgresReviewAnalyticsQueries:
                 "governance": "SELECT COUNT(*) FROM governance_checks WHERE draft_id IN (SELECT draft_id FROM draft_patches WHERE run_id = :run_id)",
                 "approvals": "SELECT COUNT(*) FROM draft_approvals WHERE run_id = :run_id AND status = 'APPROVED_FOR_COPY'",
                 "exports": "SELECT COUNT(*) FROM draft_exports WHERE run_id = :run_id",
-                "cost": "SELECT COALESCE(SUM(estimated_cost_cny), 0) FROM agent_invocations WHERE run_id = :run_id",
+                "cost": "SELECT COALESCE(SUM(CAST(estimated_cost_cny AS NUMERIC)), 0) FROM agent_invocations WHERE run_id = :run_id",
             }
             for key, statement in queries.items():
                 counts[key] = (await connection.execute(text(statement), {"run_id": str(run_id)})).scalar_one()

@@ -13,3 +13,5 @@ def test_server_uses_loopback_and_built_spa(monkeypatch) -> None:
 
     assert captured["host"] == "127.0.0.1"
     assert captured["port"] == 8000
+    assert "%(asctime)s" in captured["log_config"]["formatters"]["default"]["fmt"]
+    assert "%(asctime)s" in captured["log_config"]["formatters"]["access"]["fmt"]
