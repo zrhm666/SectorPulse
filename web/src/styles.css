@@ -276,7 +276,9 @@ a { color: var(--color-primary); }
 .timeline li::before { position: absolute; top: 7px; right: 0; left: 18px; height: 1px; background: var(--color-border); content: ""; }
 .timeline li:last-child::before { display: none; }
 .timeline li > span { z-index: 1; width: 14px; height: 14px; background: var(--color-surface); border: 2px solid var(--color-border); border-radius: 50%; }
-.timeline li[data-complete="true"] > span { background: var(--color-success); border-color: var(--color-success); }
+.timeline li[data-state="complete"] > span,
+.timeline li[data-state="degraded"] > span { background: var(--color-success); border-color: var(--color-success); }
+.timeline li[data-state="failed"] > span { background: var(--color-danger); border-color: var(--color-danger); }
 .timeline strong { color: var(--color-text); font-size: .8125rem; }
 .timeline small { font-size: .75rem; }
 .tab-panel { min-height: 180px; padding: var(--space-5); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }

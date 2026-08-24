@@ -2,9 +2,43 @@ import { render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import OverviewTab from './OverviewTab'
 
-it('does not mark every stage complete for a failed historical run', () => {
-  render(<OverviewTab events={[]} done run={{ run_id: 'run-1', requested_at: '2026-08-23T00:00:00Z', provider: 'fixture', status: 'FAILED', elapsed_ms: null, total_cost_cny: null, draft_id: null }} />)
+const failedDraftRun = {
+  run_id: 'run-1',
+  requested_at: '2026-08-23T00:00:00Z',
+  provider: 'live',
+  status: 'DRAFT_GENERATION_FAILED',
+  elapsed_ms: 1000,
+  total_cost_cny: '0',
+  draft_id: null,
+}
+
+it('reconstructs truthful stages for a historical draft generation failure', () => {
+  render(<OverviewTab events={[]} done run={failedDraftRun} />)
+
+  expect(screen.getAllByTestId('timeline-state').map((node) => node.textContent)).toEqual([
+    '已完成',
+    '已完成',
+    '已完成',
+    '已完成',
+    '失败',
+    '未执行',
+  ])
+})
+
+it('shows an editorial fallback as degraded completion', () => {
+  render(
+    <OverviewTab
+      events={[{ type: 'progress', stage: 'editorial.fallback', detail: {} }]}
+      done={false}
+      run={{ ...failedDraftRun, status: 'RUNNING' }}
+    />,
+  )
+
+  expect(screen.getByText('已降级完成')).toBeInTheDocument()
+})
+
+it('does not invent completed stages for a generic failed historical run', () => {
+  render(<OverviewTab events={[]} done run={{ ...failedDraftRun, status: 'FAILED' }} />)
 
   expect(screen.queryByText('已完成')).not.toBeInTheDocument()
-  expect(screen.getAllByText('未完成')).toHaveLength(6)
 })
