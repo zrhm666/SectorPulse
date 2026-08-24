@@ -45,7 +45,7 @@ async def run_editorial_agent(
     prompt: Any,
     invocation_sink: InvocationSink = noop_invocation_sink,
     model: str = "fixture",
-) -> ArticleOutline:
+) -> tuple[ArticleOutline, bool]:
     valid = tuple(cards[:6])
     if len(valid) < 3:
         raise ValueError("at least 3 analysis cards are required")
@@ -72,17 +72,20 @@ async def run_editorial_agent(
         )
     )
     if result.status is LLMStatus.SUCCESS and result.data is not None:
-        return cast(ArticleOutline, result.data)
+        return cast(ArticleOutline, result.data), False
     selected = tuple(card.sector_id for card in valid[:6])
-    return ArticleOutline(
-        outline_id=uuid4(),
-        run_id=valid[0].run_id,
-        sector_ids=selected,
-        order_reasons={sector_id: "确定性综合热度排序" for sector_id in selected},
-        title_directions=("今日板块异动与消息观察",),
-        thesis="围绕板块表现、新闻线索和证据边界进行审慎观察。",
-        section_character_budgets={sector_id: 220 for sector_id in selected},
-        excluded_sector_reasons={},
+    return (
+        ArticleOutline(
+            outline_id=uuid4(),
+            run_id=valid[0].run_id,
+            sector_ids=selected,
+            order_reasons={sector_id: "确定性综合热度排序" for sector_id in selected},
+            title_directions=("今日板块异动与消息观察",),
+            thesis="围绕板块表现、新闻线索和证据边界进行审慎观察。",
+            section_character_budgets={sector_id: 220 for sector_id in selected},
+            excluded_sector_reasons={},
+        ),
+        True,
     )
 
 

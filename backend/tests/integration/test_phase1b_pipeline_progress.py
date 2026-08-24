@@ -2,11 +2,13 @@ import asyncio
 from datetime import UTC, datetime
 
 from sector_pulse.application.phase1b_pipeline import Phase1BRequest, run_phase1b_pipeline
+from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
 
 from backend.tests.integration.test_phase1b_pipeline import (
     RUN_ID,
     contexts,
     dependencies,
+    fixture_responses,
     gate,
 )
 
@@ -61,3 +63,31 @@ def test_pipeline_records_invocations(tmp_path) -> None:
     invocations = deps.invocation_repository.list_for_run(RUN_ID)
     stages = {inv.stage for inv in invocations}
     assert {"attribution", "editorial", "writing", "review"} <= stages
+
+
+def test_pipeline_emits_fallback_and_failure_events_for_invalid_draft(tmp_path) -> None:
+    sink = ListSink()
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["editorial-outline"] = {}
+    responses["article-draft"] = {}
+    deps.llm = FixtureLLMProvider(responses)
+
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={context.sector_id: gate(context) for context in contexts()},
+            ),
+            progress_sink=sink,
+        )
+    )
+
+    stages = [stage for stage, _ in sink.events]
+    assert "editorial.fallback" in stages
+    assert "writing.failed" in stages
+    assert "writing.done" not in stages
+    assert result.status == "DRAFT_GENERATION_FAILED"

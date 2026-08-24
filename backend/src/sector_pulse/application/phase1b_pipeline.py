@@ -145,13 +145,16 @@ async def run_phase1b_pipeline(
             total_cost_cny=total_cost(),
             elapsed_ms=int((time.perf_counter() - started) * 1000),
         )
-    outline = await run_editorial_agent(
+    outline, used_editorial_fallback = await run_editorial_agent(
         cards, dependencies.llm, dependencies.prompts.get("editorial"),
         invocation_sink=active_invocation_sink,
         model=dependencies.config.route_for("editorial").model,
     )
     dependencies.repository.save_outline(outline)
-    progress_sink.emit("editorial.done", {"sector_ids": list(outline.sector_ids)})
+    progress_sink.emit(
+        "editorial.fallback" if used_editorial_fallback else "editorial.done",
+        {"sector_ids": list(outline.sector_ids)},
+    )
     cards_by_id = {card.sector_id: card for card in cards}
     verified_sources = (
         tuple(
@@ -170,8 +173,11 @@ async def run_phase1b_pipeline(
         model=dependencies.config.route_for("writing").model,
         verified_sources=verified_sources,
     )
-    progress_sink.emit("writing.done", {"version": draft.version if draft else None})
     if draft is None or not draft.sources:
+        progress_sink.emit(
+            "writing.failed",
+            {"reason": "invalid_or_source_less_draft"},
+        )
         save_invocations()
         return Phase1BRunResult(
             status=PipelineStatus.DRAFT_GENERATION_FAILED,
@@ -182,6 +188,7 @@ async def run_phase1b_pipeline(
             total_cost_cny=total_cost(),
             elapsed_ms=int((time.perf_counter() - started) * 1000),
         )
+    progress_sink.emit("writing.done", {"version": draft.version})
     dependencies.repository.save_draft(draft)
     review = await run_review_agent(
         draft, cards_by_id, dependencies.llm, dependencies.prompts.get("review"),
