@@ -110,6 +110,8 @@ class QueryExecutionResult:
     documents: tuple[NewsDocument, ...]
     attempts: int
     duration_ms: int
+    started_at: datetime
+    completed_at: datetime
     error_code: str | None = None
 
 
@@ -124,6 +126,7 @@ async def _execute_one(
     max_retries: int,
     retry_backoff: Callable[[int], float],
 ) -> QueryExecutionResult:
+    started_at = datetime.now(UTC)
     started = time.perf_counter()
     attempts = 0
     async with semaphore:
@@ -152,12 +155,15 @@ async def _execute_one(
             if attempts > max_retries:
                 break
             await asyncio.sleep(retry_backoff(attempts))
+    completed_at = datetime.now(UTC)
     return QueryExecutionResult(
         query=query,
         status=result.status,
         documents=result.data or (),
         attempts=attempts,
         duration_ms=int((time.perf_counter() - started) * 1000),
+        started_at=started_at,
+        completed_at=completed_at,
         error_code=result.error.code if result.error else None,
     )
 

@@ -190,4 +190,6 @@ def test_query_executor_retries_and_preserves_plan_order() -> None:
     )
     assert len(results) == 1
     assert results[0].attempts == 2
+    assert results[0].started_at.tzinfo is UTC
+    assert results[0].completed_at >= results[0].started_at
     assert provider.calls == 2

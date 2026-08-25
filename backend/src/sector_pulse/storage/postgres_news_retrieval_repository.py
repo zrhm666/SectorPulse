@@ -6,7 +6,12 @@ from uuid import UUID
 
 from sqlalchemy import text
 
-from sector_pulse.domain.news_retrieval import NewsQuery, SectorEventLink, SourceRunMetric
+from sector_pulse.domain.news_retrieval import (
+    NewsQuery,
+    NewsQueryDocumentLink,
+    SectorEventLink,
+    SourceRunMetric,
+)
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.storage.postgres import PostgresDatabase
 
@@ -17,7 +22,8 @@ class PostgresNewsRetrievalRepository:
 
     async def save_audit(self, run_id: UUID, metrics: Sequence[SourceRunMetric],
                          query_results: Sequence[tuple[NewsQuery, DataStatus, int, str | None]],
-                         links: Sequence[SectorEventLink]) -> None:
+                         links: Sequence[SectorEventLink],
+                         query_documents: Sequence[NewsQueryDocumentLink] = ()) -> None:
         async with self._database.engine.begin() as connection:
             for metric in metrics:
                 await connection.execute(
@@ -50,6 +56,14 @@ class PostgresNewsRetrievalRepository:
                      "entities": json.dumps(link.matched_entities), "confidence": link.mapping_confidence.value,
                      "reason": link.mapping_reason, "rule_version": link.rule_version},
                 )
+            for item in query_documents:
+                await connection.execute(
+                    text("INSERT INTO news_query_documents (run_id, query_id, document_id) "
+                         "VALUES (:run_id, :query_id, :document_id) "
+                         "ON CONFLICT (run_id, query_id, document_id) DO NOTHING"),
+                    {"run_id": str(item.run_id), "query_id": item.query_id,
+                     "document_id": item.document_id},
+                )
 
     async def list_links(self, run_id: UUID) -> tuple[SectorEventLink, ...]:
         async with self._database.engine.connect() as connection:
@@ -62,3 +76,18 @@ class PostgresNewsRetrievalRepository:
             run_id=run_id, event_id=row[0], sector_id=row[1], sector_kind=row[2], relation_type=row[3],
             matched_entities=tuple(json.loads(row[4])), mapping_confidence=row[5], mapping_reason=row[6], rule_version=row[7],
         ) for row in rows)
+
+    async def list_query_documents(
+        self, run_id: UUID
+    ) -> tuple[NewsQueryDocumentLink, ...]:
+        async with self._database.engine.connect() as connection:
+            result = await connection.execute(
+                text("SELECT query_id, document_id FROM news_query_documents "
+                     "WHERE run_id = :run_id ORDER BY query_id, document_id"),
+                {"run_id": str(run_id)},
+            )
+            rows = result.fetchall()
+        return tuple(
+            NewsQueryDocumentLink(run_id=run_id, query_id=row[0], document_id=row[1])
+            for row in rows
+        )

@@ -94,6 +94,14 @@ class SectorEventLink(BaseModel):
     rule_version: str
 
 
+class NewsQueryDocumentLink(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    run_id: UUID
+    query_id: str
+    document_id: str
+
+
 class SourceRunMetric(BaseModel):
     model_config = ConfigDict(frozen=True)
 

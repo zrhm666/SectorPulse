@@ -6,6 +6,7 @@ from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.news_retrieval import (
     MappingConfidence,
     NewsQuery,
+    NewsQueryDocumentLink,
     QueryType,
     SectorEventLink,
     SourceRunMetric,
@@ -65,15 +66,40 @@ def test_save_audit_is_idempotent_and_hashes_query_values(tmp_path: Path) -> Non
             """,
             ("event-1", "人工智能政策", "content_hash", "{}"),
         )
+    with database.transaction() as connection:
+        connection.execute(
+            """
+            INSERT INTO news_documents (
+                document_id, source_id, canonical_url, title, observed_at,
+                content_hash, source_grade, metadata_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "doc-1", "eastmoney", "https://example.com/doc-1", "Document 1",
+                now.isoformat(), "hash-1", "REPUTABLE_MEDIA", "{}",
+            ),
+        )
     repository = SQLiteNewsRetrievalRepository(database)
-    repository.save_audit(run_id, (metric,), ((query, DataStatus.SUCCESS, 3, None),), (link,))
-    repository.save_audit(run_id, (metric,), ((query, DataStatus.SUCCESS, 3, None),), (link,))
+    query_documents = (
+        NewsQueryDocumentLink(run_id=run_id, query_id="q-1", document_id="doc-1"),
+    )
+    repository.save_audit(
+        run_id, (metric,), ((query, DataStatus.SUCCESS, 3, None),), (link,), query_documents
+    )
+    repository.save_audit(
+        run_id, (metric,), ((query, DataStatus.SUCCESS, 3, None),), (link,), query_documents
+    )
     with database.connection() as connection:
         source_count = connection.execute("SELECT COUNT(*) FROM news_source_runs").fetchone()[0]
         query_row = connection.execute(
             "SELECT value_hash FROM news_queries WHERE query_id = ?", ("q-1",)
         ).fetchone()
         link_count = connection.execute("SELECT COUNT(*) FROM sector_event_links").fetchone()[0]
+        query_document_count = connection.execute(
+            "SELECT COUNT(*) FROM news_query_documents"
+        ).fetchone()[0]
     assert source_count == 1
     assert query_row[0] != "人工智能"
     assert link_count == 1
+    assert query_document_count == 1
+    assert repository.list_query_documents(run_id) == query_documents

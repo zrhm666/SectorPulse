@@ -15,4 +15,5 @@ async def test_postgres_news_retrieval_empty_links() -> None:
     await database.initialize()
     repository = PostgresNewsRetrievalRepository(database)
     assert await repository.list_links(uuid4()) == ()
+    assert await repository.list_query_documents(uuid4()) == ()
     await database.engine.dispose()

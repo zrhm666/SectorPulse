@@ -3,7 +3,12 @@ import json
 from collections.abc import Sequence
 from uuid import UUID
 
-from sector_pulse.domain.news_retrieval import NewsQuery, SectorEventLink, SourceRunMetric
+from sector_pulse.domain.news_retrieval import (
+    NewsQuery,
+    NewsQueryDocumentLink,
+    SectorEventLink,
+    SourceRunMetric,
+)
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
@@ -20,6 +25,7 @@ class SQLiteNewsRetrievalRepository:
         metrics: Sequence[SourceRunMetric],
         query_results: Sequence[tuple[NewsQuery, DataStatus, int, str | None]],
         links: Sequence[SectorEventLink],
+        query_documents: Sequence[NewsQueryDocumentLink] = (),
     ) -> None:
         with self._database.transaction() as connection:
             for metric in metrics:
@@ -80,6 +86,15 @@ class SQLiteNewsRetrievalRepository:
                         link.mapping_confidence.value, link.mapping_reason, link.rule_version,
                     ),
                 )
+            for item in query_documents:
+                connection.execute(
+                    """
+                    INSERT INTO news_query_documents (run_id, query_id, document_id)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(run_id, query_id, document_id) DO NOTHING
+                    """,
+                    (str(item.run_id), item.query_id, item.document_id),
+                )
 
     def list_links(self, run_id: UUID) -> tuple[SectorEventLink, ...]:
         with self._database.connection() as connection:
@@ -95,5 +110,17 @@ class SQLiteNewsRetrievalRepository:
                 relation_type=row[3], matched_entities=tuple(json.loads(row[4])),
                 mapping_confidence=row[5], mapping_reason=row[6], rule_version=row[7],
             )
+            for row in rows
+        )
+
+    def list_query_documents(self, run_id: UUID) -> tuple[NewsQueryDocumentLink, ...]:
+        with self._database.connection() as connection:
+            rows = connection.execute(
+                "SELECT query_id, document_id FROM news_query_documents "
+                "WHERE run_id = ? ORDER BY query_id, document_id",
+                (str(run_id),),
+            ).fetchall()
+        return tuple(
+            NewsQueryDocumentLink(run_id=run_id, query_id=row[0], document_id=row[1])
             for row in rows
         )

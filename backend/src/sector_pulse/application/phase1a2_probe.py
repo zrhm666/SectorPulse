@@ -1,6 +1,6 @@
 import time
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import UUID
@@ -19,7 +19,11 @@ from sector_pulse.application.news_retrieval import build_news_query_plan, execu
 from sector_pulse.domain.candidate import SectorCandidate
 from sector_pulse.domain.evidence import EvidencePack
 from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.news_retrieval import SectorEntityConfig
+from sector_pulse.domain.news_retrieval import (
+    NewsQueryDocumentLink,
+    SectorEntityConfig,
+    SourceRunMetric,
+)
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.quality import (
     QualityReport,
@@ -84,6 +88,17 @@ class SourceMetricSummary(BaseModel):
     duration_ms: int
     document_count: int
     error_codes: tuple[str, ...] = ()
+
+
+def _aggregate_source_status(statuses: Sequence[DataStatus]) -> DataStatus:
+    unique = set(statuses)
+    if not unique:
+        return DataStatus.UNAVAILABLE
+    if len(unique) == 1:
+        return next(iter(unique))
+    if unique <= {DataStatus.SUCCESS, DataStatus.EMPTY}:
+        return DataStatus.SUCCESS
+    return DataStatus.PARTIAL
 
 
 class Phase1A2Report(BaseModel):
@@ -255,16 +270,22 @@ async def run_phase1a2_probe(
         )
         for event in events
     )
-    source_statuses: dict[str, DataStatus] = {}
+    source_executions = defaultdict(list)
     source_counts: defaultdict[str, int] = defaultdict(int)
     source_attempts: defaultdict[str, int] = defaultdict(int)
     source_errors: defaultdict[str, list[str]] = defaultdict(list)
     for execution in executions:
-        source_statuses[execution.query.source_id] = execution.status
+        source_executions[execution.query.source_id].append(execution)
         source_counts[execution.query.source_id] += len(execution.documents)
         source_attempts[execution.query.source_id] += execution.attempts
         if execution.error_code:
             source_errors[execution.query.source_id].append(execution.error_code)
+    source_statuses = {
+        source_id: _aggregate_source_status(
+            tuple(execution.status for execution in source_items)
+        )
+        for source_id, source_items in source_executions.items()
+    }
     news_quality = evaluate_news_quality(documents, events, source_statuses, cutoff)
     final_candidates = select_candidates(
         industry.data, concept.data, events, request.final_candidate_limit
@@ -275,14 +296,44 @@ async def run_phase1a2_probe(
     )
     news_repository.save(documents, events)
     evidence_repository.save(packs)
+    source_run_metrics = tuple(
+        SourceRunMetric(
+            run_id=run.run_id,
+            source_id=source_id,
+            started_at=min(item.started_at for item in source_items),
+            completed_at=max(item.completed_at for item in source_items),
+            call_count=len(source_items),
+            retry_count=sum(max(item.attempts - 1, 0) for item in source_items),
+            status=source_statuses[source_id],
+            duration_ms=sum(item.duration_ms for item in source_items),
+            error_code=(
+                next(iter(set(source_errors[source_id])))
+                if len(set(source_errors[source_id])) == 1
+                else "MULTIPLE_SOURCE_ERRORS"
+                if source_errors[source_id]
+                else None
+            ),
+        )
+        for source_id, source_items in sorted(source_executions.items())
+    )
+    query_document_links = tuple(
+        NewsQueryDocumentLink(
+            run_id=run.run_id,
+            query_id=execution.query.query_id,
+            document_id=document.document_id,
+        )
+        for execution in executions
+        for document in execution.documents
+    )
     retrieval_repository.save_audit(
         run.run_id,
-        (),
+        source_run_metrics,
         tuple(
             (execution.query, execution.status, len(execution.documents), execution.error_code)
             for execution in executions
         ),
         links,
+        query_document_links,
     )
     source_metrics = {
         source_id: SourceMetricSummary(
