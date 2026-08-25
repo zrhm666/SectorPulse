@@ -3,6 +3,7 @@ import { expect, it } from 'vitest'
 import EmptyState from './EmptyState'
 import InlineAlert from './InlineAlert'
 import PageHeader from './PageHeader'
+import Panel from './Panel'
 import StatusBadge from './StatusBadge'
 
 it('renders one page heading and its primary action', () => {
@@ -21,7 +22,13 @@ it('exposes status and alert semantics as text', () => {
   )
 
   expect(screen.getByText('失败')).toBeInTheDocument()
+  expect(screen.getByText('失败').closest('.status-badge')).toHaveAttribute('data-tone', 'danger')
   expect(screen.getByRole('alert')).toHaveTextContent('Provider 超时')
+})
+
+it('applies compact density without changing panel semantics', () => {
+  render(<Panel title="新闻记录" density="compact">内容</Panel>)
+  expect(screen.getByRole('region', { name: '新闻记录' })).toHaveClass('panel--compact')
 })
 
 it('renders a guided empty state action', () => {

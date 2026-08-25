@@ -6,13 +6,14 @@ export type PanelProps = {
   actions?: ReactNode
   children: ReactNode
   className?: string
+  density?: 'comfortable' | 'compact'
 }
 
-export default function Panel({ title, description, actions, children, className }: PanelProps) {
+export default function Panel({ title, description, actions, children, className, density = 'comfortable' }: PanelProps) {
   const titleId = useId()
 
   return (
-    <section className={['panel', className].filter(Boolean).join(' ')} aria-labelledby={title ? titleId : undefined}>
+    <section className={['panel', `panel--${density}`, className].filter(Boolean).join(' ')} aria-labelledby={title ? titleId : undefined}>
       {(title || description || actions) && (
         <header className="panel__header">
           <div className="panel__heading">

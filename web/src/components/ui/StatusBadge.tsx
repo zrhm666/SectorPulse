@@ -38,8 +38,10 @@ export default function StatusBadge({ status, label, tone }: StatusBadgeProps) {
   const resolvedLabel = label ?? detail?.label ?? status
 
   return (
-    <span className={`status-badge status-badge--${resolvedTone}`} data-status={status}>
-      {resolvedLabel}
+    <span className={`status-badge status-badge--${resolvedTone}`} data-status={status} data-tone={resolvedTone}>
+      {(resolvedTone === 'success' || resolvedTone === 'danger' || resolvedTone === 'warning') && <AppIcon name={resolvedTone === 'success' ? 'check' : 'warning'} size={13} />}
+      <span>{resolvedLabel}</span>
     </span>
   )
 }
+import AppIcon from './AppIcon'
