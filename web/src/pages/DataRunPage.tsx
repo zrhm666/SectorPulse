@@ -28,6 +28,7 @@ import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
 import StatusBadge from '../components/ui/StatusBadge'
+import SummaryStrip from '../components/ui/SummaryStrip'
 import { formatDate } from '../runPresentation'
 import CandidatesPanel from './data-run/CandidatesPanel'
 import AcquisitionSummary from './data-run/AcquisitionSummary'
@@ -248,16 +249,23 @@ export default function DataRunPage() {
     { id: 'quality', label: '质量报告' },
   ]
 
-  return <section>
+  return <section className="data-run-page density-compact">
     <PageHeader title={run.mode === 'post_close' ? '盘后数据运行' : '盘中数据运行'} description={`运行 ${run.run_id.slice(0, 8)} · ${formatDate(run.requested_at)}`} actions={<Link className="button button-secondary" to="/runs">返回运行历史</Link>} />
-    <div className="detail-summary data-run-summary"><div><span>状态</span><StatusBadge status={run.status} /></div><div><span>场景</span><strong>{run.mode === 'post_close' ? '盘后复盘' : '盘中分析'}</strong></div><div><span>Provider</span><strong>{run.provider ?? '尚未记录'}</strong></div><div><span>Cutoff</span><strong>{run.cutoff_at ? formatDate(run.cutoff_at) : '尚未产生'}</strong></div><div><span>候选板块</span><strong>{candidatesLoading ? '加载中' : candidates.length || '尚未产生'}</strong></div><div><span>完成时间</span><strong>{run.finished_at ? formatDate(run.finished_at) : '尚未完成'}</strong></div></div>
+    <SummaryStrip label="数据运行摘要" className="data-run-summary" items={[
+      { label: '状态', value: <StatusBadge status={run.status} /> },
+      { label: '场景', value: run.mode === 'post_close' ? '盘后复盘' : '盘中分析' },
+      { label: 'Provider', value: run.provider ?? '尚未记录' },
+      { label: 'Cutoff', value: run.cutoff_at ? formatDate(run.cutoff_at) : '尚未产生' },
+      { label: '候选板块', value: candidatesLoading ? '加载中' : candidates.length || '尚未产生' },
+      { label: '完成时间', value: run.finished_at ? formatDate(run.finished_at) : '尚未完成' },
+    ]} />
     {runError && <InlineAlert tone="warning" title="刷新未完成">{runError}</InlineAlert>}
     {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
     <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
     <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={acquisitionError} />
     <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} onGenerate={() => void generate()} onRetry={() => void retry()} />
     <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
-    <Panel className="data-workbench-panel"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+    <Panel className="data-workbench-panel" density="compact"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
       {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} />}
       {activeTab === 'candidates' && <CandidatesPanel candidates={candidates} loading={candidatesLoading} error={candidatesError} />}
       {activeTab === 'news-records' && <NewsRecordsPanel data={newsRecords} loading={newsRecordsLoading} error={newsRecordsError} sourceId={newsSourceId} status={newsStatus} sourceOptions={acquisition?.news_sources.map((source) => source.source_id) ?? []} onSourceChange={(value) => { setNewsSourceId(value); setNewsOffset(0) }} onStatusChange={(value) => { setNewsStatus(value); setNewsOffset(0) }} onPage={setNewsOffset} />}

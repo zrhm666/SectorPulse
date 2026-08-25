@@ -156,6 +156,9 @@ a { color: var(--color-primary); }
 .page-header__updated { align-self: center; color: var(--color-muted-text); font-size: 0.8125rem; }
 .dashboard-page { display: grid; gap: var(--content-gap); }
 .dashboard-page .page-header { margin-bottom: 0; }
+.data-run-page { display: grid; gap: var(--content-gap); }
+.data-run-page .page-header, .data-run-page .panel { margin-bottom: 0; }
+.data-run-page .summary-strip { grid-template-columns: repeat(6, minmax(130px, 1fr)); }
 
 .panel {
   margin-bottom: 20px;

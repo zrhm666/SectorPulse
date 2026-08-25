@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -75,6 +75,15 @@ beforeEach(() => {
   vi.mocked(api.fetchDataRunContentRun).mockResolvedValue(null)
   vi.mocked(api.generateDataRunArticle).mockResolvedValue({ run_id: 'run-1' })
   vi.mocked(api.retryDataRun).mockResolvedValue({ run_id: 'run-2' })
+})
+
+it('renders metadata and workbench tabs as named regions', async () => {
+  renderPage()
+  const summary = await screen.findByRole('region', { name: '数据运行摘要' })
+  expect(summary).toHaveTextContent('Provider')
+  expect(summary).toHaveTextContent('完成时间')
+  const tabs = screen.getByRole('tablist', { name: '数据运行详情' })
+  expect(within(tabs).getAllByRole('tab')).toHaveLength(5)
 })
 
 it('shows only the current collection stage as running', async () => {
@@ -341,7 +350,7 @@ it('shows independently filterable provider news records and historical coverage
   expect(await screen.findByText('Provider 原始新闻标题')).toBeVisible()
   expect(screen.getByText('这是规范化保存的新闻摘要。')).toBeVisible()
   expect(screen.getByText('历史运行仅保留进入证据链的新闻记录。')).toBeVisible()
-  expect(screen.getByRole('link', { name: '查看来源' })).toHaveAttribute('href', 'https://example.com/raw-news')
+  expect(screen.getByRole('link', { name: '查看原文' })).toHaveAttribute('href', 'https://example.com/raw-news')
 })
 
 it('explains how evidence was mapped to a sector', async () => {
