@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import builtins
 from uuid import UUID
 
+from sector_pulse.domain.real_data_run import RealDataRun
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 
 
@@ -18,20 +20,24 @@ class RealDataRunQueries:
         run = self._repository.get_run(run_id)
         return self._serialize(run) if run else None
 
-    def candidates(self, run_id: UUID) -> list[dict[str, object]]:
+    def candidates(self, run_id: UUID) -> builtins.list[dict[str, object]]:
         return [item.model_dump(mode="json") for item in self._repository.get_candidates(run_id)]
 
     @staticmethod
-    def _serialize(run: object) -> dict[str, object]:
-        payload = run.model_dump(mode="json")  # type: ignore[union-attr]
+    def _serialize(run: RealDataRun) -> dict[str, object]:
+        payload = run.model_dump(mode="json")
         request = payload["request"]
         quality = payload["quality"]
         return {
             "run_id": payload["run_id"],
+            "provider": payload["provider"],
             "mode": request["mode"],
             "status": payload["status"],
             "requested_at": request["requested_at"],
+            "cutoff_at": payload["cutoff_at"],
+            "request": request,
             "quality": {**quality["market_quality"], **quality["news_quality"]},
+            "quality_summary": quality,
             "downgrade_reasons": quality["downgrade_reasons"],
             "error_code": payload["error_code"],
             "finished_at": payload["finished_at"],
