@@ -3,17 +3,22 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import {
   type DataRunCandidateView,
+  type DataRunAcquisitionView,
   type DataRunContentView,
   type DataRunEvidenceView,
   type DataRunMarketView,
+  type DataRunNewsRecordsView,
   type DataRunQualityView,
   type DataRunView,
+  type DataStatus,
   type SectorKind,
   fetchDataRun,
+  fetchDataRunAcquisition,
   fetchDataRunCandidates,
   fetchDataRunContentRun,
   fetchDataRunEvidence,
   fetchDataRunMarket,
+  fetchDataRunNewsRecords,
   fetchDataRunQuality,
   generateDataRunArticle,
   retryDataRun,
@@ -25,17 +30,19 @@ import Panel from '../components/ui/Panel'
 import StatusBadge from '../components/ui/StatusBadge'
 import { formatDate } from '../runPresentation'
 import CandidatesPanel from './data-run/CandidatesPanel'
+import AcquisitionSummary from './data-run/AcquisitionSummary'
 import DataRunActionPanel from './data-run/DataRunActionPanel'
 import DataRunTimeline from './data-run/DataRunTimeline'
 import EvidencePanel from './data-run/EvidencePanel'
 import MarketPanel from './data-run/MarketPanel'
+import NewsRecordsPanel from './data-run/NewsRecordsPanel'
 import QualityPanel from './data-run/QualityPanel'
 
 const TERMINAL_STATUSES = new Set([
   'READY_FOR_ATTRIBUTION', 'DEGRADED', 'BLOCKED', 'FAILED',
   'CANCELLED', 'INTERRUPTED',
 ])
-type WorkbenchTab = 'market' | 'candidates' | 'evidence' | 'quality'
+type WorkbenchTab = 'market' | 'candidates' | 'news-records' | 'evidence' | 'quality'
 
 function message(reason: unknown, fallback: string): string {
   return reason instanceof Error && reason.message ? reason.message : fallback
@@ -52,6 +59,9 @@ export default function DataRunPage() {
   const [candidatesLoading, setCandidatesLoading] = useState(true)
   const [candidatesError, setCandidatesError] = useState<string | null>(null)
   const [contentRun, setContentRun] = useState<DataRunContentView | null>(null)
+  const [acquisition, setAcquisition] = useState<DataRunAcquisitionView | null>(null)
+  const [acquisitionLoading, setAcquisitionLoading] = useState(true)
+  const [acquisitionError, setAcquisitionError] = useState<string | null>(null)
   const [marketKind, setMarketKind] = useState<SectorKind>('INDUSTRY')
   const [marketOffset, setMarketOffset] = useState(0)
   const [market, setMarket] = useState<DataRunMarketView | null>(null)
@@ -60,6 +70,12 @@ export default function DataRunPage() {
   const [evidence, setEvidence] = useState<DataRunEvidenceView | null>(null)
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   const [evidenceError, setEvidenceError] = useState<string | null>(null)
+  const [newsRecords, setNewsRecords] = useState<DataRunNewsRecordsView | null>(null)
+  const [newsRecordsLoading, setNewsRecordsLoading] = useState(false)
+  const [newsRecordsError, setNewsRecordsError] = useState<string | null>(null)
+  const [newsSourceId, setNewsSourceId] = useState('')
+  const [newsStatus, setNewsStatus] = useState<'' | DataStatus>('')
+  const [newsOffset, setNewsOffset] = useState(0)
   const [quality, setQuality] = useState<DataRunQualityView | null>(null)
   const [qualityLoading, setQualityLoading] = useState(false)
   const [qualityError, setQualityError] = useState<string | null>(null)
@@ -90,17 +106,35 @@ export default function DataRunPage() {
     }
   }, [runId])
 
+  const loadAcquisition = useCallback(async () => {
+    setAcquisitionLoading(true)
+    try {
+      setAcquisition(await fetchDataRunAcquisition(runId))
+      setAcquisitionError(null)
+    } catch (reason) {
+      setAcquisitionError(message(reason, '采集记录加载失败。'))
+    } finally {
+      setAcquisitionLoading(false)
+    }
+  }, [runId])
+
   useEffect(() => {
     setRun(null)
     setContentRun(null)
+    setAcquisition(null)
     setEvidence(null)
     setQuality(null)
     setMarket(null)
+    setNewsRecords(null)
+    setNewsSourceId('')
+    setNewsStatus('')
+    setNewsOffset(0)
     setActionError(null)
     void loadRun()
     void loadCandidates()
+    void loadAcquisition()
     fetchDataRunContentRun(runId).then(setContentRun).catch(() => setContentRun(null))
-  }, [loadCandidates, loadRun, runId])
+  }, [loadAcquisition, loadCandidates, loadRun, runId])
 
   useEffect(() => {
     if (!run || TERMINAL_STATUSES.has(run.status)) return
@@ -118,6 +152,22 @@ export default function DataRunPage() {
       .finally(() => { if (!cancelled) setMarketLoading(false) })
     return () => { cancelled = true }
   }, [activeTab, marketKind, marketOffset, runId])
+
+  useEffect(() => {
+    if (activeTab !== 'news-records') return
+    let cancelled = false
+    setNewsRecordsLoading(true)
+    fetchDataRunNewsRecords(runId, {
+      sourceId: newsSourceId || undefined,
+      status: newsStatus || undefined,
+      offset: newsOffset,
+      limit: 20,
+    })
+      .then((value) => { if (!cancelled) { setNewsRecords(value); setNewsRecordsError(null) } })
+      .catch((reason) => { if (!cancelled) setNewsRecordsError(message(reason, '新闻记录加载失败。')) })
+      .finally(() => { if (!cancelled) setNewsRecordsLoading(false) })
+    return () => { cancelled = true }
+  }, [activeTab, newsOffset, newsSourceId, newsStatus, runId])
 
   useEffect(() => {
     if (activeTab !== 'evidence' || evidence) return
@@ -193,6 +243,7 @@ export default function DataRunPage() {
   const tabs: Array<{ id: WorkbenchTab; label: string }> = [
     { id: 'market', label: '行情板块' },
     { id: 'candidates', label: '候选板块' },
+    { id: 'news-records', label: '新闻记录' },
     { id: 'evidence', label: '新闻证据' },
     { id: 'quality', label: '质量报告' },
   ]
@@ -203,11 +254,13 @@ export default function DataRunPage() {
     {runError && <InlineAlert tone="warning" title="刷新未完成">{runError}</InlineAlert>}
     {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
     <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
+    <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={acquisitionError} />
     <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} onGenerate={() => void generate()} onRetry={() => void retry()} />
     <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
     <Panel className="data-workbench-panel"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
       {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} />}
       {activeTab === 'candidates' && <CandidatesPanel candidates={candidates} loading={candidatesLoading} error={candidatesError} />}
+      {activeTab === 'news-records' && <NewsRecordsPanel data={newsRecords} loading={newsRecordsLoading} error={newsRecordsError} sourceId={newsSourceId} status={newsStatus} sourceOptions={acquisition?.news_sources.map((source) => source.source_id) ?? []} onSourceChange={(value) => { setNewsSourceId(value); setNewsOffset(0) }} onStatusChange={(value) => { setNewsStatus(value); setNewsOffset(0) }} onPage={setNewsOffset} />}
       {activeTab === 'evidence' && <EvidencePanel data={evidence} loading={evidenceLoading} error={evidenceError} />}
       {activeTab === 'quality' && <QualityPanel data={quality} loading={qualityLoading} error={qualityError} />}
     </div></Panel>

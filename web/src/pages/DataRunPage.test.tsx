@@ -62,6 +62,15 @@ beforeEach(() => {
     snapshots: [], kind: 'INDUSTRY', items: [], total: 0, offset: 0, limit: 20,
   })
   vi.mocked(api.fetchDataRunEvidence).mockResolvedValue({ events: [], total: 0 })
+  vi.mocked(api.fetchDataRunAcquisition).mockResolvedValue({
+    market_sources: [], news_sources: [],
+    counts: { provider_results: 0, normalized_documents: 0, evidence_events: 0 },
+    coverage: 'COMPLETE', coverage_notice: null,
+  })
+  vi.mocked(api.fetchDataRunNewsRecords).mockResolvedValue({
+    items: [], total: 0, offset: 0, limit: 20,
+    coverage: 'COMPLETE', coverage_notice: null,
+  })
   vi.mocked(api.fetchDataRunQuality).mockResolvedValue(READY_RUN.quality_summary!)
   vi.mocked(api.fetchDataRunContentRun).mockResolvedValue(null)
   vi.mocked(api.generateDataRunArticle).mockResolvedValue({ run_id: 'run-1' })
@@ -196,4 +205,109 @@ it('keeps other panels usable when market loading fails', async () => {
   expect(await screen.findByText('market unavailable')).toBeVisible()
   await userEvent.click(screen.getByRole('tab', { name: '候选板块' }))
   expect(await screen.findByText('机器人')).toBeVisible()
+})
+
+it('shows what providers actually returned and the three processing counts', async () => {
+  vi.mocked(api.fetchDataRunAcquisition).mockResolvedValue({
+    market_sources: [{
+      kind: 'INDUSTRY', provider_id: 'akshare-ths', classification_version: 'v1',
+      source_version: '2.3.0', observed_at: '2026-08-25T07:00:00Z',
+      collected_at: '2026-08-25T07:01:00Z', sector_count: 90,
+      available_fields: ['sector_id', 'name'], raw_artifact_sha256: 'abc123',
+    }],
+    news_sources: [{
+      source_id: 'eastmoney-search', status: 'SUCCESS', query_count: 24,
+      status_counts: { SUCCESS: 24, EMPTY: 0, PARTIAL: 0, STALE: 0, UNAVAILABLE: 0, FAILED: 0 },
+      result_count: 240, call_count: 24, retry_count: 1, duration_ms: 1234,
+      error_codes: [],
+    }],
+    counts: { provider_results: 240, normalized_documents: 182, evidence_events: 35 },
+    coverage: 'COMPLETE', coverage_notice: null,
+  })
+
+  renderPage()
+
+  expect(await screen.findByText('本次实际获取')).toBeVisible()
+  expect(screen.getByText('akshare-ths')).toBeVisible()
+  expect(screen.getByText('实际字段：板块代码、板块名称')).toBeVisible()
+  expect(screen.getByText('eastmoney-search')).toBeVisible()
+  expect(screen.getByText('Provider 返回')).toBeVisible()
+  expect(screen.getByText('240')).toBeVisible()
+  expect(screen.getByText('规范化保存')).toBeVisible()
+  expect(screen.getByText('182')).toBeVisible()
+  expect(screen.getByText('进入证据链')).toBeVisible()
+  expect(screen.getByText('35')).toBeVisible()
+})
+
+it('distinguishes unavailable market fields from an explicit zero', async () => {
+  vi.mocked(api.fetchDataRunMarket).mockResolvedValue({
+    snapshots: [], kind: 'INDUSTRY', total: 2, offset: 0, limit: 20,
+    items: [{
+      sector_id: 'missing', name: '缺字段板块', kind: 'INDUSTRY', pct_change: '0',
+      turnover_rate: null, total_market_cap: null, advancers: 0, decliners: 0,
+      leader_name: null, leader_pct_change: null, breadth_ratio: '0',
+      field_availability: { pct_change: false, turnover_rate: false },
+    }, {
+      sector_id: 'zero', name: '真实零值板块', kind: 'INDUSTRY', pct_change: '0',
+      turnover_rate: '0', total_market_cap: null, advancers: 0, decliners: 0,
+      leader_name: null, leader_pct_change: null, breadth_ratio: '0',
+      field_availability: { pct_change: true, turnover_rate: true },
+    }],
+  })
+
+  renderPage()
+
+  const missingRow = (await screen.findByText('缺字段板块')).closest('tr')!
+  expect(missingRow).toHaveTextContent('未返回')
+  expect(missingRow).not.toHaveTextContent('0%')
+  const zeroRow = screen.getByText('真实零值板块').closest('tr')!
+  expect(zeroRow).toHaveTextContent('0%')
+})
+
+it('shows independently filterable provider news records and historical coverage', async () => {
+  vi.mocked(api.fetchDataRunNewsRecords).mockResolvedValue({
+    items: [{
+      document_id: 'doc-raw-1', source_id: 'eastmoney-search',
+      citation_url: 'https://example.com/raw-news', title: 'Provider 原始新闻标题',
+      publisher: '东方财富', summary: '这是规范化保存的新闻摘要。',
+      published_at: '2026-08-25T06:00:00Z', source_observed_at: '2026-08-25T06:01:00Z',
+      collected_at: '2026-08-25T07:00:00Z', source_grade: 'REPUTABLE_MEDIA',
+      query_ids: ['query-1'], query_type: 'sector', query_status: 'SUCCESS',
+      query_source_id: 'eastmoney-search',
+    }],
+    total: 1, offset: 0, limit: 20, coverage: 'LINKED_ONLY',
+    coverage_notice: '历史运行仅保留进入证据链的新闻记录。',
+  })
+
+  renderPage()
+  await userEvent.click(await screen.findByRole('tab', { name: '新闻记录' }))
+
+  expect(await screen.findByText('Provider 原始新闻标题')).toBeVisible()
+  expect(screen.getByText('这是规范化保存的新闻摘要。')).toBeVisible()
+  expect(screen.getByText('历史运行仅保留进入证据链的新闻记录。')).toBeVisible()
+  expect(screen.getByRole('link', { name: '查看来源' })).toHaveAttribute('href', 'https://example.com/raw-news')
+})
+
+it('explains how evidence was mapped to a sector', async () => {
+  vi.mocked(api.fetchDataRunEvidence).mockResolvedValue({
+    total: 1,
+    events: [{
+      event_id: 'event-1', canonical_title: '机器人产业新闻',
+      first_published_at: '2026-08-25T06:00:00Z', deduplication_reason: 'canonical_url',
+      sector_ids: ['industry-1'], documents: [],
+      links: [{
+        sector_id: 'industry-1', sector_kind: 'INDUSTRY', sector_name: '机器人',
+        relation_type: 'DIRECT', matched_entities: ['机器人'],
+        mapping_confidence: 'HIGH', mapping_reason: '板块名称精确命中',
+      }],
+    }],
+  })
+
+  renderPage()
+  await userEvent.click(await screen.findByRole('tab', { name: '新闻证据' }))
+
+  expect(await screen.findByText('机器人（行业）')).toBeVisible()
+  expect(screen.getByText('置信度 HIGH')).toBeVisible()
+  expect(screen.getByText('命中实体：机器人')).toBeVisible()
+  expect(screen.getByText('板块名称精确命中')).toBeVisible()
 })

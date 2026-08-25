@@ -98,7 +98,9 @@ export interface EvidenceEventView {
   links: Array<{
     sector_id: string
     sector_kind: SectorKind
+    sector_name?: string | null
     relation_type: string
+    matched_entities?: string[]
     mapping_confidence: string
     mapping_reason: string
   }>
