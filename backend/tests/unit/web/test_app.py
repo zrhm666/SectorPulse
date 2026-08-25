@@ -8,6 +8,7 @@ from sector_pulse.web.app import create_app
 class WorkbenchQueries:
     def __init__(self) -> None:
         self.market_call: tuple[UUID, str, int, int] | None = None
+        self.news_records_call = None
 
     def market(self, run_id, kind, *, offset, limit):
         self.market_call = (run_id, kind.value, offset, limit)
@@ -24,6 +25,26 @@ class WorkbenchQueries:
 
     def candidates(self, run_id):
         return [{"sector_id": "industry-1", "name": "示例行业"}]
+
+
+    def acquisition(self, run_id):
+        return {"coverage": "COMPLETE", "market_sources": [], "news_sources": []}
+
+    def news_records(self, run_id, *, source_id, status, offset, limit):
+        self.news_records_call = (
+            run_id,
+            source_id,
+            status.value if status else None,
+            offset,
+            limit,
+        )
+        return {
+            "coverage": "COMPLETE",
+            "items": [{"document_id": "doc-1"}],
+            "total": 1,
+            "offset": offset,
+            "limit": limit,
+        }
 
 
 class DataRunActions:
@@ -78,6 +99,14 @@ def test_data_run_workbench_endpoints_return_independent_payloads(tmp_path) -> N
     assert client.get(f"/api/data-runs/{run_id}/evidence").json()["total"] == 1
     assert client.get(f"/api/data-runs/{run_id}/quality").json()["cutoff_violation_count"] == 1
     assert client.get(f"/api/data-runs/{run_id}/content-run").json() is None
+    assert client.get(f"/api/data-runs/{run_id}/acquisition").json()["coverage"] == "COMPLETE"
+    records = client.get(
+        f"/api/data-runs/{run_id}/news-records"
+        "?source_id=eastmoney&status=SUCCESS&offset=20&limit=10"
+    )
+    assert records.status_code == 200
+    assert records.json()["total"] == 1
+    assert workbench.news_records_call == (run_id, "eastmoney", "SUCCESS", 20, 10)
     assert client.get(f"/api/data-runs/{run_id}/candidates").json()[0]["name"] == "示例行业"
 
 
@@ -97,6 +126,10 @@ def test_market_query_parameters_are_validated(tmp_path) -> None:
     assert client.get(f"/api/data-runs/{run_id}/market?kind=OTHER").status_code == 422
     assert client.get(f"/api/data-runs/{run_id}/market?kind=INDUSTRY&limit=101").status_code == 422
     assert client.get(f"/api/data-runs/{run_id}/market?kind=INDUSTRY&offset=-1").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/news-records?offset=-1").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/news-records?limit=0").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/news-records?limit=101").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/news-records?status=OTHER").status_code == 422
 
 
 def test_retry_returns_new_data_run_id(tmp_path) -> None:

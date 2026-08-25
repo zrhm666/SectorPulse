@@ -30,6 +30,7 @@ from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
 from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.real_data_run import RealDataRunRequest
 from sector_pulse.infrastructure.llm.fixture_resources import (
     load_default_fixture_input,
@@ -588,6 +589,32 @@ def create_app(
         async def get_data_run_candidates(run_id: UUID) -> list[dict[str, object]]:
             try:
                 return workbench_queries.candidates(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get("/api/data-runs/{run_id}/acquisition")
+        async def get_data_run_acquisition(run_id: UUID) -> dict[str, object]:
+            try:
+                return workbench_queries.acquisition(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get("/api/data-runs/{run_id}/news-records")
+        async def get_data_run_news_records(
+            run_id: UUID,
+            source_id: str | None = None,
+            status: DataStatus | None = None,
+            offset: int = Query(default=0, ge=0),
+            limit: int = Query(default=20, ge=1, le=100),
+        ) -> dict[str, object]:
+            try:
+                return workbench_queries.news_records(
+                    run_id,
+                    source_id=source_id,
+                    status=status,
+                    offset=offset,
+                    limit=limit,
+                )
             except KeyError as exc:
                 raise HTTPException(404, "run not found") from exc
 
