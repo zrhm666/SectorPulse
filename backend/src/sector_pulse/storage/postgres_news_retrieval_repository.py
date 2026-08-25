@@ -2,12 +2,14 @@
 import hashlib
 import json
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import text
 
 from sector_pulse.domain.news_retrieval import (
     NewsQuery,
+    NewsQueryAuditRecord,
     NewsQueryDocumentLink,
     SectorEventLink,
     SourceRunMetric,
@@ -89,5 +91,45 @@ class PostgresNewsRetrievalRepository:
             rows = result.fetchall()
         return tuple(
             NewsQueryDocumentLink(run_id=run_id, query_id=row[0], document_id=row[1])
+            for row in rows
+        )
+
+    async def list_queries(self, run_id: UUID) -> tuple[NewsQueryAuditRecord, ...]:
+        async with self._database.engine.connect() as connection:
+            result = await connection.execute(
+                text("SELECT query_id, query_type, source_id, sector_ids_json, priority, "
+                     "start_at, cutoff_at, status, result_count, error_code "
+                     "FROM news_queries WHERE run_id = :run_id ORDER BY source_id, query_id"),
+                {"run_id": str(run_id)},
+            )
+            rows = result.fetchall()
+        return tuple(
+            NewsQueryAuditRecord(
+                run_id=run_id, query_id=row[0], query_type=row[1], source_id=row[2],
+                sector_ids=tuple(json.loads(row[3])), priority=row[4],
+                start_at=datetime.fromisoformat(row[5]),
+                cutoff_at=datetime.fromisoformat(row[6]), status=row[7],
+                result_count=row[8], error_code=row[9],
+            )
+            for row in rows
+        )
+
+    async def list_source_metrics(self, run_id: UUID) -> tuple[SourceRunMetric, ...]:
+        async with self._database.engine.connect() as connection:
+            result = await connection.execute(
+                text("SELECT source_id, started_at, completed_at, call_count, retry_count, "
+                     "status, duration_ms, error_code FROM news_source_runs "
+                     "WHERE run_id = :run_id ORDER BY source_id"),
+                {"run_id": str(run_id)},
+            )
+            rows = result.fetchall()
+        return tuple(
+            SourceRunMetric(
+                run_id=run_id, source_id=row[0],
+                started_at=datetime.fromisoformat(row[1]),
+                completed_at=datetime.fromisoformat(row[2]), call_count=row[3],
+                retry_count=row[4], status=row[5], duration_ms=row[6],
+                error_code=row[7],
+            )
             for row in rows
         )

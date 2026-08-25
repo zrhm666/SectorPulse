@@ -102,6 +102,22 @@ class NewsQueryDocumentLink(BaseModel):
     document_id: str
 
 
+class NewsQueryAuditRecord(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    run_id: UUID
+    query_id: str
+    query_type: QueryType
+    source_id: str
+    sector_ids: tuple[str, ...]
+    priority: int
+    start_at: datetime
+    cutoff_at: datetime
+    status: DataStatus
+    result_count: int
+    error_code: str | None = None
+
+
 class SourceRunMetric(BaseModel):
     model_config = ConfigDict(frozen=True)
 

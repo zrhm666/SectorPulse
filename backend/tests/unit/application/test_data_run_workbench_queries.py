@@ -6,7 +6,14 @@ from uuid import uuid4
 from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
 from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
-from sector_pulse.domain.news_retrieval import MappingConfidence, SectorEventLink
+from sector_pulse.domain.news_retrieval import (
+    MappingConfidence,
+    NewsQuery,
+    NewsQueryDocumentLink,
+    QueryType,
+    SectorEventLink,
+    SourceRunMetric,
+)
 from sector_pulse.domain.provider import DataStatus, ProviderResult
 from sector_pulse.domain.quality import QualityStatus
 from sector_pulse.domain.real_data_run import (
@@ -32,6 +39,19 @@ def _snapshot(kind: SectorKind, names: tuple[str, ...]) -> SectorUniverseSnapsho
         kind=kind,
         observed_at=NOW,
         collected_at=NOW,
+        available_fields=frozenset(
+            {
+                "provider_sector_id",
+                "name",
+                "pct_change",
+                "turnover_rate",
+                "advancers",
+                "decliners",
+                "leader_name",
+                "leader_pct_change",
+            }
+        ),
+        raw_artifact_sha256=f"hash-{kind.value.lower()}",
         sectors=tuple(
             SectorSnapshot(
                 provider_sector_id=f"{kind.value.lower()}-{index}",
@@ -72,6 +92,7 @@ def _seed(
     tmp_path: Path,
     *,
     with_content_run: bool = True,
+    with_lineage: bool = True,
 ) -> tuple[DataRunWorkbenchQueries, RealDataRun]:
     storage = build_sqlite_storage(SQLiteDatabase(tmp_path / "workbench.sqlite"))
     run_id = uuid4()
@@ -148,10 +169,66 @@ def _seed(
         deduplication_reason="canonical_url",
     )
     storage.news.save((linked_document, unrelated_document), (linked_event, unrelated_event))
+    linked_query = NewsQuery(
+        query_id="query-linked",
+        query_type=QueryType.KEYWORD,
+        source_id="fixture-news",
+        value="linked",
+        sector_ids=("industry-2",),
+        priority=10,
+        start_at=NOW,
+        cutoff_at=NOW,
+    )
+    unrelated_query = linked_query.model_copy(
+        update={
+            "query_id": "query-unrelated",
+            "source_id": "other-news",
+            "value": "unrelated",
+            "sector_ids": (),
+        }
+    )
+    metrics = (
+        SourceRunMetric(
+            run_id=run_id,
+            source_id="fixture-news",
+            started_at=NOW,
+            completed_at=NOW,
+            call_count=1,
+            retry_count=0,
+            status=DataStatus.SUCCESS,
+            duration_ms=12,
+        ),
+        SourceRunMetric(
+            run_id=run_id,
+            source_id="other-news",
+            started_at=NOW,
+            completed_at=NOW,
+            call_count=1,
+            retry_count=1,
+            status=DataStatus.PARTIAL,
+            duration_ms=18,
+            error_code="UPSTREAM_PARTIAL",
+        ),
+    )
+    query_documents = (
+        NewsQueryDocumentLink(
+            run_id=run_id,
+            query_id=linked_query.query_id,
+            document_id=linked_document.document_id,
+        ),
+        NewsQueryDocumentLink(
+            run_id=run_id,
+            query_id=unrelated_query.query_id,
+            document_id=unrelated_document.document_id,
+        ),
+    ) if with_lineage else ()
     storage.news_retrieval.save_audit(
         run_id,
-        (),
-        (),
+        metrics if with_lineage else (),
+        (
+            (linked_query, DataStatus.SUCCESS, 1, None),
+            (unrelated_query, DataStatus.PARTIAL, 1, "UPSTREAM_PARTIAL"),
+        ),
         (
             SectorEventLink(
                 run_id=run_id,
@@ -165,6 +242,7 @@ def _seed(
                 rule_version="fixture-v1",
             ),
         ),
+        query_documents,
     )
     if with_content_run:
         storage.phase1b_runs.insert(
@@ -222,3 +300,54 @@ def test_content_run_is_none_when_phase1b_has_not_started(tmp_path: Path) -> Non
     queries, run = _seed(tmp_path, with_content_run=False)
 
     assert queries.content_run(run.run_id) is None
+
+
+def test_acquisition_distinguishes_provider_normalized_and_evidence_counts(
+    tmp_path: Path,
+) -> None:
+    queries, run = _seed(tmp_path)
+
+    result = queries.acquisition(run.run_id)
+
+    assert [item["sector_count"] for item in result["market_sources"]] == [3, 1]
+    assert result["market_sources"][0]["raw_artifact_sha256"] == "hash-industry"
+    assert {item["source_id"] for item in result["news_sources"]} == {
+        "fixture-news",
+        "other-news",
+    }
+    assert result["counts"] == {
+        "provider_results": 2,
+        "normalized_documents": 2,
+        "evidence_events": 1,
+    }
+    assert result["coverage"] == "COMPLETE"
+
+
+def test_news_records_are_run_scoped_filtered_and_paginated(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path)
+
+    result = queries.news_records(
+        run.run_id,
+        source_id="other-news",
+        status=DataStatus.PARTIAL,
+        offset=0,
+        limit=1,
+    )
+
+    assert result["coverage"] == "COMPLETE"
+    assert result["total"] == 1
+    assert result["items"][0]["document_id"] == "doc-unrelated"
+    assert result["items"][0]["query_status"] == "PARTIAL"
+
+
+def test_historical_news_records_are_explicitly_linked_only(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path, with_lineage=False)
+
+    result = queries.news_records(
+        run.run_id, source_id=None, status=None, offset=0, limit=20
+    )
+
+    assert result["coverage"] == "LINKED_ONLY"
+    assert result["total"] == 1
+    assert result["items"][0]["document_id"] == "doc-linked"
+    assert result["coverage_notice"]
