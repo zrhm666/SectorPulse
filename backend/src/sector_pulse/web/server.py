@@ -53,7 +53,7 @@ def main() -> None:
     uvicorn.run(
         create_app(static_dir=Path("web/dist")),
         host="127.0.0.1",
-        port=8000,
+        port=9000,
         log_config=build_log_config(),
     )
 
