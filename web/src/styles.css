@@ -308,6 +308,12 @@ a { color: var(--color-primary); }
 .acquisition-summary__heading p { margin: 5px 0 0; color: var(--color-muted-text); font-size: .875rem; }
 .coverage-badge { padding: 5px 9px; color: var(--color-primary-strong); white-space: nowrap; background: #eef4ff; border: 1px solid #b9cdf5; border-radius: 999px; font-size: .75rem; font-weight: 700; }
 .coverage-notice, .field-coverage-notice { padding: 10px 12px; color: #694f00; background: #fff8d8; border: 1px solid #eadb91; border-radius: var(--radius-sm); font-size: .8125rem; }
+.market-source-meta { display: grid; gap: 6px; justify-items: end; }
+.market-source-meta p { display: flex; align-items: center; gap: 8px; margin: 0; }
+.market-source-meta small { color: var(--color-muted-text); }
+.market-capability-badge { display: inline-flex; align-items: center; width: fit-content; padding: 3px 8px; color: var(--color-primary-strong); background: #eef4ff; border: 1px solid #b9cdf5; border-radius: 999px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.market-capability-badge[data-capability="partial"] { color: #694f00; background: #fff8d8; border-color: #eadb91; }
+.market-capability-badge[data-capability="list-only"] { color: var(--color-muted-text); background: var(--color-surface); border-color: var(--color-border); }
 .acquisition-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .acquisition-counts > div { display: grid; gap: 3px; padding: var(--space-4); border-right: 1px solid var(--color-border); }
 .acquisition-counts > div:last-child { border-right: 0; }

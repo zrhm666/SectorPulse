@@ -1,4 +1,5 @@
 import type { DataRunAcquisitionView, MarketSnapshotSummary } from '../../dataRunsApi'
+import { marketCapability } from './marketCapability'
 
 const FIELD_LABELS: Record<string, string> = {
   sector_id: '板块代码', provider_sector_id: '板块代码', name: '板块名称', pct_change: '涨跌幅',
@@ -32,12 +33,17 @@ export default function AcquisitionSummary({ data, loading, error }: {
         <div><span>进入证据链</span><strong>{data.counts.evidence_events}</strong><small>合并后的新闻事件数</small></div>
       </div>
       <div className="acquisition-source-grid">
-        {data.market_sources.map((source) => <article key={`${source.kind}-${source.provider_id}`}>
-          <header><strong>{source.provider_id}</strong><span>{source.kind === 'INDUSTRY' ? '行业' : '概念'} · {source.sector_count} 条</span></header>
-          <p>实际字段：{sourceFields(source)}</p>
-          <small>采集 {new Date(source.collected_at).toLocaleString('zh-CN')} · 版本 {source.source_version}</small>
-          {source.raw_artifact_sha256 && <code title={source.raw_artifact_sha256}>原始响应 {source.raw_artifact_sha256.slice(0, 12)}…</code>}
-        </article>)}
+        {data.market_sources.map((source) => {
+          const capability = marketCapability(source)
+          return <article key={`${source.kind}-${source.provider_id}`}>
+            <header><strong>{source.provider_id}</strong><span>{source.kind === 'INDUSTRY' ? '行业' : '概念'} · {source.sector_count} 条</span></header>
+            <p><span className="market-capability-badge" data-capability={capability.level}>{capability.label}</span></p>
+            {capability.notice && <p>{capability.notice}</p>}
+            <p>实际字段：{sourceFields(source)}</p>
+            <small>采集 {new Date(source.collected_at).toLocaleString('zh-CN')} · 版本 {source.source_version}</small>
+            {source.raw_artifact_sha256 && <code title={source.raw_artifact_sha256}>原始响应 {source.raw_artifact_sha256.slice(0, 12)}…</code>}
+          </article>
+        })}
         {data.news_sources.map((source) => <article key={source.source_id}>
           <header><strong>{source.source_id}</strong><span data-status={source.status}>{source.status}</span></header>
           <p>{source.query_count} 次查询 · 返回 {source.result_count} 条 · 重试 {source.retry_count} 次</p>

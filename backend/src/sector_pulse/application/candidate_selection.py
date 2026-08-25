@@ -8,12 +8,43 @@ from sector_pulse.domain.market import SectorSnapshot, SectorUniverseSnapshot
 from sector_pulse.domain.news import NewsEvent
 from sector_pulse.domain.quality import QualityStatus
 
+MARKET_SCORE_WEIGHT = Decimal("0.90")
+
 
 def _normalized(value: Decimal, values: list[Decimal]) -> Decimal:
     minimum, maximum = min(values), max(values)
     if maximum == minimum:
         return Decimal("0.5")
     return (value - minimum) / (maximum - minimum)
+
+
+def _field_available(universe: SectorUniverseSnapshot, field: str) -> bool:
+    return not universe.available_fields or field in universe.available_fields
+
+
+def _dimension_weights(
+    universe: SectorUniverseSnapshot,
+) -> tuple[tuple[str, Decimal], ...]:
+    if not _field_available(universe, "pct_change"):
+        return ()
+    dimensions: list[tuple[str, Decimal]] = [
+        ("pct_change", Decimal("0.45"))
+    ]
+    if _field_available(universe, "turnover_rate"):
+        dimensions.append(("turnover_rate", Decimal("0.25")))
+    if _field_available(universe, "advancers") and _field_available(
+        universe, "decliners"
+    ):
+        dimensions.append(("breadth", Decimal("0.20")))
+    return tuple(dimensions)
+
+
+def _dimension_value(sector: SectorSnapshot, dimension: str) -> Decimal:
+    if dimension == "pct_change":
+        return abs(sector.pct_change)
+    if dimension == "turnover_rate":
+        return sector.turnover_rate or Decimal("0")
+    return abs(sector.breadth_ratio - Decimal("0.5"))
 
 
 def _rank_candidates(
@@ -26,22 +57,40 @@ def _rank_candidates(
     candidates: list[tuple[SectorSnapshot, Decimal, tuple[str, ...]]] = []
     for universe in (industry, concept):
         sectors = list(universe.sectors)
-        pct_values = [abs(sector.pct_change) for sector in sectors]
-        turnover_values = [sector.turnover_rate or Decimal("0") for sector in sectors]
-        breadth_values = [abs(sector.breadth_ratio - Decimal("0.5")) for sector in sectors]
+        dimensions = _dimension_weights(universe)
+        if not sectors or not dimensions:
+            continue
+        values = {
+            dimension: [_dimension_value(sector, dimension) for sector in sectors]
+            for dimension, _weight in dimensions
+        }
+        weight_scale = MARKET_SCORE_WEIGHT / sum(
+            (weight for _dimension, weight in dimensions),
+            start=Decimal("0"),
+        )
         for index, sector in enumerate(sectors):
             reasons: list[str] = []
-            score = (
-                _normalized(pct_values[index], pct_values) * Decimal("0.45")
-                + _normalized(turnover_values[index], turnover_values) * Decimal("0.25")
-                + _normalized(breadth_values[index], breadth_values) * Decimal("0.20")
+            score = min(
+                sum(
+                    (
+                        _normalized(values[dimension][index], values[dimension])
+                        * weight
+                        * weight_scale
+                        for dimension, weight in dimensions
+                    ),
+                    start=Decimal("0"),
+                ),
+                MARKET_SCORE_WEIGHT,
             )
             if sector.provider_sector_id in event_sector_ids:
                 score += Decimal("0.10")
                 reasons.append("news")
             if abs(sector.pct_change) >= Decimal("3"):
                 reasons.append("movement")
-            if (sector.turnover_rate or Decimal("0")) >= Decimal("5"):
+            if (
+                any(dimension == "turnover_rate" for dimension, _weight in dimensions)
+                and (sector.turnover_rate or Decimal("0")) >= Decimal("5")
+            ):
                 reasons.append("turnover")
             candidates.append((sector, score, tuple(reasons)))
     candidates.sort(key=lambda item: (-item[1], item[0].provider_sector_id))

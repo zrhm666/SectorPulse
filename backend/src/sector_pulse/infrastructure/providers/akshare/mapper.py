@@ -23,15 +23,15 @@ def _get(row: Mapping[str, Any], key: str) -> Any:
     if FIELD[key] in row:
         return row[FIELD[key]]
     aliases = {
-        "name": ("名称", "name"),
+        "name": ("名称", "板块", "name"),
         "code": ("代码", "code"),
         "pct": ("涨跌幅", "pct_change", "change"),
         "cap": ("总市值", "total_market_cap"),
         "turnover": ("换手率", "turnover_rate"),
         "up": ("上涨家数", "上涨数量", "advancers"),
         "down": ("下跌家数", "下跌数量", "decliners"),
-        "leader": ("领涨股票", "leader_name"),
-        "leader_pct": ("领涨股票-涨跌幅", "leader_pct_change"),
+        "leader": ("领涨股票", "领涨股", "leader_name"),
+        "leader_pct": ("领涨股票-涨跌幅", "领涨股-涨跌幅", "leader_pct_change"),
     }
     for alias in aliases.get(key, ()):
         if alias in row:

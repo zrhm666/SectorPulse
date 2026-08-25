@@ -264,6 +264,62 @@ it('distinguishes unavailable market fields from an explicit zero', async () => 
   expect(zeroRow).toHaveTextContent('0%')
 })
 
+it('explains partial industry coverage and list-only concepts', async () => {
+  const snapshots = [{
+    kind: 'INDUSTRY' as const,
+    provider_id: 'akshare-ths',
+    classification_version: 'ths-industry',
+    source_version: '1.18.87',
+    observed_at: '2026-08-25T07:00:00Z',
+    collected_at: '2026-08-25T07:01:00Z',
+    sector_count: 90,
+    available_fields: [
+      'provider_sector_id', 'name', 'pct_change', 'advancers', 'decliners',
+      'leader_name', 'leader_pct_change',
+    ],
+  }, {
+    kind: 'CONCEPT' as const,
+    provider_id: 'akshare-ths',
+    classification_version: 'ths-concept',
+    source_version: '1.18.87',
+    observed_at: '2026-08-25T07:00:00Z',
+    collected_at: '2026-08-25T07:01:00Z',
+    sector_count: 375,
+    available_fields: ['provider_sector_id', 'name'],
+  }]
+  vi.mocked(api.fetchDataRunMarket).mockImplementation(async (_runId, kind) => ({
+    snapshots,
+    kind,
+    items: kind === 'INDUSTRY' ? [{
+      sector_id: '881121', name: '半导体', kind: 'INDUSTRY', pct_change: '2.3',
+      turnover_rate: null, total_market_cap: null, advancers: 20, decliners: 4,
+      leader_name: '测试股份', leader_pct_change: '9.8', breadth_ratio: '0.83',
+      field_availability: {
+        pct_change: true, turnover_rate: false, total_market_cap: false,
+        advancers: true, decliners: true, leader_name: true, leader_pct_change: true,
+      },
+    }] : [{
+      sector_id: '308614', name: '阿尔茨海默概念', kind: 'CONCEPT', pct_change: '0',
+      turnover_rate: null, total_market_cap: null, advancers: 0, decliners: 0,
+      leader_name: null, leader_pct_change: null, breadth_ratio: '0.5',
+      field_availability: {
+        pct_change: false, turnover_rate: false, total_market_cap: false,
+        advancers: false, decliners: false, leader_name: false, leader_pct_change: false,
+      },
+    }],
+    total: 1,
+    offset: 0,
+    limit: 20,
+  }))
+
+  renderPage()
+
+  expect(await screen.findByText('部分行情字段')).toBeVisible()
+  expect(screen.getByText('未返回：换手率、总市值')).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: '概念' }))
+  expect(await screen.findByText('仅板块清单，不参与行情排序')).toBeVisible()
+})
+
 it('shows independently filterable provider news records and historical coverage', async () => {
   vi.mocked(api.fetchDataRunNewsRecords).mockResolvedValue({
     items: [{

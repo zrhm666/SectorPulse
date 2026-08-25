@@ -38,6 +38,43 @@ def test_mapper_marks_explicit_zero_as_available() -> None:
     assert "pct_change" in snapshot.available_fields
 
 
+def test_mapper_supports_ths_industry_summary_fields() -> None:
+    now = datetime(2026, 8, 25, 8, 0, tzinfo=UTC)
+    snapshot = map_sector_rows(
+        (
+            {
+                "code": "881121",
+                "name": "半导体",
+                "涨跌幅": 2.3,
+                "上涨家数": 20,
+                "下跌家数": 4,
+                "领涨股": "测试股份",
+                "领涨股-涨跌幅": 9.8,
+            },
+        ),
+        SectorKind.INDUSTRY,
+        now,
+        now,
+        "test",
+        provider_id="akshare-ths",
+        classification_prefix="ths",
+    )
+
+    assert snapshot.available_fields == frozenset(
+        {
+            "provider_sector_id",
+            "name",
+            "pct_change",
+            "advancers",
+            "decliners",
+            "leader_name",
+            "leader_pct_change",
+        }
+    )
+    assert snapshot.sectors[0].leader_name == "测试股份"
+    assert snapshot.sectors[0].leader_pct_change == Decimal("9.8")
+
+
 def test_mapper_hides_chinese_supplier_columns() -> None:
     rows = json.loads(Path("backend/tests/fixtures/akshare_sector_rows.json").read_text("utf-8"))
     now = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)

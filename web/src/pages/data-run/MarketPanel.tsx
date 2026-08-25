@@ -1,4 +1,5 @@
 import type { DataRunMarketView, SectorKind } from '../../dataRunsApi'
+import { marketCapability } from './marketCapability'
 
 type Props = {
   data: DataRunMarketView | null
@@ -11,6 +12,7 @@ type Props = {
 
 export default function MarketPanel({ data, kind, loading, error, onKindChange, onPage }: Props) {
   const summary = data?.snapshots.find((item) => item.kind === kind)
+  const capability = summary ? marketCapability(summary) : null
   const display = (availability: boolean | undefined, value: string | number | null, suffix = '') => {
     if (availability === false) return '未返回'
     if (value == null) return '未返回'
@@ -21,7 +23,10 @@ export default function MarketPanel({ data, kind, loading, error, onKindChange, 
       <div className="segmented-control" aria-label="板块类型">
         {(['INDUSTRY', 'CONCEPT'] as const).map((item) => <button key={item} type="button" data-active={kind === item} onClick={() => onKindChange(item)}>{item === 'INDUSTRY' ? '行业' : '概念'}</button>)}
       </div>
-      {summary && <p>{summary.provider_id} · {summary.sector_count} 个板块 · 实际字段 {summary.available_fields?.length ?? '历史未记录'} · 观测 {new Date(summary.observed_at).toLocaleString('zh-CN')}</p>}
+      {summary && <div className="market-source-meta">
+        <p>{summary.provider_id} · {summary.sector_count} 个板块 · 实际字段 {summary.available_fields?.length ?? '历史未记录'} · 观测 {new Date(summary.observed_at).toLocaleString('zh-CN')}</p>
+        {capability && <p><span className="market-capability-badge" data-capability={capability.level}>{capability.label}</span>{capability.notice && <small>{capability.notice}</small>}</p>}
+      </div>}
     </div>
     {loading && <p className="status-detail">正在加载行情板块…</p>}
     {error && <p className="panel-error" role="alert">{error}</p>}
