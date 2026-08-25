@@ -1,0 +1,8 @@
+import type { DataRunEvidenceView } from '../../dataRunsApi'
+
+export default function EvidencePanel({ data, loading, error }: { data: DataRunEvidenceView | null; loading: boolean; error: string | null }) {
+  if (loading) return <p className="status-detail">正在加载新闻证据…</p>
+  if (error) return <p className="panel-error" role="alert">{error}</p>
+  if (!data || data.events.length === 0) return <p className="status-detail">新闻证据尚未产生，新闻采集或证据构建可能仍在进行。</p>
+  return <div className="evidence-event-list">{data.events.map((event) => <article key={event.event_id} className="evidence-event"><header><div><h3>{event.canonical_title}</h3><p>{event.first_published_at ? new Date(event.first_published_at).toLocaleString('zh-CN') : '发布时间未知'} · 去重：{event.deduplication_reason}</p></div><span>{event.sector_ids.length} 个关联板块</span></header>{event.documents.map((document) => <section key={document.document_id}><div><strong>{document.publisher ?? document.source_id}</strong><small>{document.source_grade}</small></div><p>{document.summary ?? '该来源未提供摘要。'}</p>{document.citation_url && <a href={document.citation_url} target="_blank" rel="noreferrer">查看原文</a>}</section>)}</article>)}</div>
+}

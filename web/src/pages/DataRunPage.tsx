@@ -1,71 +1,215 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { DataRunCandidateView, DataRunView, fetchDataRun, fetchDataRunCandidates, generateDataRunArticle } from '../dataRunsApi'
+
+import {
+  type DataRunCandidateView,
+  type DataRunContentView,
+  type DataRunEvidenceView,
+  type DataRunMarketView,
+  type DataRunQualityView,
+  type DataRunView,
+  type SectorKind,
+  fetchDataRun,
+  fetchDataRunCandidates,
+  fetchDataRunContentRun,
+  fetchDataRunEvidence,
+  fetchDataRunMarket,
+  fetchDataRunQuality,
+  generateDataRunArticle,
+  retryDataRun,
+} from '../dataRunsApi'
 import InlineAlert from '../components/ui/InlineAlert'
 import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
 import StatusBadge from '../components/ui/StatusBadge'
 import { formatDate } from '../runPresentation'
+import CandidatesPanel from './data-run/CandidatesPanel'
+import DataRunActionPanel from './data-run/DataRunActionPanel'
+import DataRunTimeline from './data-run/DataRunTimeline'
+import EvidencePanel from './data-run/EvidencePanel'
+import MarketPanel from './data-run/MarketPanel'
+import QualityPanel from './data-run/QualityPanel'
 
-const TERMINAL_STATUSES = new Set(['READY_FOR_ATTRIBUTION', 'DEGRADED', 'FAILED', 'CANCELLED'])
+const TERMINAL_STATUSES = new Set([
+  'READY_FOR_ATTRIBUTION', 'DEGRADED', 'BLOCKED', 'FAILED',
+  'CANCELLED', 'INTERRUPTED',
+])
+type WorkbenchTab = 'market' | 'candidates' | 'evidence' | 'quality'
+
+function message(reason: unknown, fallback: string): string {
+  return reason instanceof Error && reason.message ? reason.message : fallback
+}
 
 export default function DataRunPage() {
   const { runId = '' } = useParams()
   const navigate = useNavigate()
   const [run, setRun] = useState<DataRunView | null>(null)
-  const [candidates, setCandidates] = useState<DataRunCandidateView[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [generating, setGenerating] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [runError, setRunError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<WorkbenchTab>('market')
+  const [candidates, setCandidates] = useState<DataRunCandidateView[]>([])
+  const [candidatesLoading, setCandidatesLoading] = useState(true)
+  const [candidatesError, setCandidatesError] = useState<string | null>(null)
+  const [contentRun, setContentRun] = useState<DataRunContentView | null>(null)
+  const [marketKind, setMarketKind] = useState<SectorKind>('INDUSTRY')
+  const [marketOffset, setMarketOffset] = useState(0)
+  const [market, setMarket] = useState<DataRunMarketView | null>(null)
+  const [marketLoading, setMarketLoading] = useState(true)
+  const [marketError, setMarketError] = useState<string | null>(null)
+  const [evidence, setEvidence] = useState<DataRunEvidenceView | null>(null)
+  const [evidenceLoading, setEvidenceLoading] = useState(false)
+  const [evidenceError, setEvidenceError] = useState<string | null>(null)
+  const [quality, setQuality] = useState<DataRunQualityView | null>(null)
+  const [qualityLoading, setQualityLoading] = useState(false)
+  const [qualityError, setQualityError] = useState<string | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const load = useCallback((showLoading = true) => {
+  const loadRun = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true)
-    setError(null)
-    Promise.all([fetchDataRun(runId), fetchDataRunCandidates(runId)])
-      .then(([data, items]) => { setRun(data); setCandidates(items) })
-      .catch(() => setError('无法加载数据运行，请确认服务可用后重试。'))
-      .finally(() => { if (showLoading) setLoading(false) })
+    try {
+      setRun(await fetchDataRun(runId))
+      setRunError(null)
+    } catch (reason) {
+      setRunError(message(reason, '无法加载数据运行，请确认服务可用后重试。'))
+    } finally {
+      if (showLoading) setLoading(false)
+    }
   }, [runId])
 
-  useEffect(() => { void load() }, [load])
+  const loadCandidates = useCallback(async () => {
+    setCandidatesLoading(true)
+    try {
+      setCandidates(await fetchDataRunCandidates(runId))
+      setCandidatesError(null)
+    } catch (reason) {
+      setCandidatesError(message(reason, '候选板块加载失败。'))
+    } finally {
+      setCandidatesLoading(false)
+    }
+  }, [runId])
+
+  useEffect(() => {
+    setRun(null)
+    setContentRun(null)
+    setEvidence(null)
+    setQuality(null)
+    setMarket(null)
+    setActionError(null)
+    void loadRun()
+    void loadCandidates()
+    fetchDataRunContentRun(runId).then(setContentRun).catch(() => setContentRun(null))
+  }, [loadCandidates, loadRun, runId])
 
   useEffect(() => {
     if (!run || TERMINAL_STATUSES.has(run.status)) return
-    const timer = window.setInterval(() => { void load(false) }, 2000)
+    const timer = window.setInterval(() => { void loadRun(false) }, 2000)
     return () => window.clearInterval(timer)
-  }, [load, run])
+  }, [loadRun, run])
+
+  useEffect(() => {
+    if (activeTab !== 'market') return
+    let cancelled = false
+    setMarketLoading(true)
+    fetchDataRunMarket(runId, marketKind, marketOffset, 20)
+      .then((value) => { if (!cancelled) { setMarket(value); setMarketError(null) } })
+      .catch((reason) => { if (!cancelled) setMarketError(message(reason, '行情板块加载失败。')) })
+      .finally(() => { if (!cancelled) setMarketLoading(false) })
+    return () => { cancelled = true }
+  }, [activeTab, marketKind, marketOffset, runId])
+
+  useEffect(() => {
+    if (activeTab !== 'evidence' || evidence) return
+    let cancelled = false
+    setEvidenceLoading(true)
+    fetchDataRunEvidence(runId)
+      .then((value) => {
+        if (!cancelled) { setEvidence(value); setEvidenceError(null); setEvidenceLoading(false) }
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setEvidenceError(message(reason, '新闻证据加载失败。'))
+          setEvidenceLoading(false)
+        }
+      })
+    return () => { cancelled = true }
+  }, [activeTab, evidence, runId])
+
+  useEffect(() => {
+    if (activeTab !== 'quality' || quality) return
+    let cancelled = false
+    setQualityLoading(true)
+    fetchDataRunQuality(runId)
+      .then((value) => {
+        if (!cancelled) { setQuality(value); setQualityError(null); setQualityLoading(false) }
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setQualityError(message(reason, '质量报告加载失败。'))
+          setQualityLoading(false)
+        }
+      })
+    return () => { cancelled = true }
+  }, [activeTab, quality, runId])
 
   const generate = async () => {
-    setGenerating(true)
-    setError(null)
+    setActionBusy(true)
+    setActionError(null)
     try {
       const result = await generateDataRunArticle(runId)
-      navigate(`/runs/${result.run_id}`)
+      setContentRun({
+        run_id: result.run_id,
+        status: 'RUNNING',
+        draft_id: null,
+        can_view_draft: false,
+        requested_at: new Date().toISOString(),
+        finished_at: null,
+      })
     } catch (reason) {
-      setError('分析稿未能生成。请确认 LLM 配置和授权后重试。')
+      setActionError(message(reason, '分析稿未能启动生成，请检查 LLM 配置后重试。'))
     } finally {
-      setGenerating(false)
+      setActionBusy(false)
+    }
+  }
+
+  const retry = async () => {
+    setActionBusy(true)
+    setActionError(null)
+    try {
+      const result = await retryDataRun(runId)
+      navigate(`/data-runs/${result.run_id}`)
+    } catch (reason) {
+      setActionError(message(reason, '无法创建重试运行。'))
+    } finally {
+      setActionBusy(false)
     }
   }
 
   if (loading) return <LoadingState label="正在加载数据运行…" />
-  if (error && !run) return <InlineAlert tone="error" title="无法加载数据运行">{error}<div><button className="button button-secondary" type="button" onClick={() => void load()}>重新加载</button></div></InlineAlert>
+  if (runError && !run) return <InlineAlert tone="error" title="无法加载数据运行">{runError}<div><button className="button button-secondary" type="button" onClick={() => void loadRun()}>重新加载</button></div></InlineAlert>
   if (!run) return null
 
-  const terminal = TERMINAL_STATUSES.has(run.status)
-  const stages = ['采集数据', '质量校验', '筛选候选', '归因就绪']
+  const tabs: Array<{ id: WorkbenchTab; label: string }> = [
+    { id: 'market', label: '行情板块' },
+    { id: 'candidates', label: '候选板块' },
+    { id: 'evidence', label: '新闻证据' },
+    { id: 'quality', label: '质量报告' },
+  ]
 
   return <section>
     <PageHeader title={run.mode === 'post_close' ? '盘后数据运行' : '盘中数据运行'} description={`运行 ${run.run_id.slice(0, 8)} · ${formatDate(run.requested_at)}`} actions={<Link className="button button-secondary" to="/runs">返回运行历史</Link>} />
-    <div className="detail-summary detail-summary--compact"><div><span>状态</span><StatusBadge status={run.status} /></div><div><span>场景</span><strong>{run.mode === 'post_close' ? '盘后复盘' : '盘中分析'}</strong></div><div><span>候选板块</span><strong>{candidates.length}</strong></div></div>
-    {error && <InlineAlert tone="error" title="操作未完成">{error}</InlineAlert>}
-    {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><p>部分来源未达到完整质量要求，结果需要结合以下原因谨慎使用。</p><ul>{run.downgrade_reasons.map(reason => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
-    <Panel title="数据处理进度" description="数据就绪后才能进入分析稿生成。"><ol className="timeline timeline--four">{stages.map((stage) => <li key={stage} data-complete={terminal}><span aria-hidden="true" /><strong>{stage}</strong><small>{terminal ? '已处理' : '进行中'}</small></li>)}</ol></Panel>
-    <div className="data-run-grid">
-      <Panel title="质量状态" description="按数据来源展示当前可用程度。">{Object.keys(run.quality).length === 0 ? <p className="status-detail">暂无质量状态。</p> : <ul className="quality-list">{Object.entries(run.quality).map(([source, status]) => <li key={source}><strong>{source}</strong><StatusBadge status={status} /></li>)}</ul>}</Panel>
-      <Panel title="候选板块" description="按综合评分排序的候选结果。">{candidates.length === 0 ? <p className="status-detail">当前没有候选板块。</p> : <ol className="candidate-list">{candidates.map(item => <li key={item.sector_id}><span>{item.rank}</span><div><strong>{item.sector_id}</strong><small>{item.sector_kind} · 评分 {item.score}</small>{item.reasons.length > 0 && <p>{item.reasons.join('；')}</p>}</div></li>)}</ol>}</Panel>
-    </div>
-    {run.status === 'READY_FOR_ATTRIBUTION' && <div className="detail-actions"><button className="button button-primary" type="button" onClick={generate} disabled={generating}>{generating ? '正在生成分析稿…' : '生成分析稿'}</button></div>}
+    <div className="detail-summary data-run-summary"><div><span>状态</span><StatusBadge status={run.status} /></div><div><span>场景</span><strong>{run.mode === 'post_close' ? '盘后复盘' : '盘中分析'}</strong></div><div><span>Provider</span><strong>{run.provider ?? '尚未记录'}</strong></div><div><span>Cutoff</span><strong>{run.cutoff_at ? formatDate(run.cutoff_at) : '尚未产生'}</strong></div><div><span>候选板块</span><strong>{candidatesLoading ? '加载中' : candidates.length || '尚未产生'}</strong></div><div><span>完成时间</span><strong>{run.finished_at ? formatDate(run.finished_at) : '尚未完成'}</strong></div></div>
+    {runError && <InlineAlert tone="warning" title="刷新未完成">{runError}</InlineAlert>}
+    {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
+    <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
+    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} onGenerate={() => void generate()} onRetry={() => void retry()} />
+    <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
+    <Panel className="data-workbench-panel"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
+      {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} />}
+      {activeTab === 'candidates' && <CandidatesPanel candidates={candidates} loading={candidatesLoading} error={candidatesError} />}
+      {activeTab === 'evidence' && <EvidencePanel data={evidence} loading={evidenceLoading} error={evidenceError} />}
+      {activeTab === 'quality' && <QualityPanel data={quality} loading={qualityLoading} error={qualityError} />}
+    </div></Panel>
   </section>
 }
