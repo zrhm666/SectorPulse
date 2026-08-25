@@ -23,6 +23,8 @@ function renderShellAt(path: string) {
 it('renders available navigation and marks the current route', () => {
   renderShellAt('/runs')
 
+  expect(screen.getByText('运营')).toBeInTheDocument()
+  expect(screen.getByText('管理')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: '分析运行' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: '运营总览' })).toHaveAttribute('href', '/')
   expect(screen.getByRole('link', { name: '定时任务' })).toHaveAttribute('href', '/schedules')
@@ -34,9 +36,20 @@ it('opens and closes navigation on narrow layouts', async () => {
   const user = userEvent.setup()
   renderShellAt('/runs')
 
-  await user.click(screen.getByRole('button', { name: '打开导航' }))
+  const menuButton = screen.getByRole('button', { name: '打开导航' })
+  expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+  await user.click(menuButton)
+  expect(menuButton).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('navigation', { name: '主导航' })).toHaveAttribute('data-open', 'true')
 
   await user.click(screen.getByRole('button', { name: '关闭导航' }))
+  expect(menuButton).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByRole('navigation', { name: '主导航' })).toHaveAttribute('data-open', 'false')
+})
+
+it('renders one decorative outline icon for each navigation link', () => {
+  renderShellAt('/')
+  for (const link of screen.getAllByRole('link').filter((node) => node.closest('nav'))) {
+    expect(link.querySelector('svg.app-icon')).toHaveAttribute('aria-hidden', 'true')
+  }
 })

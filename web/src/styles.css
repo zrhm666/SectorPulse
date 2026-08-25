@@ -101,11 +101,14 @@ a { color: var(--color-primary); }
 .sidebar-nav__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: 0 8px 28px; }
 .sidebar-nav__product { margin: 0; font-size: 1.06rem; font-weight: 760; letter-spacing: -0.035em; }
 .sidebar-nav__context { margin: 3px 0 0; color: var(--color-muted-text); font-size: 0.75rem; font-weight: 600; }
-.sidebar-nav__links { display: grid; gap: 3px; }
+.sidebar-nav__links { display: grid; gap: 24px; }
+.sidebar-nav__group h2 { margin: 0 12px 8px; color: var(--ui-text-muted); font-size: .6875rem; font-weight: 750; letter-spacing: .08em; }
+.sidebar-nav__group-links { display: grid; gap: 4px; }
 .sidebar-nav__link {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  gap: 12px;
+  min-height: 46px;
   padding: 10px 12px;
   color: var(--color-text);
   border-radius: var(--radius-md);
@@ -113,8 +116,8 @@ a { color: var(--color-primary); }
   font-weight: 650;
   text-decoration: none;
 }
-.sidebar-nav__link:hover { background: var(--color-surface-muted); }
-.sidebar-nav__link--active { color: var(--color-primary-strong); background: #eaf1ff; font-weight: 760; }
+.sidebar-nav__link:hover { background: var(--ui-surface-subtle); }
+.sidebar-nav__link--active { color: var(--ui-primary); background: var(--ui-primary-soft); font-weight: 760; }
 .sidebar-nav__close, .top-bar__menu { display: none; }
 .sidebar-nav__backdrop { display: none; }
 
@@ -124,9 +127,11 @@ a { color: var(--color-primary); }
   align-items: center;
   min-height: 68px;
   padding: var(--space-3) 40px;
-  background: rgb(255 255 255 / 0.9);
+  background: rgb(255 255 255 / 0.94);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
 }
+.top-bar__menu { align-items: center; gap: 8px; color: var(--ui-text); background: transparent; border: 0; }
 .top-bar__context { display: flex; align-items: baseline; gap: var(--space-2); }
 .top-bar__product { font-weight: 760; letter-spacing: -0.02em; }
 .top-bar__label { color: var(--color-muted-text); font-size: 0.875rem; }
