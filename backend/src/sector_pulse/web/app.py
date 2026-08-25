@@ -8,13 +8,15 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
+from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.application.governance_service import GovernanceService
+from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.application.run_commands import RunCommandService
@@ -27,6 +29,7 @@ from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
 from sector_pulse.domain.article import ArticleDraft
+from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.real_data_run import RealDataRunRequest
 from sector_pulse.infrastructure.llm.fixture_resources import (
     load_default_fixture_input,
@@ -135,12 +138,15 @@ def create_app(
     queries = RunQueryService(service)
     real_repository = storage.real_data_runs
     real_queries = RealDataRunQueries(real_repository)
+    workbench_queries = overrides.get("workbench_queries") if overrides else None
+    if workbench_queries is None:
+        workbench_queries = DataRunWorkbenchQueries(storage)
     data_run_service = overrides.get("data_run_service") if overrides else None
     if data_run_service is None:
         provider_factory = RealDataProviderFactory()
         entity_config = load_entity_config(Path("config/sector_entities.yaml"))
 
-        def real_dependencies(_provider: str) -> object:
+        def real_dependencies(_provider: str) -> Phase1A2Dependencies:
             bundle = provider_factory.build()
             return type(
                 "Phase1A2RuntimeDependencies",
@@ -580,9 +586,59 @@ def create_app(
 
         @app.get("/api/data-runs/{run_id}/candidates")
         async def get_data_run_candidates(run_id: UUID) -> list[dict[str, object]]:
-            if real_queries.get(run_id) is None:
-                raise HTTPException(404, "run not found")
-            return real_queries.candidates(run_id)
+            try:
+                return workbench_queries.candidates(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+
+        @app.get("/api/data-runs/{run_id}/market")
+        async def get_data_run_market(
+            run_id: UUID,
+            kind: SectorKind,
+            offset: int = Query(default=0, ge=0),
+            limit: int = Query(default=20, ge=1, le=100),
+        ) -> dict[str, object]:
+            try:
+                return workbench_queries.market(
+                    run_id,
+                    kind,
+                    offset=offset,
+                    limit=limit,
+                )
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get("/api/data-runs/{run_id}/evidence")
+        async def get_data_run_evidence(run_id: UUID) -> dict[str, object]:
+            try:
+                return workbench_queries.evidence(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get("/api/data-runs/{run_id}/quality")
+        async def get_data_run_quality(run_id: UUID) -> dict[str, object]:
+            try:
+                return workbench_queries.quality(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get("/api/data-runs/{run_id}/content-run")
+        async def get_data_run_content_run(run_id: UUID) -> dict[str, object] | None:
+            try:
+                return workbench_queries.content_run(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.post("/api/data-runs/{run_id}/retry")
+        async def retry_data_run(run_id: UUID) -> dict[str, object]:
+            try:
+                retried_id = data_run_service.retry(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+            except ValueError as exc:
+                raise HTTPException(409, str(exc)) from exc
+            return {"run_id": retried_id}
 
         @app.post("/api/data-runs/{run_id}/cancel")
         async def cancel_data_run(run_id: UUID) -> dict[str, object]:

@@ -1,0 +1,80 @@
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
+
+import pytest
+from sector_pulse.domain.real_data_run import (
+    RealDataRun,
+    RealDataRunRequest,
+    RealDataRunStatus,
+)
+from sector_pulse.web.data_run_service import DataRunService
+from sector_pulse.web.progress_bus import ProgressBus
+
+
+class RunRepository:
+    def __init__(self, run: RealDataRun | None) -> None:
+        self.run = run
+
+    def get_run(self, run_id: UUID) -> RealDataRun | None:
+        if self.run is None or self.run.run_id != run_id:
+            return None
+        return self.run
+
+
+def _run(status: RealDataRunStatus) -> RealDataRun:
+    return RealDataRun(
+        provider="fixture",
+        request=RealDataRunRequest(
+            mode="post_close",
+            requested_at=datetime(2026, 8, 25, 7, tzinfo=UTC),
+            lookback_hours=36,
+            precandidate_limit=20,
+            final_candidate_limit=8,
+        ),
+        status=status,
+    )
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        RealDataRunStatus.DEGRADED,
+        RealDataRunStatus.BLOCKED,
+        RealDataRunStatus.FAILED,
+        RealDataRunStatus.CANCELLED,
+        RealDataRunStatus.INTERRUPTED,
+    ],
+)
+def test_retry_reuses_original_request_and_provider(status: RealDataRunStatus) -> None:
+    source = _run(status)
+    service = DataRunService(RunRepository(source), ProgressBus())  # type: ignore[arg-type]
+    created_id = uuid4()
+    captured: list[tuple[RealDataRunRequest, str]] = []
+
+    def create(request: RealDataRunRequest, provider: str) -> UUID:
+        captured.append((request, provider))
+        return created_id
+
+    service.create = create  # type: ignore[method-assign,assignment]
+
+    assert service.retry(source.run_id) == created_id
+    assert captured == [(source.request, "fixture")]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [RealDataRunStatus.FETCHING_NEWS, RealDataRunStatus.READY_FOR_ATTRIBUTION],
+)
+def test_retry_rejects_active_or_successful_run(status: RealDataRunStatus) -> None:
+    source = _run(status)
+    service = DataRunService(RunRepository(source), ProgressBus())  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="cannot be retried"):
+        service.retry(source.run_id)
+
+
+def test_retry_rejects_missing_run() -> None:
+    service = DataRunService(RunRepository(None), ProgressBus())  # type: ignore[arg-type]
+
+    with pytest.raises(KeyError):
+        service.retry(uuid4())
