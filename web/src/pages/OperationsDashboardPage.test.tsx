@@ -42,6 +42,11 @@ describe('OperationsDashboardPage', () => {
     expect(screen.getByText('12345678')).toBeInTheDocument()
     expect(screen.getByText('PostgreSQL 已连接')).toBeInTheDocument()
     expect(screen.getByText(/最后更新/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '运营指标' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '最近运行' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '运行条件' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '新建分析' })).toHaveClass('button-primary')
+    expect(screen.getByRole('button', { name: '刷新状态' })).toHaveClass('button-secondary')
   })
 
   it('shows a recovery action when the summary request fails', async () => {

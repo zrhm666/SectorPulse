@@ -138,7 +138,7 @@ a { color: var(--color-primary); }
 .skip-link { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 30; padding: var(--space-2) var(--space-3); color: #fff; background: var(--color-primary-strong); border-radius: var(--radius-sm); transform: translateY(-160%); }
 .skip-link:focus { transform: translateY(0); }
 
-.app-main { width: min(100%, 1380px); margin: 0 auto; padding: 40px; }
+.app-main { width: min(100%, 1480px); margin: 0 auto; padding: 36px 40px 56px; }
 
 .page-header {
   display: flex;
@@ -154,6 +154,8 @@ a { color: var(--color-primary); }
 .page-header__description { max-width: 65ch; margin: 10px 0 0; color: var(--color-muted-text); }
 .page-header__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .page-header__updated { align-self: center; color: var(--color-muted-text); font-size: 0.8125rem; }
+.dashboard-page { display: grid; gap: var(--content-gap); }
+.dashboard-page .page-header { margin-bottom: 0; }
 
 .panel {
   margin-bottom: 20px;
@@ -170,6 +172,7 @@ a { color: var(--color-primary); }
 .panel__title { margin: 0; font-size: 1rem; font-weight: 740; letter-spacing: -0.015em; }
 .panel__description { margin: var(--space-1) 0 0; color: var(--color-muted-text); }
 .panel__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.panel--compact .panel__header { margin-bottom: 12px; }
 
 .status-badge {
   display: inline-flex;
@@ -551,3 +554,4 @@ a { color: var(--color-primary); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
+.choice-card > .app-icon { color: var(--ui-primary); }

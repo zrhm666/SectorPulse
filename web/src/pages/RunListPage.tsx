@@ -44,17 +44,17 @@ export default function RunListPage() {
   const visibleRuns = rows.filter((run) => (statusFilter === 'ALL' || run.status === statusFilter) && (providerFilter === 'ALL' || run.provider === providerFilter))
 
   return (
-    <section>
+    <section className="density-compact">
       <PageHeader
         title="分析运行"
         description="查看真实运行记录，或立即发起一次分析。"
         actions={<Link className="button button-primary" to="/runs/new">新建分析</Link>}
       />
-      <Panel title="运行历史" description="所有数据均来自现有运行接口。">
-        {!loading && !loadError && rows.length > 0 && <div className="filter-bar">
+      <Panel title="运行历史" description="所有数据均来自现有运行接口。" density="compact">
+        {!loading && !loadError && rows.length > 0 && <section className="filter-bar" aria-label="运行筛选">
           <label>状态<select aria-label="按状态筛选" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="ALL">全部</option><option value="RUNNING">运行中</option><option value="READY_FOR_HUMAN_REVIEW">待审核</option><option value="FAILED">失败</option></select></label>
           <label>Provider<select aria-label="按 Provider 筛选" value={providerFilter} onChange={(event) => setProviderFilter(event.target.value)}><option value="ALL">全部</option><option value="fixture">Fixture</option><option value="live">Live</option><option value="data">数据运行</option></select></label>
-        </div>}
+        </section>}
         {loading && <LoadingState label="正在加载运行记录…" />}
         {!loading && loadError && (
           <InlineAlert tone="error" title="无法加载运行记录">请稍后刷新页面重试。</InlineAlert>

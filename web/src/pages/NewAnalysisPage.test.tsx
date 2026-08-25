@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -42,6 +42,8 @@ describe('NewAnalysisPage', () => {
   it('creates a fixture run through the three-stage flow', async () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: '新建分析' })).toBeVisible()
+    const progress = screen.getByRole('list', { name: '新建分析进度' })
+    expect(within(progress).getByText('选择场景').closest('li')).toHaveAttribute('aria-current', 'step')
     fireEvent.click(screen.getByRole('button', { name: /盘后复盘/ }))
     fireEvent.click(screen.getByRole('button', { name: '下一步：确认运行条件' }))
     fireEvent.click(screen.getByRole('button', { name: /Fixture 演练/ }))

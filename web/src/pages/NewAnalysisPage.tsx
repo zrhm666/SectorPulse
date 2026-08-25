@@ -6,6 +6,7 @@ import InlineAlert from '../components/ui/InlineAlert'
 import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
+import AppIcon from '../components/ui/AppIcon'
 import { createDataRun } from '../dataRunsApi'
 import { fetchOperationsSummary, type OperationsSummary } from '../operationsApi'
 
@@ -60,7 +61,7 @@ export default function NewAnalysisPage() {
   }
 
   return (
-    <section>
+    <section className="density-comfortable">
       <PageHeader
         title="新建分析"
         description="先选择分析场景，再确认当前环境是否具备运行条件。"
@@ -69,7 +70,7 @@ export default function NewAnalysisPage() {
 
       <ol className="stepper" aria-label="新建分析进度">
         {stages.map((label, index) => (
-          <li key={label} data-state={index === stage ? 'current' : index < stage ? 'done' : 'upcoming'}>
+          <li key={label} data-state={index === stage ? 'current' : index < stage ? 'done' : 'upcoming'} aria-current={index === stage ? 'step' : undefined}>
             <span>{index + 1}</span><strong>{label}</strong>
           </li>
         ))}
@@ -80,10 +81,10 @@ export default function NewAnalysisPage() {
           {stage === 0 && (
             <div className="choice-grid">
               <button className="choice-card" data-selected={mode === 'intraday'} aria-pressed={mode === 'intraday'} onClick={() => setMode('intraday')} type="button">
-                <strong>盘中分析</strong><span>聚焦交易时段内的板块变化，适合快速发现候选主题。</span>
+                <AppIcon name="activity" /><strong>盘中分析</strong><span>聚焦交易时段内的板块变化，适合快速发现候选主题。</span>
               </button>
               <button className="choice-card" data-selected={mode === 'post_close'} aria-pressed={mode === 'post_close'} onClick={() => setMode('post_close')} type="button">
-                <strong>盘后复盘</strong><span>使用收盘后的完整信息，适合形成当日复盘和次日观察清单。</span>
+                <AppIcon name="clock" /><strong>盘后复盘</strong><span>使用收盘后的完整信息，适合形成当日复盘和次日观察清单。</span>
               </button>
             </div>
           )}
@@ -92,10 +93,10 @@ export default function NewAnalysisPage() {
             <>
               <div className="choice-grid">
                 <button className="choice-card" data-selected={provider === 'fixture'} aria-pressed={provider === 'fixture'} onClick={() => setProvider('fixture')} type="button">
-                  <strong>Fixture 演练</strong><span>使用内置样例，不拉取实时行情，也不消耗真实 LLM 额度。</span>
+                  <AppIcon name="folder" /><strong>Fixture 演练</strong><span>使用内置样例，不拉取实时行情，也不消耗真实 LLM 额度。</span>
                 </button>
                 <button className="choice-card" data-selected={provider === 'live'} aria-pressed={provider === 'live'} onClick={() => setProvider('live')} type="button">
-                  <strong>Live 实时运行</strong><span>拉取实时数据并在数据就绪后调用已配置的 LLM。</span>
+                  <AppIcon name="activity" /><strong>Live 实时运行</strong><span>拉取实时数据并在数据就绪后调用已配置的 LLM。</span>
                 </button>
               </div>
               {preflightError && <InlineAlert tone="error" title="无法读取系统状态">请先到系统状态页确认服务可用，然后重试。</InlineAlert>}
