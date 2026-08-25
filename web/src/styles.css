@@ -1,11 +1,25 @@
 :root {
-  --color-background: #f3f6fa;
+  --ui-bg-warm: #f7f9fc;
+  --ui-surface: #ffffff;
+  --ui-surface-subtle: #f2f6fd;
+  --ui-primary: #1769f2;
+  --ui-primary-hover: #0e57d5;
+  --ui-primary-soft: #eaf2ff;
+  --ui-text: #0d1b32;
+  --ui-text-secondary: #53657f;
+  --ui-text-muted: #77879d;
+  --ui-border: #d8e2f0;
+  --ui-border-strong: #bdcce0;
+  --ui-success: #168454;
+  --ui-warning: #b77409;
+  --ui-danger: #c63a47;
+  --color-background: var(--ui-bg-warm);
   --color-surface: #ffffff;
   --color-surface-muted: #f7f9fc;
-  --color-text: #14213a;
-  --color-muted-text: #5b6b84;
-  --color-primary: #155eef;
-  --color-primary-strong: #004eeb;
+  --color-text: var(--ui-text);
+  --color-muted-text: var(--ui-text-secondary);
+  --color-primary: var(--ui-primary);
+  --color-primary-strong: var(--ui-primary-hover);
   --color-success: #167a4a;
   --color-warning: #9a6200;
   --color-danger: #b42318;
@@ -13,8 +27,9 @@
   --color-focus-ring: #84adff;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 10px 30px rgb(27 48 89 / 0.06);
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --shadow-sm: 0 8px 28px rgb(31 64 120 / 0.06);
   --shadow-md: 0 20px 48px rgb(27 48 89 / 0.12);
   --space-1: 4px;
   --space-2: 8px;
@@ -26,6 +41,24 @@
   --sidebar-width: 248px;
   --topbar-height: 64px;
 }
+
+.density-comfortable { --content-gap: 24px; --panel-padding: 24px; }
+.density-compact { --content-gap: 16px; --panel-padding: 18px; }
+.app-icon { display: block; flex: 0 0 auto; }
+.metric-card { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; min-width: 0; padding: 22px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.metric-card__icon { grid-row: 1 / span 2; display: grid; width: 46px; height: 46px; place-items: center; color: var(--ui-primary); background: var(--ui-primary-soft); border-radius: 13px; }
+.metric-card__label { color: var(--ui-text-secondary); font-size: .8125rem; font-weight: 650; }
+.metric-card__value { color: var(--ui-text); font-size: clamp(1.65rem, 3vw, 2.25rem); line-height: 1.1; }
+.metric-card__description { grid-column: 1 / -1; margin-top: 10px; color: var(--ui-text-secondary); font-size: .8125rem; }
+.metric-card progress { grid-column: 1 / -1; width: 100%; height: 5px; margin-top: 10px; accent-color: var(--ui-primary); }
+.metric-card[data-tone="success"] .metric-card__icon { color: var(--ui-success); background: #e8f7f0; }
+.metric-card[data-tone="warning"] .metric-card__icon { color: var(--ui-warning); background: #fff5df; }
+.metric-card[data-tone="danger"] .metric-card__icon { color: var(--ui-danger); background: #fff0f1; }
+.summary-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); overflow: hidden; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: var(--radius-lg); }
+.summary-strip__item { display: grid; align-content: center; min-height: 76px; padding: 14px 18px; border-right: 1px solid var(--ui-border); }
+.summary-strip__item:last-child { border-right: 0; }
+.summary-strip__item span { color: var(--ui-text-muted); font-size: .75rem; }
+.summary-strip__item strong { margin-top: 4px; color: var(--ui-text); font-size: .9375rem; }
 
 * { box-sizing: border-box; }
 
