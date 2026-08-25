@@ -1,9 +1,41 @@
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.infrastructure.providers.akshare.mapper import map_sector_rows
+
+
+def test_mapper_records_only_fields_present_in_provider_rows() -> None:
+    now = datetime(2026, 8, 25, 8, 0, tzinfo=UTC)
+    snapshot = map_sector_rows(
+        ({"code": "881121", "name": "Semiconductor"},),
+        SectorKind.INDUSTRY,
+        now,
+        now,
+        "test",
+        provider_id="akshare-ths",
+        classification_prefix="ths",
+        raw_artifact_sha256="abc123",
+    )
+
+    assert snapshot.available_fields == frozenset({"provider_sector_id", "name"})
+    assert snapshot.raw_artifact_sha256 == "abc123"
+    assert snapshot.sectors[0].pct_change == Decimal("0")
+
+
+def test_mapper_marks_explicit_zero_as_available() -> None:
+    now = datetime(2026, 8, 25, 8, 0, tzinfo=UTC)
+    snapshot = map_sector_rows(
+        ({"code": "BK1", "name": "Test", "pct_change": 0},),
+        SectorKind.INDUSTRY,
+        now,
+        now,
+        "test",
+    )
+
+    assert "pct_change" in snapshot.available_fields
 
 
 def test_mapper_hides_chinese_supplier_columns() -> None:

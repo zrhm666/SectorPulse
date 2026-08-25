@@ -39,6 +39,11 @@ def _get(row: Mapping[str, Any], key: str) -> Any:
     return None
 
 
+def _has_field(row: Mapping[str, Any], key: str) -> bool:
+    """Report whether the provider supplied a semantic field, including zero values."""
+    return FIELD[key] in row or _get(row, key) is not None
+
+
 def decimal_or_none(value: Any) -> Decimal | None:
     if value is None or value == "" or str(value).lower() in {"nan", "none"}:
         return None
@@ -54,8 +59,24 @@ def map_sector_rows(
     *,
     provider_id: str = "akshare-eastmoney",
     classification_prefix: str = "eastmoney",
+    raw_artifact_sha256: str | None = None,
 ) -> SectorUniverseSnapshot:
     # 将原始行转换为不可变领域快照；缺失的可选指标保留为 None，而非编造数值。
+    available_fields = frozenset(
+        domain_name
+        for provider_name, domain_name in (
+            ("code", "provider_sector_id"),
+            ("name", "name"),
+            ("pct", "pct_change"),
+            ("turnover", "turnover_rate"),
+            ("cap", "total_market_cap"),
+            ("up", "advancers"),
+            ("down", "decliners"),
+            ("leader", "leader_name"),
+            ("leader_pct", "leader_pct_change"),
+        )
+        if any(_has_field(row, provider_name) for row in rows)
+    )
     sectors = tuple(
         SectorSnapshot(
             provider_sector_id=str(_get(row, "code") or _get(row, "name")),
@@ -79,4 +100,6 @@ def map_sector_rows(
         observed_at=observed_at,
         collected_at=collected_at,
         sectors=sectors,
+        available_fields=available_fields,
+        raw_artifact_sha256=raw_artifact_sha256,
     )

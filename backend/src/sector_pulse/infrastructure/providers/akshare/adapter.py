@@ -54,7 +54,12 @@ class AkShareMarketDataAdapter:
                     collected_at=batch.collected_at,
                 )
             universe = map_sector_rows(
-                batch.rows, kind, batch.observed_at, batch.collected_at, batch.source_version
+                batch.rows,
+                kind,
+                batch.observed_at,
+                batch.collected_at,
+                batch.source_version,
+                raw_artifact_sha256=batch.raw_artifact_sha256,
             )
             return ProviderResult(
                 provider_id=self.manifest.provider_id,
@@ -116,6 +121,7 @@ class AkShareThsMarketDataAdapter(AkShareMarketDataAdapter):
             universe = map_sector_rows(
                 batch.rows, kind, batch.observed_at, batch.collected_at, batch.source_version,
                 provider_id=self.manifest.provider_id, classification_prefix="ths",
+                raw_artifact_sha256=batch.raw_artifact_sha256,
             )
             return ProviderResult(
                 provider_id=self.manifest.provider_id, capability=capability,

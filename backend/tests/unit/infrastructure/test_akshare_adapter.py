@@ -39,3 +39,4 @@ async def test_ths_live_rows_are_mapped_and_identified() -> None:
     assert result.data.provider_id == "akshare-ths"
     assert result.data.sectors[0].provider_sector_id == "THS1"
     assert str(result.data.sectors[0].pct_change) == "1.2"
+    assert result.data.raw_artifact_sha256 == "hash"

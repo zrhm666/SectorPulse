@@ -39,6 +39,8 @@ class SectorUniverseSnapshot(BaseModel):
     observed_at: datetime
     collected_at: datetime
     sectors: tuple[SectorSnapshot, ...]
+    available_fields: frozenset[str] = frozenset()
+    raw_artifact_sha256: str | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
