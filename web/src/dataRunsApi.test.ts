@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  fetchDataRunAcquisition,
   fetchDataRunContentRun,
   fetchDataRunMarket,
+  fetchDataRunNewsRecords,
   retryDataRun,
 } from './dataRunsApi'
 
@@ -37,6 +39,31 @@ describe('data run workbench api', () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(null))
 
     await expect(fetchDataRunContentRun('run-1')).resolves.toBeNull()
+  })
+
+  it('loads the acquisition summary for a run', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({
+      market_sources: [], news_sources: [], counts: {}, coverage: 'COMPLETE',
+    }))
+
+    await fetchDataRunAcquisition('run/id')
+
+    expect(fetch).toHaveBeenCalledWith('/api/data-runs/run%2Fid/acquisition', undefined)
+  })
+
+  it('encodes news record filters and pagination', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({
+      items: [], total: 0, offset: 20, limit: 20, coverage: 'COMPLETE',
+    }))
+
+    await fetchDataRunNewsRecords('run/id', {
+      sourceId: 'east money', status: 'SUCCESS', offset: 20, limit: 20,
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/data-runs/run%2Fid/news-records?source_id=east+money&status=SUCCESS&offset=20&limit=20',
+      undefined,
+    )
   })
 
   it('posts retry and returns the new run id', async () => {

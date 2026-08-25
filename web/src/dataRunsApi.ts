@@ -37,6 +37,8 @@ export interface DataRunCandidateView {
 }
 
 export type SectorKind = 'INDUSTRY' | 'CONCEPT'
+export type DataStatus = 'SUCCESS' | 'EMPTY' | 'PARTIAL' | 'STALE' | 'UNAVAILABLE' | 'FAILED'
+export type DataCoverage = 'COMPLETE' | 'LINKED_ONLY'
 
 export interface MarketSnapshotSummary {
   kind: SectorKind
@@ -46,6 +48,8 @@ export interface MarketSnapshotSummary {
   observed_at: string
   collected_at: string
   sector_count: number
+  available_fields?: string[]
+  raw_artifact_sha256?: string | null
 }
 
 export interface MarketSectorView {
@@ -60,6 +64,7 @@ export interface MarketSectorView {
   leader_name: string | null
   leader_pct_change: string | null
   breadth_ratio: string
+  field_availability?: Record<string, boolean>
 }
 
 export interface DataRunMarketView {
@@ -123,6 +128,53 @@ export interface DataRunContentView {
   finished_at: string | null
 }
 
+export interface NewsSourceAcquisitionView {
+  source_id: string
+  status: DataStatus
+  query_count: number
+  status_counts: Record<DataStatus, number>
+  result_count: number
+  call_count: number
+  retry_count: number
+  duration_ms: number | null
+  error_codes: string[]
+}
+
+export interface DataRunAcquisitionView {
+  market_sources: MarketSnapshotSummary[]
+  news_sources: NewsSourceAcquisitionView[]
+  counts: {
+    provider_results: number
+    normalized_documents: number
+    evidence_events: number
+  }
+  coverage: DataCoverage
+  coverage_notice: string | null
+}
+
+export interface DataRunNewsRecordView extends EvidenceDocumentView {
+  query_ids: string[]
+  query_type: string | null
+  query_status: DataStatus | null
+  query_source_id: string
+}
+
+export interface DataRunNewsRecordsView {
+  items: DataRunNewsRecordView[]
+  total: number
+  offset: number
+  limit: number
+  coverage: DataCoverage
+  coverage_notice: string | null
+}
+
+export interface NewsRecordQuery {
+  sourceId?: string
+  status?: DataStatus
+  offset?: number
+  limit?: number
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, init)
   if (!response.ok) {
@@ -178,6 +230,22 @@ export function fetchDataRunQuality(runId: string): Promise<DataRunQualityView> 
 
 export function fetchDataRunContentRun(runId: string): Promise<DataRunContentView | null> {
   return request(`${dataRunPath(runId)}/content-run`)
+}
+
+export function fetchDataRunAcquisition(runId: string): Promise<DataRunAcquisitionView> {
+  return request(`${dataRunPath(runId)}/acquisition`)
+}
+
+export function fetchDataRunNewsRecords(
+  runId: string,
+  params: NewsRecordQuery = {},
+): Promise<DataRunNewsRecordsView> {
+  const query = new URLSearchParams()
+  if (params.sourceId) query.set('source_id', params.sourceId)
+  if (params.status) query.set('status', params.status)
+  query.set('offset', String(params.offset ?? 0))
+  query.set('limit', String(params.limit ?? 20))
+  return request(`${dataRunPath(runId)}/news-records?${query}`)
 }
 
 export function retryDataRun(runId: string): Promise<{ run_id: string }> {
