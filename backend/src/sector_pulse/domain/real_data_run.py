@@ -77,6 +77,7 @@ class RealDataRun(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     run_id: UUID = Field(default_factory=uuid4)
+    provider: Literal["fixture", "live"] = "live"
     request: RealDataRunRequest
     status: RealDataRunStatus = RealDataRunStatus.PREFLIGHT
     cutoff_at: datetime | None = None

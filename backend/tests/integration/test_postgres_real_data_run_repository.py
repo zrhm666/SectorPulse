@@ -23,13 +23,17 @@ async def test_postgres_real_data_run_round_trip() -> None:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
     await database.initialize()
-    run = RealDataRun(request=RealDataRunRequest(mode="intraday", requested_at=datetime.now(UTC)))
+    run = RealDataRun(
+        request=RealDataRunRequest(mode="intraday", requested_at=datetime.now(UTC)),
+        provider="fixture",
+    )
     repository = PostgresRealDataRunRepository(database)
     await repository.insert(run)
     loaded = await repository.get_run(run.run_id)
     assert loaded is not None
     assert loaded.run_id == run.run_id
     assert loaded.request.mode == "intraday"
+    assert loaded.provider == "fixture"
 
     candidates = (
         RealDataCandidate(

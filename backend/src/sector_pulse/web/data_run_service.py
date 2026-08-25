@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Callable
 from pathlib import Path
+from typing import Literal
 from uuid import UUID, uuid4
 
 from sector_pulse.application.real_data_orchestrator import run_real_data_workflow
@@ -26,7 +27,7 @@ class DataRunService:
         self._factory = RealDataProviderFactory(consent_file)
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
 
-    def preflight(self, provider: str) -> None:
+    def preflight(self, provider: Literal["fixture", "live"]) -> None:
         if provider == "fixture":
             return
         if provider != "live":
@@ -35,7 +36,11 @@ class DataRunService:
         if not result.available:
             raise ValueError("missing live-data-consent")
 
-    def create(self, request: RealDataRunRequest, provider: str) -> UUID:
+    def create(
+        self,
+        request: RealDataRunRequest,
+        provider: Literal["fixture", "live"],
+    ) -> UUID:
         self.preflight(provider)
         if self._dependencies_factory is None:
             raise ValueError("real data dependencies are not configured")
@@ -45,6 +50,7 @@ class DataRunService:
             result = await run_real_data_workflow(
                 self._dependencies_factory(provider), request,
                 run_id=run_id,
+                provider=provider,
                 progress_sink=lambda status: self.bus.emit(
                     run_id,
                     {"type": "progress", "status": status.value},

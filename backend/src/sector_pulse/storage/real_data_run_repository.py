@@ -27,8 +27,9 @@ class SQLiteRealDataRunRepository:
                 """INSERT INTO real_data_runs
                 (run_id, mode, status, requested_at, cutoff_at, request_json,
                  market_quality_json, news_quality_json, downgrade_reasons_json,
-                 cutoff_violation_count, duplicate_document_count, error_code, finished_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 cutoff_violation_count, duplicate_document_count, error_code, finished_at,
+                 provider)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 self._run_values(run),
             )
 
@@ -130,6 +131,7 @@ class SQLiteRealDataRunRepository:
             json.dumps(quality.downgrade_reasons, ensure_ascii=False),
             quality.cutoff_violation_count, quality.duplicate_document_count,
             run.error_code, run.finished_at.isoformat() if run.finished_at else None,
+            run.provider,
         )
 
     @staticmethod
@@ -143,6 +145,7 @@ class SQLiteRealDataRunRepository:
         )
         return RealDataRun(
             run_id=UUID(row[0]), request=request, status=RealDataRunStatus(row[2]),
+            provider=row[13],
             cutoff_at=datetime.fromisoformat(row[4]) if row[4] else None,
             quality=quality, error_code=row[11],
             finished_at=datetime.fromisoformat(row[12]) if row[12] else None,

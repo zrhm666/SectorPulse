@@ -30,11 +30,12 @@ class PostgresRealDataRunRepository:
                     """INSERT INTO real_data_runs
                     (run_id, mode, status, requested_at, cutoff_at, request_json,
                      market_quality_json, news_quality_json, downgrade_reasons_json,
-                     cutoff_violation_count, duplicate_document_count, error_code, finished_at)
+                     cutoff_violation_count, duplicate_document_count, error_code, finished_at,
+                     provider)
                     VALUES (:run_id, :mode, :status, :requested_at, :cutoff_at, :request_json,
                      :market_quality_json, :news_quality_json, :downgrade_reasons_json,
                      :cutoff_violation_count, :duplicate_document_count, :error_code,
-                     :finished_at)"""
+                     :finished_at, :provider)"""
                 ),
                 {
                     "run_id": str(run.run_id),
@@ -54,6 +55,7 @@ class PostgresRealDataRunRepository:
                     "duplicate_document_count": quality.duplicate_document_count,
                     "error_code": run.error_code,
                     "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+                    "provider": run.provider,
                 },
             )
 
@@ -198,6 +200,7 @@ class PostgresRealDataRunRepository:
         )
         return RealDataRun(
             run_id=UUID(row["run_id"]),
+            provider=row["provider"],
             request=request,
             status=RealDataRunStatus(row["status"]),
             cutoff_at=datetime.fromisoformat(row["cutoff_at"]) if row["cutoff_at"] else None,
