@@ -105,6 +105,47 @@ class PostgresPhase1BRepository:
                  "status": draft.status.value, "payload": payload, "hash": _hash(payload)},
             )
 
+    async def save_review(self, report: ReviewReport) -> None:
+        payload = report.model_dump_json()
+        async with self._database.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO review_reports "
+                    "(review_id, draft_id, draft_version, payload_json, payload_hash) "
+                    "VALUES (:review_id, :draft_id, :draft_version, :payload, :hash) "
+                    "ON CONFLICT (review_id) DO UPDATE SET "
+                    "draft_id = EXCLUDED.draft_id, "
+                    "draft_version = EXCLUDED.draft_version, "
+                    "payload_json = EXCLUDED.payload_json, "
+                    "payload_hash = EXCLUDED.payload_hash"
+                ),
+                {
+                    "review_id": report.review_id,
+                    "draft_id": report.draft_id,
+                    "draft_version": report.draft_version,
+                    "payload": payload,
+                    "hash": _hash(payload),
+                },
+            )
+            for issue in report.issues:
+                issue_payload = issue.model_dump_json()
+                await connection.execute(
+                    text(
+                        "INSERT INTO review_issues "
+                        "(review_id, issue_id, payload_json, payload_hash) "
+                        "VALUES (:review_id, :issue_id, :payload, :hash) "
+                        "ON CONFLICT (review_id, issue_id) DO UPDATE SET "
+                        "payload_json = EXCLUDED.payload_json, "
+                        "payload_hash = EXCLUDED.payload_hash"
+                    ),
+                    {
+                        "review_id": report.review_id,
+                        "issue_id": issue.issue_id,
+                        "payload": issue_payload,
+                        "hash": _hash(issue_payload),
+                    },
+                )
+
     async def list_drafts(self, draft_id: UUID) -> tuple[ArticleDraft, ...]:
         return tuple(ArticleDraft.model_validate_json(p) for p in await self._payloads(
             "SELECT payload_json FROM article_drafts WHERE draft_id = :id ORDER BY version", {"id": str(draft_id)}

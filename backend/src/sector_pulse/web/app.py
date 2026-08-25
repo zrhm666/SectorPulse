@@ -109,6 +109,9 @@ def create_app(
     task_repository = storage.task
     if task_repository is None:
         raise RuntimeError("task repository is not configured")
+    phase1b_repository = storage.phase1b
+    if phase1b_repository is None:
+        raise RuntimeError("phase1b repository is not configured")
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
     draft_edit_repository = storage.draft_edit
@@ -125,7 +128,7 @@ def create_app(
     if service is None:
         service = RunService(
             runs_repo=storage.phase1b_runs,
-            phase1b_repo=storage.phase1b,
+            phase1b_repo=phase1b_repository,
             invocation_repo=storage.invocations,
             news_evidence=storage.news_evidence,
             prompts=PromptRegistry(Path("config/prompts")),
@@ -358,7 +361,7 @@ def create_app(
 
     @app.get("/api/runs/{run_id}/governance", response_model=GovernanceResponse)
     async def get_governance(run_id: UUID) -> GovernanceResponse:
-        drafts = draft_edit_repository._drafts.get_drafts(run_id)
+        drafts = phase1b_repository.get_drafts(run_id)
         if not drafts:
             raise HTTPException(404, "draft not found")
         report = governance_service.check(drafts[-1])
