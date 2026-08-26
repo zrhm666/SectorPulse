@@ -5,6 +5,7 @@ import {
   fetchDataRunContentRun,
   fetchDataRunMarket,
   fetchDataRunNewsRecords,
+  generateDataRunArticle,
   retryDataRun,
 } from './dataRunsApi'
 
@@ -73,6 +74,18 @@ describe('data run workbench api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/data-runs/run-1/retry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  it('posts the manually selected candidates for article generation', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({ run_id: 'run-1' }))
+
+    await generateDataRunArticle('run/id', ['sector-3', 'sector-1', 'sector-2'])
+
+    expect(fetch).toHaveBeenCalledWith('/api/data-runs/run%2Fid/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sector_ids: ['sector-3', 'sector-1', 'sector-2'] }),
     })
   })
 

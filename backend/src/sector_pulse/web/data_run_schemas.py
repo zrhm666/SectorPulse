@@ -13,6 +13,10 @@ class NewDataRunRequest(BaseModel):
     final_candidate_limit: int = Field(default=12, ge=1, le=12)
 
 
+class GenerateDataRunRequest(BaseModel):
+    sector_ids: list[str] | None = Field(default=None, min_length=3, max_length=12)
+
+
 class DataRunResponse(BaseModel):
     run_id: UUID
     mode: str

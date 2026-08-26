@@ -28,7 +28,7 @@ class DataRunWritingService:
         self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")
 
-    def generate(self, run_id: UUID) -> UUID:
+    def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
         if not self._consent_file.is_file():
             raise ValueError("LIVE_LLM_CONSENT_REQUIRED")
         run = self._repository.get_run(run_id)
@@ -36,5 +36,7 @@ class DataRunWritingService:
             raise ValueError("REAL_DATA_RUN_NOT_FOUND")
         if run.status is not RealDataRunStatus.READY_FOR_ATTRIBUTION:
             raise ValueError("REAL_DATA_RUN_NOT_READY")
-        request = build_phase1b_request(self._database, run_id, self._storage)
+        request = build_phase1b_request(
+            self._database, run_id, self._storage, selected_sector_ids=sector_ids
+        )
         return self._run_service.create_run(request.model_dump(mode="json"), "live", run_id=run_id)

@@ -57,6 +57,7 @@ export default function DataRunPage() {
   const [runError, setRunError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<WorkbenchTab>('market')
   const [candidates, setCandidates] = useState<DataRunCandidateView[]>([])
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([])
   const [candidatesLoading, setCandidatesLoading] = useState(true)
   const [candidatesError, setCandidatesError] = useState<string | null>(null)
   const [contentRun, setContentRun] = useState<DataRunContentView | null>(null)
@@ -98,7 +99,9 @@ export default function DataRunPage() {
   const loadCandidates = useCallback(async () => {
     setCandidatesLoading(true)
     try {
-      setCandidates(await fetchDataRunCandidates(runId))
+      const items = await fetchDataRunCandidates(runId)
+      setCandidates(items)
+      setSelectedCandidateIds(items.map((item) => item.sector_id))
       setCandidatesError(null)
     } catch (reason) {
       setCandidatesError(message(reason, '候选板块加载失败。'))
@@ -121,6 +124,8 @@ export default function DataRunPage() {
 
   useEffect(() => {
     setRun(null)
+    setCandidates([])
+    setSelectedCandidateIds([])
     setContentRun(null)
     setAcquisition(null)
     setEvidence(null)
@@ -132,10 +137,14 @@ export default function DataRunPage() {
     setNewsOffset(0)
     setActionError(null)
     void loadRun()
-    void loadCandidates()
     void loadAcquisition()
     fetchDataRunContentRun(runId).then(setContentRun).catch(() => setContentRun(null))
-  }, [loadAcquisition, loadCandidates, loadRun, runId])
+  }, [loadAcquisition, loadRun, runId])
+
+  useEffect(() => {
+    if (!run) return
+    void loadCandidates()
+  }, [loadCandidates, run?.status])
 
   useEffect(() => {
     if (!run || TERMINAL_STATUSES.has(run.status)) return
@@ -208,7 +217,11 @@ export default function DataRunPage() {
     setActionBusy(true)
     setActionError(null)
     try {
-      const result = await generateDataRunArticle(runId)
+      const selected = new Set(selectedCandidateIds)
+      const result = await generateDataRunArticle(
+        runId,
+        candidates.filter((item) => selected.has(item.sector_id)).map((item) => item.sector_id),
+      )
       setContentRun({
         run_id: result.run_id,
         status: 'RUNNING',
@@ -263,11 +276,22 @@ export default function DataRunPage() {
     {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
     <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
     <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={acquisitionError} />
-    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} onGenerate={() => void generate()} onRetry={() => void retry()} />
+    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} onGenerate={() => void generate()} onRetry={() => void retry()} />
     <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
     <Panel className="data-workbench-panel" density="compact"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
       {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} />}
-      {activeTab === 'candidates' && <CandidatesPanel candidates={candidates} loading={candidatesLoading} error={candidatesError} />}
+      {activeTab === 'candidates' && <CandidatesPanel
+        candidates={candidates}
+        selectedIds={selectedCandidateIds}
+        loading={candidatesLoading}
+        error={candidatesError}
+        disabled={actionBusy || Boolean(contentRun) || run.status !== 'READY_FOR_ATTRIBUTION'}
+        onToggle={(sectorId) => setSelectedCandidateIds((current) => current.includes(sectorId)
+          ? current.filter((item) => item !== sectorId)
+          : [...current, sectorId])}
+        onSelectAll={() => setSelectedCandidateIds(candidates.map((item) => item.sector_id))}
+        onClear={() => setSelectedCandidateIds([])}
+      />}
       {activeTab === 'news-records' && <NewsRecordsPanel data={newsRecords} loading={newsRecordsLoading} error={newsRecordsError} sourceId={newsSourceId} status={newsStatus} sourceOptions={acquisition?.news_sources.map((source) => source.source_id) ?? []} onSourceChange={(value) => { setNewsSourceId(value); setNewsOffset(0) }} onStatusChange={(value) => { setNewsStatus(value); setNewsOffset(0) }} onPage={setNewsOffset} />}
       {activeTab === 'evidence' && <EvidencePanel data={evidence} loading={evidenceLoading} error={evidenceError} />}
       {activeTab === 'quality' && <QualityPanel data={quality} loading={qualityLoading} error={qualityError} />}

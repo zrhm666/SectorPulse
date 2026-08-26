@@ -38,6 +38,15 @@ const READY_RUN: DataRunView = {
   finished_at: '2026-08-25T07:02:00Z',
 }
 
+const CANDIDATES = Array.from({ length: 4 }, (_, index) => ({
+  sector_id: `industry-${index + 1}`,
+  sector_kind: 'INDUSTRY',
+  name: `候选板块 ${index + 1}`,
+  rank: index + 1,
+  score: String(10 - index),
+  reasons: ['综合评分领先'],
+}))
+
 function LocationProbe() {
   return <output data-testid="location">{useLocation().pathname}</output>
 }
@@ -103,6 +112,7 @@ it('shows only the current collection stage as running', async () => {
 })
 
 it('stays on the data page after starting article generation', async () => {
+  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue(CANDIDATES.slice(0, 3))
   renderPage()
 
   await userEvent.click(await screen.findByRole('button', { name: '生成分析稿' }))
@@ -112,6 +122,33 @@ it('stays on the data page after starting article generation', async () => {
     'href',
     '/runs/run-1',
   )
+})
+
+it('generates the article with only the candidates selected by the user', async () => {
+  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue(CANDIDATES)
+  renderPage()
+
+  await userEvent.click(await screen.findByRole('tab', { name: '候选板块' }))
+  expect(await screen.findByText('已选择 4 / 4')).toBeVisible()
+  await userEvent.click(screen.getByRole('checkbox', { name: '选择候选板块 2' }))
+  expect(screen.getByText('已选择 3 / 4')).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: '生成分析稿' }))
+
+  expect(api.generateDataRunArticle).toHaveBeenCalledWith(
+    'run-1', ['industry-1', 'industry-3', 'industry-4'],
+  )
+})
+
+it('requires at least three selected candidates before generation', async () => {
+  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue(CANDIDATES)
+  renderPage()
+
+  await userEvent.click(await screen.findByRole('tab', { name: '候选板块' }))
+  await userEvent.click(await screen.findByRole('checkbox', { name: '选择候选板块 1' }))
+  await userEvent.click(screen.getByRole('checkbox', { name: '选择候选板块 2' }))
+
+  expect(screen.getByText('已选择 2 / 4')).toBeVisible()
+  expect(screen.getByRole('button', { name: '生成分析稿' })).toBeDisabled()
 })
 
 it('restores the content run action after refresh', async () => {

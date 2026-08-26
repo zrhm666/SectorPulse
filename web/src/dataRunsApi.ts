@@ -262,8 +262,13 @@ export function createDataRun(input: NewDataRunRequest): Promise<{ run_id: strin
   })
 }
 
-export function generateDataRunArticle(runId: string): Promise<{ run_id: string }> {
+export function generateDataRunArticle(
+  runId: string,
+  sectorIds?: string[],
+): Promise<{ run_id: string }> {
   return request(`${dataRunPath(runId)}/generate`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: sectorIds ? JSON.stringify({ sector_ids: sectorIds }) : undefined,
   })
 }

@@ -6,7 +6,7 @@ from sector_pulse.application.attribution_gate import (
 )
 from sector_pulse.application.phase1b_pipeline import Phase1BRequest
 from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataRunStatus
+from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRunStatus
 from sector_pulse.domain.time import AnalysisMode, AnalysisRun
 from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
 from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
@@ -24,8 +24,28 @@ class RealDataBridgeIncomplete(ValueError):
     pass
 
 
+def select_requested_candidates(
+    candidates: list[RealDataCandidate], selected_sector_ids: tuple[str, ...] | None
+) -> list[RealDataCandidate]:
+    if selected_sector_ids is None:
+        return candidates
+    if not 3 <= len(selected_sector_ids) <= 12:
+        raise RealDataBridgeIncomplete("CANDIDATE_SELECTION_INVALID")
+    selected = set(selected_sector_ids)
+    if len(selected) != len(selected_sector_ids):
+        raise RealDataBridgeIncomplete("CANDIDATE_SELECTION_INVALID")
+    available = {candidate.sector_id for candidate in candidates}
+    if not selected.issubset(available):
+        raise RealDataBridgeIncomplete("CANDIDATE_SELECTION_INVALID")
+    return [candidate for candidate in candidates if candidate.sector_id in selected]
+
+
 def build_phase1b_request(
-    database: SQLiteDatabase, run_id: UUID, storage: object | None = None
+    database: SQLiteDatabase,
+    run_id: UUID,
+    storage: object | None = None,
+    *,
+    selected_sector_ids: tuple[str, ...] | None = None,
 ) -> Phase1BRequest:
     runs = (
         storage.real_data_runs
@@ -57,12 +77,19 @@ def build_phase1b_request(
     if industry is None or concept is None:
         raise RealDataBridgeIncomplete("REAL_DATA_BRIDGE_INCOMPLETE")
 
-    candidates = runs.get_candidates(run_id)
+    candidates = select_requested_candidates(
+        runs.get_candidates(run_id), selected_sector_ids
+    )
     evidence = storage.evidence if storage is not None else SQLiteEvidenceRepository(database)
-    packs = evidence.list_for_run(run_id)
+    all_packs = evidence.list_for_run(run_id)
+    pack_by_sector = {pack.sector_id: pack for pack in all_packs}
+    packs = [
+        pack_by_sector[candidate.sector_id]
+        for candidate in candidates
+        if candidate.sector_id in pack_by_sector
+    ]
     if len(candidates) < 3 or len(packs) < len(candidates):
         raise RealDataBridgeIncomplete("REAL_DATA_BRIDGE_INCOMPLETE")
-    pack_by_sector = {pack.sector_id: pack for pack in packs}
     event_ids = tuple(dict.fromkeys(event_id for pack in packs for event_id in pack.event_ids))
     news = storage.news if storage is not None else SQLiteNewsRepository(database)
     events = news.get_events(event_ids)

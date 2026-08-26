@@ -49,7 +49,7 @@ from sector_pulse.storage.draft_edit_repository import (
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import build_postgres_storage, build_sqlite_storage
 from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
-from sector_pulse.web.data_run_schemas import NewDataRunRequest
+from sector_pulse.web.data_run_schemas import GenerateDataRunRequest, NewDataRunRequest
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
 from sector_pulse.web.editing_schemas import (
@@ -676,7 +676,9 @@ def create_app(
                 raise HTTPException(404, "run not found or not running")
             return {"run_id": run_id, "status": "CANCELLED"}
 
-        writing_service = DataRunWritingService(database, service, storage=storage)
+        writing_service = overrides.get("writing_service") if overrides else None
+        if writing_service is None:
+            writing_service = DataRunWritingService(database, service, storage=storage)
         scheduler = EmbeddedScheduler(
             task_repository,
             schedule_service,
@@ -688,9 +690,14 @@ def create_app(
         )
 
         @app.post("/api/data-runs/{run_id}/generate")
-        async def generate_data_run_article(run_id: UUID) -> dict[str, object]:
+        async def generate_data_run_article(
+            run_id: UUID, req: GenerateDataRunRequest | None = None
+        ) -> dict[str, object]:
             try:
-                generated_id = writing_service.generate(run_id)
+                sector_ids = (
+                    tuple(req.sector_ids) if req and req.sector_ids is not None else None
+                )
+                generated_id = writing_service.generate(run_id, sector_ids)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
             return {"run_id": generated_id}

@@ -58,6 +58,16 @@ class DataRunActions:
         return False
 
 
+class WritingActions:
+    def __init__(self, generated_id: UUID) -> None:
+        self.generated_id = generated_id
+        self.generate_call: tuple[UUID, tuple[str, ...] | None] | None = None
+
+    def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
+        self.generate_call = (run_id, sector_ids)
+        return self.generated_id
+
+
 def test_health_endpoint() -> None:
     client = TestClient(create_app())
     resp = client.get("/api/health")
@@ -150,3 +160,54 @@ def test_retry_returns_new_data_run_id(tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"run_id": str(retry_id)}
+
+
+def test_generate_forwards_manually_selected_candidates(tmp_path) -> None:
+    run_id = uuid4()
+    generated_id = uuid4()
+    writing = WritingActions(generated_id)
+    client = TestClient(
+        create_app(
+            database_path=tmp_path / "app.db",
+            static_dir=None,
+            overrides={
+                "data_run_service": DataRunActions(uuid4()),
+                "workbench_queries": WorkbenchQueries(),
+                "writing_service": writing,
+            },
+        )
+    )
+
+    response = client.post(
+        f"/api/data-runs/{run_id}/generate",
+        json={"sector_ids": ["sector-3", "sector-1", "sector-2"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"run_id": str(generated_id)}
+    assert writing.generate_call == (
+        run_id, ("sector-3", "sector-1", "sector-2")
+    )
+
+
+def test_generate_without_selection_keeps_automatic_behavior(tmp_path) -> None:
+    run_id = uuid4()
+    generated_id = uuid4()
+    writing = WritingActions(generated_id)
+    client = TestClient(
+        create_app(
+            database_path=tmp_path / "app.db",
+            static_dir=None,
+            overrides={
+                "data_run_service": DataRunActions(uuid4()),
+                "workbench_queries": WorkbenchQueries(),
+                "writing_service": writing,
+            },
+        )
+    )
+
+    response = client.post(f"/api/data-runs/{run_id}/generate")
+
+    assert response.status_code == 200
+    assert response.json() == {"run_id": str(generated_id)}
+    assert writing.generate_call == (run_id, None)
