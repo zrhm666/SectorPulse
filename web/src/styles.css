@@ -159,6 +159,9 @@ a { color: var(--color-primary); }
 .data-run-page { display: grid; gap: var(--content-gap); }
 .data-run-page .page-header, .data-run-page .panel { margin-bottom: 0; }
 .data-run-page .summary-strip { grid-template-columns: repeat(6, minmax(130px, 1fr)); }
+.content-run-page { display: grid; gap: var(--content-gap); }
+.content-run-page .page-header { margin-bottom: 0; }
+.content-run-page .summary-strip { grid-template-columns: repeat(6, minmax(130px, 1fr)); }
 
 .panel {
   margin-bottom: 20px;

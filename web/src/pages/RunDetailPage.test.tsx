@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -49,6 +50,17 @@ describe('RunDetailPage', () => {
     expect(screen.getByText('fixture')).toBeVisible()
     expect(screen.getByRole('button', { name: '重新运行' })).toBeEnabled()
     expect(screen.getByRole('tab', { name: '治理' })).toBeVisible()
+    expect(screen.getByRole('region', { name: '内容运行摘要' })).toHaveTextContent('板块数')
     await waitFor(() => expect(fetchRun).toHaveBeenCalledWith('run-1'))
+  })
+
+  it('keeps a stored draft reachable when the run status is failed', async () => {
+    vi.mocked(fetchRun).mockResolvedValue({
+      run_id: 'run-1', requested_at: '2026-08-17T00:00:00Z', provider: 'live', status: 'FAILED',
+      elapsed_ms: 120, total_cost_cny: '0', draft_id: 'draft-1', sector_count: 8, retryable: true,
+    })
+    render(<MemoryRouter initialEntries={['/runs/run-1']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+    await userEvent.click(await screen.findByRole('tab', { name: '草稿' }))
+    expect(await screen.findByText('草稿内容')).toBeInTheDocument()
   })
 })

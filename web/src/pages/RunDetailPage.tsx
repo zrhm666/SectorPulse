@@ -12,6 +12,7 @@ import InlineAlert from '../components/ui/InlineAlert'
 import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import StatusBadge from '../components/ui/StatusBadge'
+import SummaryStrip from '../components/ui/SummaryStrip'
 import { formatDate, formatDuration } from '../runPresentation'
 
 const TABS = [
@@ -55,24 +56,24 @@ export default function RunDetailPage() {
   const { events, done } = useRunSSE(runId ?? null, refresh)
 
   return (
-    <section>
+    <section className="content-run-page density-compact">
       <PageHeader title={`内容运行 ${runId?.slice(0, 8) ?? ''}`} description="查看归因、草稿、审核与治理结果。" actions={<Link className="button button-secondary" to="/runs">返回运行历史</Link>} />
       {loadError && <InlineAlert tone="error" title="无法加载运行详情"><button className="button button-secondary" type="button" onClick={refresh}>重新加载</button></InlineAlert>}
       {!run && !loadError && <LoadingState label="正在加载运行详情…" />}
       {run && <>
-        <div className="detail-summary">
-          <div><span>状态</span><StatusBadge status={run.status} /></div>
-          <div><span>Provider</span><strong>{run.provider}</strong></div>
-          <div><span>创建时间</span><strong>{formatDate(run.requested_at)}</strong></div>
-          <div><span>耗时</span><strong>{formatDuration(run.elapsed_ms)}</strong></div>
-          <div><span>成本</span><strong>{run.total_cost_cny != null ? `¥${run.total_cost_cny}` : '待完成'}</strong></div>
-          <div><span>板块数</span><strong>{run.sector_count ?? 0}</strong></div>
-        </div>
+        <SummaryStrip label="内容运行摘要" items={[
+          { label: '状态', value: <StatusBadge status={run.status} /> },
+          { label: 'Provider', value: run.provider },
+          { label: '创建时间', value: formatDate(run.requested_at) },
+          { label: '耗时', value: formatDuration(run.elapsed_ms) },
+          { label: '成本', value: run.total_cost_cny != null ? `¥${run.total_cost_cny}` : '待完成' },
+          { label: '板块数', value: run.sector_count ?? 0 },
+        ]} />
         {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成">本次运行没有生成可审核产物。请检查系统状态；若保留了输入快照，可直接重试。</InlineAlert>}
         {retryError && <InlineAlert tone="error" title="重试未能启动">请检查 Provider 和系统配置后再试。</InlineAlert>}
         {run.retryable && <div className="detail-actions"><button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button></div>}
-        <div className="tabbar" role="tablist" aria-label="运行详情视图">{TABS.map(([key, label]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
-        <div role="tabpanel" className="tab-panel">
+        <div className="tabbar" role="tablist" aria-label="运行详情视图">{TABS.map(([key, label]) => <button key={key} id={`content-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`content-panel-${key}`} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
+        <div id={`content-panel-${tab}`} role="tabpanel" aria-labelledby={`content-tab-${tab}`} className="tab-panel">
           {tab === 'overview' && <OverviewTab events={events} done={done} run={run} />}
           {tab === 'radar' && <RadarTab runId={runId ?? ''} />}
           {tab === 'draft' && <DraftTab runId={runId ?? ''} />}
