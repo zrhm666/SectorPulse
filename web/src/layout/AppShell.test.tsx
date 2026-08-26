@@ -53,3 +53,9 @@ it('renders one decorative outline icon for each navigation link', () => {
     expect(link.querySelector('svg.app-icon')).toHaveAttribute('aria-hidden', 'true')
   }
 })
+
+it('makes the independently scrolling content region keyboard reachable', () => {
+  renderShellAt('/')
+
+  expect(screen.getByRole('main')).toHaveAttribute('tabindex', '0')
+})

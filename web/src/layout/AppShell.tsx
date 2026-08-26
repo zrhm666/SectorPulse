@@ -19,7 +19,7 @@ export default function AppShell() {
       <SidebarNav items={NAV_ITEMS} open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="app-shell__body">
         <TopBar navOpen={navOpen} onToggleNavigation={() => setNavOpen((open) => !open)} />
-        <FeedbackProvider><main className="app-main" id="main-content"><Outlet /></main></FeedbackProvider>
+        <FeedbackProvider><main className="app-main" id="main-content" tabIndex={0}><Outlet /></main></FeedbackProvider>
       </div>
     </div>
   )

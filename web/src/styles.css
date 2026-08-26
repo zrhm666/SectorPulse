@@ -65,6 +65,7 @@
 body {
   margin: 0;
   min-width: 320px;
+  overflow: hidden;
   color: var(--color-text);
   background: var(--color-background);
   font-family: "Segoe UI Variable", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -86,13 +87,18 @@ a { color: var(--color-primary); }
   outline-offset: 2px;
 }
 
-.app-shell { display: flex; min-height: 100dvh; }
-.app-shell__body { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.app-shell { display: flex; width: 100%; height: 100dvh; overflow: hidden; }
+.app-shell__body { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; }
 
 .sidebar-nav {
   flex: 0 0 var(--sidebar-width);
   width: var(--sidebar-width);
+  height: 100dvh;
   padding: 28px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--ui-border-strong) transparent;
+  scrollbar-width: thin;
   background: var(--color-surface);
   border-right: 1px solid var(--color-border);
 }
@@ -124,6 +130,7 @@ a { color: var(--color-primary); }
 .top-bar {
   position: relative;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   min-height: 68px;
   padding: var(--space-3) 40px;
@@ -138,7 +145,8 @@ a { color: var(--color-primary); }
 .skip-link { position: absolute; top: var(--space-2); left: var(--space-2); z-index: 30; padding: var(--space-2) var(--space-3); color: #fff; background: var(--color-primary-strong); border-radius: var(--radius-sm); transform: translateY(-160%); }
 .skip-link:focus { transform: translateY(0); }
 
-.app-main { width: min(100%, 1480px); margin: 0 auto; padding: 36px 40px 56px; }
+.app-main { flex: 1 1 auto; width: min(100%, 1480px); min-height: 0; margin: 0 auto; padding: 36px 40px 56px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: var(--ui-border-strong) transparent; scrollbar-gutter: stable; scrollbar-width: thin; }
+.app-main:focus-visible { outline-offset: -3px; }
 
 .page-header {
   display: flex;
