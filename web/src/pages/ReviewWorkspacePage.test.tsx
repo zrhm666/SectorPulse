@@ -26,6 +26,7 @@ it('loads the review queue and edits only the latest draft version', async () =>
   expect(await screen.findByRole('main', { name: '草稿编辑区' })).toBeVisible()
   expect(await screen.findByRole('complementary', { name: '证据与治理' })).toBeVisible()
   expect(screen.getByRole('button', { name: /run-1/ })).toBeVisible()
+  expect(screen.getByRole('button', { name: /run-1/ })).toHaveTextContent('板块数未提供')
   expect(await screen.findByDisplayValue('新正文')).toBeEnabled()
   expect(screen.getByText('当前编辑版本 v2')).toBeVisible()
 })

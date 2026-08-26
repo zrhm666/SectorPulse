@@ -36,7 +36,7 @@ Set-Location ..
 .\.venv\Scripts\python.exe -m sector_pulse.web.server
 ```
 
-浏览器访问 <http://127.0.0.1:8000>。服务会读取根目录 `.env`，并在启动时自动初始化当前数据库所需表结构。
+浏览器访问 <http://127.0.0.1:9000>。服务会读取根目录 `.env`，并在启动时自动初始化当前数据库所需表结构。
 
 ## 前后端开发模式
 
@@ -54,7 +54,7 @@ Set-Location D:\work\SectorPulse\web
 npm.cmd run dev
 ```
 
-访问 Vite 输出的地址（通常是 <http://127.0.0.1:5173>）；`/api` 会代理到 `127.0.0.1:8000`。
+访问 Vite 输出的地址（通常是 <http://127.0.0.1:5173>）；`/api` 会代理到 `127.0.0.1:9000`。
 
 ## 数据库模式
 
