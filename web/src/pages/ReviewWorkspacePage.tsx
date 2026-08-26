@@ -91,9 +91,9 @@ export default function ReviewWorkspacePage() {
     {loading && <LoadingState label="正在加载审核队列…" />}
     {loadError && <InlineAlert tone="error" title="无法加载审核队列">请确认服务可用后刷新页面。</InlineAlert>}
     {!loading && !loadError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
-    {runs.length > 0 && <div className="review-layout">
+    {runs.length > 0 && <div className="review-layout" aria-label="审核工作区">
       <ReviewQueue runs={runs} selectedId={selectedId} onSelect={setSelectedId} />
-      {selectedRun && !latest && <main className="draft-workspace"><LoadingState label="正在加载草稿与证据…" /></main>}
+      {selectedRun && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
       {selectedRun && latest && <>
         <DraftWorkspace versions={versions} onSave={async (input) => {
           try {
