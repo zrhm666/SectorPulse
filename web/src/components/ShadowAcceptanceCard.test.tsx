@@ -15,7 +15,8 @@ describe('ShadowAcceptanceCard', () => {
 
   it('shows 20 day progress', () => {
     render(<ShadowAcceptanceCard runs={[]} progress={{ trading_days: 1, passed: 1, failed: 0, blocked: 0, remaining: 19, complete: false }} />)
-    expect(screen.getByText('交易日进度：1/20')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '影子验收进度' })).toBeVisible()
+    expect(screen.getByText('1/20')).toBeInTheDocument()
   })
 
   it('shows every historical run in a read-only table', () => {
@@ -40,7 +41,7 @@ describe('ShadowAcceptanceCard', () => {
     render(<ShadowAcceptancePage />)
 
     expect(screen.getByText('影子验收已暂停')).toBeInTheDocument()
-    expect(await screen.findByText('交易日进度：1/20')).toBeInTheDocument()
+    expect(await screen.findByText('1/20')).toBeInTheDocument()
   })
 
   it('shows a loading state while historical progress is requested', () => {

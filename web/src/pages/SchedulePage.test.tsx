@@ -19,6 +19,7 @@ describe('SchedulePage', () => {
 
   it('shows next trigger and allows manual trigger', async () => {
     render(<MemoryRouter><SchedulePage /></MemoryRouter>)
+    expect(screen.getByRole('region', { name: '调度概览' })).toBeVisible()
     expect(await screen.findByText(/下一次触发/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '立即运行' }))
     expect(api.triggerSchedule).toHaveBeenCalledWith('schedule-1')

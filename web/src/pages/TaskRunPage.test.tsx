@@ -19,6 +19,7 @@ describe('TaskRunPage', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('阶段历史')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '任务阶段' })).toBeVisible()
     expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument()
   })
 })

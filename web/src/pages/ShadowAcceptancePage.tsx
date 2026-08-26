@@ -34,12 +34,12 @@ export default function ShadowAcceptancePage() {
   }, [])
 
   return (
-    <section>
+    <section className="management-page">
       <PageHeader title="影子验收" description="只读查看已保存的真实验收进度和历史运行。" />
       <InlineAlert tone="warning" title="影子验收已暂停">
         当前不再追踪新的 20 个交易日记录；已有历史进度和运行记录会继续保留并展示。
       </InlineAlert>
-      <Panel title="历史验收进度">
+      <Panel density="compact" title="历史验收进度">
         {loading && <LoadingState label="正在加载影子验收记录…" />}
         {!loading && loadError && (
           <InlineAlert tone="error" title="无法加载影子验收记录">请稍后刷新页面重试。</InlineAlert>
