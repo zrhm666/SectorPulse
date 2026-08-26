@@ -86,13 +86,14 @@ export default function ReviewWorkspacePage() {
 
   const latest = versions[versions.length - 1]
 
-  return <section>
+  return <section className="review-page">
     <PageHeader title="审核工作台" description="集中阅读、修改和核准已生成的分析草稿。" />
     {loading && <LoadingState label="正在加载审核队列…" />}
     {loadError && <InlineAlert tone="error" title="无法加载审核队列">请确认服务可用后刷新页面。</InlineAlert>}
     {!loading && !loadError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
-    {runs.length > 0 && <div className="review-layout" aria-label="审核工作区">
+    {runs.length > 0 && <div className="review-workspace">
       <ReviewQueue runs={runs} selectedId={selectedId} onSelect={setSelectedId} />
+      <div className="review-layout" role="region" aria-label="审核主工作区">
       {selectedRun && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
       {selectedRun && latest && <>
         <DraftWorkspace versions={versions} onSave={async (input) => {
@@ -129,6 +130,7 @@ export default function ReviewWorkspacePage() {
           }, `草稿 v${latest.version} 已退回修改。`, '退回操作失败，请稍后重试。')}
         />
       </>}
+      </div>
     </div>}
   </section>
 }
