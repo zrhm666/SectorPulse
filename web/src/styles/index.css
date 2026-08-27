@@ -1,0 +1,5 @@
+@layer legacy, tokens, base, shell, components, responsive;
+
+@import url("../styles.css") layer(legacy);
+@import url("./tokens.css") layer(tokens);
+@import url("./base.css") layer(base);
