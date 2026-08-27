@@ -1,0 +1,40 @@
+import { expect, test } from '@playwright/test'
+
+test('desktop sidebar stays still while the main region scrolls', async ({ page }) => {
+  await page.setViewportSize({ width: 1536, height: 1024 })
+  await page.goto('/')
+  const sidebar = page.locator('.sidebar-nav')
+  const main = page.locator('.app-main')
+  await expect(sidebar).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开导航' })).toBeHidden()
+  const before = await sidebar.boundingBox()
+  await main.evaluate((element) => {
+    const spacer = document.createElement('div')
+    spacer.style.height = '1800px'
+    element.append(spacer)
+    element.scrollTop = 600
+  })
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  const after = await sidebar.boundingBox()
+  expect(after?.y).toBe(before?.y)
+  expect(await page.locator('body').evaluate((body) => getComputedStyle(body).overflow)).toBe('hidden')
+})
+
+test('navigation becomes a keyboard-dismissible drawer below 1024px', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 800 })
+  await page.goto('/runs')
+  const menu = page.getByRole('button', { name: '打开导航' })
+  await expect(menu).toBeVisible()
+  await menu.click()
+  await expect(page.getByRole('navigation', { name: '主导航' })).toHaveAttribute('data-open', 'true')
+  await expect(page.getByRole('button', { name: '关闭导航', exact: true })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('navigation', { name: '主导航' })).toHaveAttribute('data-open', 'false')
+})
+
+test('shell has no page-level horizontal overflow at 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await expect(page.getByRole('button', { name: '打开导航' })).toBeVisible()
+})

@@ -21,6 +21,8 @@
 .button:disabled { color: var(--sp-text-disabled); background: var(--sp-surface-soft); border-color: var(--sp-border); box-shadow: none; }
 .button__spinner { width: 15px; height: 15px; border: 2px solid currentcolor; border-right-color: transparent; border-radius: 50%; animation: loading-spin 700ms linear infinite; }
 
+.sidebar-nav__close, .top-bar__menu { display: none; }
+
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
 .page-header__title { margin: 0; color: var(--sp-text); font-size: clamp(28px, 3vw, 32px); line-height: 1.2; letter-spacing: -0.035em; }
 .page-header__description { max-width: 65ch; margin: 8px 0 0; color: var(--sp-text-muted); }
