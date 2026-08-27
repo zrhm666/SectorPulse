@@ -199,37 +199,38 @@ git commit -m "feat: query real operations history"
 - Consumes: `storage.operations.list_records(...)`, settings, consent files, Provider preflight and scheduler state.
 - Produces: additive fields `summary`, `trend`, `readiness`, `recent_runs`, `generated_at` while preserving all legacy fields.
 
-- [ ] **Step 1: Add failing response-contract assertions**
+- [x] **Step 1: Add failing response-contract assertions**
 
 ```python
 assert payload["generated_at"].endswith("Z") or "+" in payload["generated_at"]
 assert set(payload["readiness"]) == {"database", "live_data", "llm", "scheduler"}
 assert payload["readiness"]["database"]["status"] == "ready"
 assert "must-never-appear" not in response.text
-assert payload["runs"]["total"] == payload["summary"]["total"]
+assert payload["runs"]["total"] == 1  # 兼容字段继续只统计内容运行
+assert payload["summary"]["total"] == 2  # 新字段统一统计内容与数据运行
 ```
 
-- [ ] **Step 2: Run the API test and verify RED**
+- [x] **Step 2: Run the API test and verify RED**
 
 Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_operations_summary_api.py -q -p no:cacheprovider`
 
 Expected: FAIL on missing `generated_at` and `readiness`.
 
-- [ ] **Step 3: Add immutable Pydantic response models**
+- [x] **Step 3: Add immutable Pydantic response models**
 
 Define `OperationsCoreSummary`, `OperationsTrendPoint`, `OperationsTrend`, `OperationsReadinessItem`, and `OperationsRecentRun`. `detail_path` must be generated only as `/runs/{id}` or `/data-runs/{id}` from the trusted `kind` value.
 
-- [ ] **Step 4: Compose the endpoint response**
+- [x] **Step 4: Compose the endpoint response**
 
 Use one captured `now = datetime.now(UTC)` for all calculations and `generated_at`. Map readiness status to `ready | warning | unavailable | disabled`; reasons must mention missing consent/configuration names without exposing values. Keep the legacy `runs.recent` content-only shape for existing consumers.
 
-- [ ] **Step 5: Run backend regression**
+- [x] **Step 5: Run backend regression**
 
 Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_operations_summary.py backend/tests/unit/web backend/tests/integration/test_operations_summary_api.py -q -p no:cacheprovider -m "not live"`
 
 Expected: PASS, with only documented environment-dependent skips.
 
-- [ ] **Step 6: Commit the API contract**
+- [x] **Step 6: Commit the API contract**
 
 ```powershell
 git add backend/src/sector_pulse/web/operations_schemas.py backend/src/sector_pulse/web/app.py backend/tests/integration/test_operations_summary_api.py

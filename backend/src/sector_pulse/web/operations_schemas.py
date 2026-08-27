@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -46,6 +47,66 @@ class OperationsRunSummary(BaseModel):
     recent: list[RunSummary]
 
 
+class OperationsCoreSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    total: int = Field(ge=0)
+    completed_today: int = Field(ge=0)
+    active: int = Field(ge=0)
+    attention: int = Field(ge=0)
+
+
+class OperationsTrendPoint(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    date: date
+    total: int = Field(ge=0)
+    completed: int = Field(ge=0)
+    failed: int = Field(ge=0)
+
+
+class OperationsTrend(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    available: bool
+    reason: str | None
+    points: tuple[OperationsTrendPoint, ...] = ()
+
+
+class OperationsReadinessItem(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    status: Literal["ready", "warning", "unavailable", "disabled"]
+    label: str
+    detail: str
+    detail_path: str = "/system"
+
+
+class OperationsReadiness(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    database: OperationsReadinessItem
+    live_data: OperationsReadinessItem
+    llm: OperationsReadinessItem
+    scheduler: OperationsReadinessItem
+
+
+class OperationsRecentRun(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    run_id: str
+    kind: Literal["content", "data"]
+    mode: str
+    status: str
+    provider: str
+    requested_at: datetime
+    finished_at: datetime | None
+    elapsed_ms: int | None
+    total_cost_cny: Decimal | None
+    candidate_count: int | None = Field(default=None, ge=0)
+    detail_path: str
+
+
 class OperationsSummaryResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -54,3 +115,8 @@ class OperationsSummaryResponse(BaseModel):
     consent: OperationsConsentStatus
     providers: OperationsProviderStatus
     runs: OperationsRunSummary
+    summary: OperationsCoreSummary
+    trend: OperationsTrend
+    readiness: OperationsReadiness
+    recent_runs: tuple[OperationsRecentRun, ...]
+    generated_at: datetime

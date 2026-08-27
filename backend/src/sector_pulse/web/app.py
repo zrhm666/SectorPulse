@@ -3,8 +3,9 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -16,6 +17,10 @@ from pydantic import ValidationError
 from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.application.governance_service import GovernanceService
+from sector_pulse.application.operations_summary import (
+    OperationsSummaryQueryPort,
+    build_operations_snapshot,
+)
 from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
@@ -59,11 +64,17 @@ from sector_pulse.web.editing_schemas import (
 )
 from sector_pulse.web.operations_schemas import (
     OperationsConsentStatus,
+    OperationsCoreSummary,
     OperationsDatabaseStatus,
     OperationsLlmStatus,
     OperationsProviderStatus,
+    OperationsReadiness,
+    OperationsReadinessItem,
+    OperationsRecentRun,
     OperationsRunSummary,
     OperationsSummaryResponse,
+    OperationsTrend,
+    OperationsTrendPoint,
 )
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
@@ -85,6 +96,85 @@ from sector_pulse.web.shadow_schemas import (
     ShadowRunUpdateRequest,
 )
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
+
+
+def _build_operations_readiness(
+    *,
+    database_backend: str,
+    preflight_available: bool,
+    missing_requirements: tuple[str, ...],
+    llm_provider: str,
+    llm_configured: bool,
+    live_llm_consent: bool,
+    scheduler_enabled: bool,
+    scheduler_started: bool,
+) -> OperationsReadiness:
+    if preflight_available:
+        live_data = OperationsReadinessItem(
+            status="ready",
+            label="实时数据",
+            detail="Provider 与授权已就绪",
+        )
+    else:
+        missing = "、".join(missing_requirements) or "运行前置条件"
+        live_data = OperationsReadinessItem(
+            status="unavailable",
+            label="实时数据",
+            detail=f"缺少：{missing}",
+        )
+
+    if not llm_configured:
+        llm = OperationsReadinessItem(
+            status="unavailable",
+            label="LLM",
+            detail="模型配置不完整",
+        )
+    elif llm_provider == "fixture" or live_llm_consent:
+        llm = OperationsReadinessItem(
+            status="ready",
+            label="LLM",
+            detail=f"{llm_provider} 已就绪",
+        )
+    else:
+        llm = OperationsReadinessItem(
+            status="warning",
+            label="LLM",
+            detail="配置完成，尚未确认实时 LLM 授权",
+        )
+
+    if not scheduler_enabled:
+        scheduler_status = OperationsReadinessItem(
+            status="disabled",
+            label="调度器",
+            detail="当前配置为停用",
+        )
+    elif scheduler_started:
+        scheduler_status = OperationsReadinessItem(
+            status="ready",
+            label="调度器",
+            detail="定时调度已启动",
+        )
+    else:
+        scheduler_status = OperationsReadinessItem(
+            status="warning",
+            label="调度器",
+            detail="已启用但尚未启动",
+        )
+
+    return OperationsReadiness(
+        database=OperationsReadinessItem(
+            status="ready",
+            label="数据库",
+            detail=(
+                "PostgreSQL 已连接"
+                if database_backend == "postgresql"
+                else "SQLite 已连接"
+            ),
+        ),
+        live_data=live_data,
+        llm=llm,
+        scheduler=scheduler_status,
+    )
 
 
 def create_app(
@@ -195,6 +285,13 @@ def create_app(
     async def operations_summary() -> OperationsSummaryResponse:
         runs = queries.list()
         preflight = RealDataProviderFactory().preflight()
+        generated_at = datetime.now(UTC)
+        operations_query = cast(OperationsSummaryQueryPort | None, storage.operations)
+        if operations_query is None:
+            raise RuntimeError("operations query is not configured")
+        snapshot = build_operations_snapshot(
+            operations_query.list_records(), now=generated_at
+        )
         database_name = (
             urlparse(settings.database_url).path.lstrip("/")
             if settings.database_url
@@ -230,6 +327,61 @@ def create_app(
                 failed=sum(run.status == "FAILED" for run in runs),
                 recent=runs[:8],
             ),
+            summary=OperationsCoreSummary(
+                total=snapshot.summary.total,
+                completed_today=snapshot.summary.completed_today,
+                active=snapshot.summary.active,
+                attention=snapshot.summary.attention,
+            ),
+            trend=OperationsTrend(
+                available=snapshot.trend.available,
+                reason=snapshot.trend.reason,
+                points=tuple(
+                    OperationsTrendPoint(
+                        date=point.date,
+                        total=point.total,
+                        completed=point.completed,
+                        failed=point.failed,
+                    )
+                    for point in snapshot.trend.points
+                ),
+            ),
+            readiness=_build_operations_readiness(
+                database_backend=(
+                    "postgresql" if isinstance(database, PostgresDatabase) else "sqlite"
+                ),
+                preflight_available=preflight.available,
+                missing_requirements=preflight.missing,
+                llm_provider=settings.llm_provider,
+                llm_configured=(
+                    settings.llm_provider == "fixture"
+                    or bool(settings.llm_base_url and settings.llm_api_key)
+                ),
+                live_llm_consent=Path(".live-llm-consent").is_file(),
+                scheduler_enabled=settings.scheduler_enabled,
+                scheduler_started=scheduler is not None,
+            ),
+            recent_runs=tuple(
+                OperationsRecentRun(
+                    run_id=run.run_id,
+                    kind=run.kind,
+                    mode=run.mode,
+                    status=run.status,
+                    provider=run.provider,
+                    requested_at=run.requested_at,
+                    finished_at=run.finished_at,
+                    elapsed_ms=run.elapsed_ms,
+                    total_cost_cny=run.total_cost_cny,
+                    candidate_count=run.candidate_count,
+                    detail_path=(
+                        f"/runs/{run.run_id}"
+                        if run.kind == "content"
+                        else f"/data-runs/{run.run_id}"
+                    ),
+                )
+                for run in snapshot.recent_runs
+            ),
+            generated_at=generated_at,
         )
 
     @app.get("/api/analytics/summary", response_model=ReviewSummaryResponse)
