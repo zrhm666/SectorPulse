@@ -171,15 +171,15 @@ Execution note: evidence events and quality summaries remain complete bounded ru
 - Create: `web/src/hooks/useDataRunWorkbench.ts`
 - Create: `web/src/hooks/useDataRunWorkbench.test.tsx`
 
-- [ ] Define typed selection, candidate page, workflow summary and news detail contracts.
-- [ ] Add API methods for selection GET/PUT, candidate query params and news detail.
-- [ ] Preserve safe server error messages and AbortSignal support on every request used by the workbench.
-- [ ] Write hook tests for initial load, active two-second polling, terminal stop, hidden pause, no overlap, stale retention, exponential retry and manual refresh.
-- [ ] Implement recursive timeout polling rather than `setInterval`.
-- [ ] Poll the linked content run while it remains non-terminal, then stop when both workflows settle.
-- [ ] Keep per-tab resources lazy and cancellable; a stale tab response must not replace a newer filter request.
-- [ ] Run focused API/hook tests and TypeScript build.
-- [ ] Commit: `feat: add reliable data workbench state`.
+- [x] Define typed selection, candidate page, workflow summary and news detail contracts.
+- [x] Add API methods for selection GET/PUT, candidate query params and news detail.
+- [x] Preserve safe server error messages and AbortSignal support on every request used by the workbench.
+- [x] Write hook tests for initial load, active two-second polling, terminal stop, hidden pause, no overlap, stale retention, exponential retry and manual refresh.
+- [x] Implement recursive timeout polling rather than `setInterval`.
+- [x] Poll the linked content run while it remains non-terminal, then stop when both workflows settle.
+- [x] Keep per-tab resources lazy and cancellable; a stale tab response must not replace a newer filter request.
+- [x] Run focused API/hook tests and TypeScript build.
+- [x] Commit: `feat: add reliable data workbench state`.
 
 ## Task 5: Build The Candidate Selection Workspace
 

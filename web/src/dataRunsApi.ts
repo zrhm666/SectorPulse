@@ -34,6 +34,60 @@ export interface DataRunCandidateView {
   score: string
   reasons: string[]
   name?: string | null
+  pct_change?: string | null
+  turnover_rate?: string | null
+  total_market_cap?: string | null
+  advancers?: number | null
+  decliners?: number | null
+  leader_name?: string | null
+  leader_pct_change?: string | null
+  field_availability?: Record<string, boolean>
+  news_count?: number
+}
+
+export type CandidateSort = 'rank' | 'score' | 'name' | 'pct_change' | 'news_count'
+export type SortDirection = 'asc' | 'desc'
+
+export interface CandidateQuery {
+  query?: string
+  sort?: CandidateSort
+  direction?: SortDirection
+  offset?: number
+  limit?: number
+}
+
+export interface DataRunCandidatePageView {
+  items: DataRunCandidateView[]
+  total: number
+  offset: number
+  limit: number
+  query: string | null
+  sort: CandidateSort
+  direction: SortDirection
+  data_version: string
+}
+
+export interface DataRunSelectionView {
+  run_id: string
+  confirmed: boolean
+  version: number
+  selected_sector_ids: string[]
+  method: 'DEFAULT' | 'MANUAL' | null
+  confirmed_at: string | null
+  data_version: string
+  edit_count: number
+}
+
+export interface DataRunWorkflowSummaryView {
+  run_id: string
+  status: string
+  workflow_stage: string
+  workflow_stage_index: number
+  terminal: boolean
+  requested_at: string
+  cutoff_at: string | null
+  finished_at: string | null
+  candidate_count: number
 }
 
 export type SectorKind = 'INDUSTRY' | 'CONCEPT'
@@ -87,6 +141,15 @@ export interface EvidenceDocumentView {
   source_observed_at: string | null
   collected_at: string
   source_grade: string
+  content_kind?: 'FULL_TEXT' | 'SUMMARY' | 'FLASH' | 'LINK_ONLY'
+  content?: string | null
+  content_available?: boolean
+}
+
+export interface DataRunNewsDetailView extends EvidenceDocumentView {
+  content_kind: 'FULL_TEXT' | 'SUMMARY' | 'FLASH' | 'LINK_ONLY'
+  content: string | null
+  content_available: boolean
 }
 
 export interface EvidenceEventView {
@@ -192,20 +255,69 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+function signalInit(signal?: AbortSignal): RequestInit | undefined {
+  return signal ? { signal } : undefined
+}
+
 function dataRunPath(runId: string): string {
   return `/data-runs/${encodeURIComponent(runId)}`
 }
 
-export function fetchDataRun(runId: string): Promise<DataRunView> {
-  return request(dataRunPath(runId))
+export function fetchDataRun(runId: string, signal?: AbortSignal): Promise<DataRunView> {
+  return request(dataRunPath(runId), signalInit(signal))
 }
 
 export function fetchDataRuns(): Promise<DataRunView[]> {
   return request('/data-runs')
 }
 
-export function fetchDataRunCandidates(runId: string): Promise<DataRunCandidateView[]> {
-  return request(`${dataRunPath(runId)}/candidates`)
+export function fetchDataRunCandidates(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<DataRunCandidateView[]> {
+  return fetchDataRunCandidatePage(runId, {}, signal).then((page) => page.items)
+}
+
+export function fetchDataRunCandidatePage(
+  runId: string,
+  params: CandidateQuery = {},
+  signal?: AbortSignal,
+): Promise<DataRunCandidatePageView> {
+  const query = new URLSearchParams()
+  if (params.query) query.set('query', params.query)
+  query.set('sort', params.sort ?? 'rank')
+  query.set('direction', params.direction ?? 'asc')
+  query.set('offset', String(params.offset ?? 0))
+  query.set('limit', String(params.limit ?? 20))
+  return request(`${dataRunPath(runId)}/candidates?${query}`, signalInit(signal))
+}
+
+export function fetchDataRunSelection(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<DataRunSelectionView> {
+  return request(`${dataRunPath(runId)}/selection`, signalInit(signal))
+}
+
+export function confirmDataRunSelection(
+  runId: string,
+  sectorIds: string[],
+  expectedVersion: number,
+  signal?: AbortSignal,
+): Promise<DataRunSelectionView> {
+  return request(`${dataRunPath(runId)}/selection`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sector_ids: sectorIds, expected_version: expectedVersion }),
+    ...(signal ? { signal } : {}),
+  })
+}
+
+export function fetchDataRunSummary(
+  runId: string,
+  signal?: AbortSignal,
+): Promise<DataRunWorkflowSummaryView> {
+  return request(`${dataRunPath(runId)}/summary`, signalInit(signal))
 }
 
 export function fetchDataRunMarket(
@@ -213,41 +325,54 @@ export function fetchDataRunMarket(
   kind: SectorKind,
   offset = 0,
   limit = 20,
+  signal?: AbortSignal,
 ): Promise<DataRunMarketView> {
   const query = new URLSearchParams({
     kind,
     offset: String(offset),
     limit: String(limit),
   })
-  return request(`${dataRunPath(runId)}/market?${query}`)
+  return request(`${dataRunPath(runId)}/market?${query}`, signalInit(signal))
 }
 
-export function fetchDataRunEvidence(runId: string): Promise<DataRunEvidenceView> {
-  return request(`${dataRunPath(runId)}/evidence`)
+export function fetchDataRunEvidence(runId: string, signal?: AbortSignal): Promise<DataRunEvidenceView> {
+  return request(`${dataRunPath(runId)}/evidence`, signalInit(signal))
 }
 
-export function fetchDataRunQuality(runId: string): Promise<DataRunQualityView> {
-  return request(`${dataRunPath(runId)}/quality`)
+export function fetchDataRunQuality(runId: string, signal?: AbortSignal): Promise<DataRunQualityView> {
+  return request(`${dataRunPath(runId)}/quality`, signalInit(signal))
 }
 
-export function fetchDataRunContentRun(runId: string): Promise<DataRunContentView | null> {
-  return request(`${dataRunPath(runId)}/content-run`)
+export function fetchDataRunContentRun(runId: string, signal?: AbortSignal): Promise<DataRunContentView | null> {
+  return request(`${dataRunPath(runId)}/content-run`, signalInit(signal))
 }
 
-export function fetchDataRunAcquisition(runId: string): Promise<DataRunAcquisitionView> {
-  return request(`${dataRunPath(runId)}/acquisition`)
+export function fetchDataRunAcquisition(runId: string, signal?: AbortSignal): Promise<DataRunAcquisitionView> {
+  return request(`${dataRunPath(runId)}/acquisition`, signalInit(signal))
 }
 
 export function fetchDataRunNewsRecords(
   runId: string,
   params: NewsRecordQuery = {},
+  signal?: AbortSignal,
 ): Promise<DataRunNewsRecordsView> {
   const query = new URLSearchParams()
   if (params.sourceId) query.set('source_id', params.sourceId)
   if (params.status) query.set('status', params.status)
   query.set('offset', String(params.offset ?? 0))
   query.set('limit', String(params.limit ?? 20))
-  return request(`${dataRunPath(runId)}/news-records?${query}`)
+  return request(`${dataRunPath(runId)}/news-records?${query}`, signalInit(signal))
+}
+
+export function fetchDataRunNewsRecord(
+  runId: string,
+  documentId: string,
+  signal?: AbortSignal,
+): Promise<DataRunNewsDetailView> {
+  return request(
+    `${dataRunPath(runId)}/news-records/${encodeURIComponent(documentId)}`,
+    signalInit(signal),
+  )
 }
 
 export function retryDataRun(runId: string): Promise<{ run_id: string }> {
@@ -264,11 +389,10 @@ export function createDataRun(input: NewDataRunRequest): Promise<{ run_id: strin
 
 export function generateDataRunArticle(
   runId: string,
-  sectorIds?: string[],
+  _legacyTransientSectorIds?: string[],
 ): Promise<{ run_id: string }> {
   return request(`${dataRunPath(runId)}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: sectorIds ? JSON.stringify({ sector_ids: sectorIds }) : undefined,
   })
 }

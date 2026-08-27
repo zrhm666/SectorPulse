@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  confirmDataRunSelection,
+  fetchDataRunCandidatePage,
+  fetchDataRunNewsRecord,
+  fetchDataRunSelection,
+  fetchDataRunSummary,
   fetchDataRunAcquisition,
   fetchDataRunContentRun,
   fetchDataRunMarket,
@@ -33,6 +38,56 @@ describe('data run workbench api', () => {
     expect(fetch).toHaveBeenCalledWith(
       '/api/data-runs/run%2Fid/market?kind=CONCEPT&offset=20&limit=20',
       undefined,
+    )
+  })
+
+  it('encodes candidate search, sorting and pagination', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({
+      items: [], total: 0, offset: 20, limit: 10, query: '农业',
+      sort: 'news_count', direction: 'desc', data_version: 'a'.repeat(64),
+    }))
+    const controller = new AbortController()
+
+    await fetchDataRunCandidatePage('run/id', {
+      query: '农业', sort: 'news_count', direction: 'desc', offset: 20, limit: 10,
+    }, controller.signal)
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/data-runs/run%2Fid/candidates?query=%E5%86%9C%E4%B8%9A&sort=news_count&direction=desc&offset=20&limit=10',
+      { signal: controller.signal },
+    )
+  })
+
+  it('loads and confirms an immutable candidate selection version', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ confirmed: false, version: 0 }))
+      .mockResolvedValueOnce(jsonResponse({ confirmed: true, version: 1 }))
+
+    await fetchDataRunSelection('run-1')
+    await confirmDataRunSelection('run-1', ['a', 'b', 'c'], 0)
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/data-runs/run-1/selection', undefined)
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/data-runs/run-1/selection', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sector_ids: ['a', 'b', 'c'], expected_version: 0 }),
+    })
+  })
+
+  it('loads workflow summary and one news detail with cancellation support', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ workflow_stage: 'ATTRIBUTION_READY' }))
+      .mockResolvedValueOnce(jsonResponse({ document_id: 'doc/1', content_kind: 'SUMMARY' }))
+    const controller = new AbortController()
+
+    await fetchDataRunSummary('run-1', controller.signal)
+    await fetchDataRunNewsRecord('run-1', 'doc/1', controller.signal)
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1, '/api/data-runs/run-1/summary', { signal: controller.signal },
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      2, '/api/data-runs/run-1/news-records/doc%2F1', { signal: controller.signal },
     )
   })
 
@@ -77,15 +132,14 @@ describe('data run workbench api', () => {
     })
   })
 
-  it('posts the manually selected candidates for article generation', async () => {
+  it('starts generation from the server-confirmed candidate version', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ run_id: 'run-1' }))
 
-    await generateDataRunArticle('run/id', ['sector-3', 'sector-1', 'sector-2'])
+    await generateDataRunArticle('run/id')
 
     expect(fetch).toHaveBeenCalledWith('/api/data-runs/run%2Fid/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sector_ids: ['sector-3', 'sector-1', 'sector-2'] }),
     })
   })
 
