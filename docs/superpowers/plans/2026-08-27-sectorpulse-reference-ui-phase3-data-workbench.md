@@ -243,16 +243,16 @@ Verification evidence (2026-08-28): Vitest passed 39 files / 134 tests; `tsc -b 
 - Modify: `docs/superpowers/plans/2026-08-27-sectorpulse-reference-ui-refactor-master.md`
 - Modify: this plan
 
-- [ ] Add deterministic E2E fixtures for active, ready, degraded, empty, stale and failed runs without writing the user's database.
-- [ ] Verify 1536×1024 and 1440×900 hierarchy, 1024×768 stacking, 768×1024 drawer behavior and 390×844 reachability/no root overflow.
-- [ ] Verify candidate search/sort/select/confirm/reload, then prove generate remains disabled for dirty or unconfirmed state.
-- [ ] Verify market/news pagination and both drawers, including summary/flash/link-only labels and safe-link rules.
-- [ ] Run complete frontend Vitest, build and shell/data-workbench Playwright suites.
-- [ ] Run complete non-live backend unit/integration tests, Ruff and mypy for changed source.
-- [ ] Attempt PostgreSQL selection flow only when reachable; otherwise record the exact connection exception without claiming success.
-- [ ] Inspect the built page in the in-app browser with no console errors, clipped actions, fake values or full-text mislabeling.
-- [ ] Run `git diff --check` and confirm only Phase 3 closure files remain.
-- [ ] Write exact acceptance evidence, mark Phase 3 complete in the master plan and commit `docs: record reference ui phase 3 acceptance`.
+- [x] Add deterministic E2E fixtures for active, ready, degraded, empty, stale and failed runs without writing the user's database.
+- [x] Verify 1536×1024 and 1440×900 hierarchy, 1024×768 stacking, 768×1024 drawer behavior and 390×844 reachability/no root overflow.
+- [x] Verify candidate search/sort/select/confirm/reload, then prove generate remains disabled for dirty or unconfirmed state.
+- [x] Verify market/news pagination and both drawers, including summary/flash/link-only labels and safe-link rules.
+- [x] Run complete frontend Vitest, build and shell/data-workbench Playwright suites.
+- [x] Run complete non-live backend unit/integration tests, Ruff and mypy for changed source.
+- [x] Attempt PostgreSQL selection flow only when reachable; otherwise record the exact connection exception without claiming success.
+- [x] Inspect the built page in the in-app browser with no console errors, clipped actions, fake values or full-text mislabeling.
+- [x] Run `git diff --check` and confirm only Phase 3 closure files remain.
+- [x] Write exact acceptance evidence, mark Phase 3 complete in the master plan and commit `docs: record reference ui phase 3 acceptance`.
 
 ## Phase Exit Criteria
 

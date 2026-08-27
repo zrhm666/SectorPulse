@@ -136,13 +136,15 @@ Set-Location ..
 - `backend/tests/unit/application/`
 - `backend/tests/integration/`
 
-- [ ] 统一运行摘要、五阶段进度、采集统计和 Provider 状态。
-- [ ] 候选板块支持搜索、排序、全选、取消和确认，并持久化选择版本。
-- [ ] 生成草稿读取已确认候选版本；未确认时后端和前端共同阻止提交。
-- [ ] 行情、新闻、证据、质量使用服务端分页和稳定页签。
-- [ ] 新闻明确区分正文、摘要、快讯和原文 URL；只为真实链接提供入口。
-- [ ] 运行中每 2 秒轮询，终态停止，刷新后恢复阶段与选择。
+- [x] 统一运行摘要、五阶段进度、采集统计和 Provider 状态。
+- [x] 候选板块支持搜索、排序、全选、取消和确认，并持久化选择版本。
+- [x] 生成草稿读取已确认候选版本；未确认时后端和前端共同阻止提交。
+- [x] 行情、新闻、证据、质量使用服务端分页和稳定页签。
+- [x] 新闻明确区分正文、摘要、快讯和原文 URL；只为真实链接提供入口。
+- [x] 运行中每 2 秒轮询，终态停止，刷新后恢复阶段与选择。
 - [ ] 通过真实 PostgreSQL 流程验证“采集→选择→生成草稿”。
+
+Phase 3 code and non-live acceptance completed on 2026-08-28. PostgreSQL validation remains unchecked because the configured service returned `ConnectionRefusedError: [WinError 1225]`; see `docs/superpowers/acceptance/2026-08-27-sectorpulse-reference-ui-phase3.md`.
 
 ## Phase 4: Review Workspace
 
