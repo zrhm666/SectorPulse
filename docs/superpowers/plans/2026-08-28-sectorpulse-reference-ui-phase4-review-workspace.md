@@ -88,13 +88,13 @@ Autosave waits 800 ms after the last input and saves immediately on blur. `saved
 - Create: `web/src/hooks/useReviewWorkspace.ts`
 - Create: `web/src/hooks/useReviewWorkspace.test.tsx`
 
-- [ ] Add typed section `source_ids`, safe API errors with status/code and AbortSignal support for review requests.
-- [ ] Write failing hook tests for initial queue selection, empty/error state, stale run-switch suppression, reload and latest-version refresh.
-- [ ] Implement one state boundary for queue, selected run, versions, governance, approval and decisions.
-- [ ] Preserve the selected queue item when it remains reviewable after refresh; otherwise select the first pending item.
-- [ ] Expose explicit initial loading, pane loading and recoverable errors without clearing the last successful workspace.
-- [ ] Run focused API/hook/page tests and TypeScript build.
-- [ ] Commit: `refactor: harden review workspace state`.
+- [x] Add typed section `source_ids`, safe API errors with status/code and AbortSignal support for review requests.
+- [x] Write failing hook tests for initial queue selection, empty/error state, stale run-switch suppression, reload and latest-version refresh.
+- [x] Implement one state boundary for queue, selected run, versions, governance, approval and decisions.
+- [x] Preserve the selected queue item when it remains reviewable after refresh; otherwise select the first pending item.
+- [x] Expose explicit initial loading, pane loading and recoverable errors without clearing the last successful workspace.
+- [x] Run focused API/hook/page tests and TypeScript build (9 focused tests; 104-module production build).
+- [x] Commit: `refactor: harden review workspace state`.
 
 ## Task 2: Build The Three-Pane Review Shell
 
