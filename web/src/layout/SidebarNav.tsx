@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import type { NavigationItem } from './navigation'
 import AppIcon from '../components/ui/AppIcon'
+import Button from '../components/ui/Button'
 
 export type SidebarNavProps = {
   items: NavigationItem[]
@@ -28,9 +29,9 @@ export default function SidebarNav({ items, open, onClose }: SidebarNavProps) {
                 <p className="sidebar-nav__context">智能板块研判平台</p>
               </div>
             </div>
-            <button ref={closeButtonRef} className="sidebar-nav__close" type="button" onClick={onClose} aria-label="关闭导航">
-              <AppIcon name="close" /><span>关闭</span>
-            </button>
+            <Button ref={closeButtonRef} className="sidebar-nav__close" variant="secondary" size="compact" type="button" onClick={onClose} aria-label="关闭导航" icon="close">
+              关闭
+            </Button>
           </div>
           <div className="sidebar-nav__links">
             {(['运营', '管理'] as const).map((group) => <section className="sidebar-nav__group" key={group} aria-labelledby={`nav-${group}`}>

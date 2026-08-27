@@ -13,6 +13,12 @@ it('renders one page heading and its primary action', () => {
   expect(screen.getByRole('button', { name: '新建分析' })).toBeInTheDocument()
 })
 
+it('renders optional page metadata before actions', () => {
+  render(<PageHeader title="运营总览" meta={<span>最后更新 21:11</span>} actions={<button>刷新</button>} />)
+  expect(screen.getByText('最后更新 21:11')).toBeInTheDocument()
+  expect(screen.getByText('最后更新 21:11').closest('.page-header__meta')).not.toBeNull()
+})
+
 it('exposes status and alert semantics as text', () => {
   render(
     <>

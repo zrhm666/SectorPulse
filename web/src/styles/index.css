@@ -4,3 +4,4 @@
 @import url("./tokens.css") layer(tokens);
 @import url("./base.css") layer(base);
 @import url("./shell.css") layer(shell);
+@import url("./components/primitives.css") layer(components);
