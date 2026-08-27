@@ -249,7 +249,7 @@ git commit -m "feat: extend operations dashboard api"
 - Produces: `OperationsSummary`, `OperationsTrendPoint`, `OperationsRecentRun`, `fetchOperationsSummary(signal?)`, `useOperationsSummary()`.
 - Hook returns: `{ data, initialLoading, refreshing, stale, error, lastSuccessfulAt, refresh }`.
 
-- [ ] **Step 1: Write failing API and hook tests**
+- [x] **Step 1: Write failing API and hook tests**
 
 Tests must assert:
 
@@ -261,27 +261,27 @@ expect(result.current.data?.summary.active).toBe(1)
 
 With fake timers, advance 5 seconds and expect a second request only when `summary.active > 0`. Set `document.visibilityState` to `hidden`, dispatch `visibilitychange`, advance 10 seconds, and expect no request. Reject a refresh after one successful response and assert `data` is preserved while `stale=true`.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run: `Set-Location web; npm.cmd test -- src/operationsApi.test.ts src/hooks/useOperationsSummary.test.tsx`
 
 Expected: FAIL because the hook and additive types do not exist.
 
-- [ ] **Step 3: Implement typed API and request cancellation**
+- [x] **Step 3: Implement typed API and request cancellation**
 
 `fetchOperationsSummary(signal?: AbortSignal)` passes the signal to `fetch`, throws `OperationsApiError` containing only HTTP status and a safe message, and validates no secrets client-side.
 
-- [ ] **Step 4: Implement recursive timeout polling**
+- [x] **Step 4: Implement recursive timeout polling**
 
 Use `setTimeout` after each completed request rather than `setInterval`, so requests cannot overlap. Schedule 5 seconds only if `data.summary.active > 0` and the document is visible. Abort in-flight requests on unmount. Manual `refresh` works in stale state and does not clear the retained data.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run: `Set-Location web; npm.cmd test -- src/operationsApi.test.ts src/hooks/useOperationsSummary.test.tsx`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the frontend data layer**
+- [x] **Step 6: Commit the frontend data layer**
 
 ```powershell
 git add web/src/operationsApi.ts web/src/operationsApi.test.ts web/src/hooks/useOperationsSummary.ts web/src/hooks/useOperationsSummary.test.tsx

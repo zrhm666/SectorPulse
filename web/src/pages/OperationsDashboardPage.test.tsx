@@ -18,6 +18,16 @@ const summary = {
     failed: 0,
     recent: [{ run_id: '12345678-0000-0000-0000-000000000000', requested_at: '2026-08-23T09:00:00+08:00', provider: 'fixture', status: 'READY_FOR_HUMAN_REVIEW', elapsed_ms: 1200, total_cost_cny: '0', draft_id: null }],
   },
+  summary: { total: 3, completed_today: 1, active: 1, attention: 1 },
+  trend: { available: true, reason: null, points: [{ date: '2026-08-23', total: 3, completed: 1, failed: 0 }] },
+  readiness: {
+    database: { status: 'ready' as const, label: '数据库', detail: 'PostgreSQL 已连接', detail_path: '/system' },
+    live_data: { status: 'ready' as const, label: '实时数据', detail: 'Provider 与授权已就绪', detail_path: '/system' },
+    llm: { status: 'warning' as const, label: 'LLM', detail: '尚未确认实时 LLM 授权', detail_path: '/system' },
+    scheduler: { status: 'disabled' as const, label: '调度器', detail: '当前配置为停用', detail_path: '/system' },
+  },
+  recent_runs: [],
+  generated_at: '2026-08-27T12:00:00+00:00',
 }
 
 describe('OperationsDashboardPage', () => {
