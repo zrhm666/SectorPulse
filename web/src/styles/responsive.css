@@ -3,7 +3,7 @@
   .app-main { padding-inline: 24px; }
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1024px) {
   .app-shell { display: block; }
   .sidebar-nav {
     position: fixed;

@@ -12,11 +12,11 @@
   transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 .button--compact { min-height: 38px; padding-inline: 12px; font-size: 13px; }
-.button--primary { color: #fff; background: var(--sp-primary); border-color: var(--sp-primary); box-shadow: 0 8px 20px rgb(23 104 242 / 0.18); }
-.button--primary:hover { background: var(--sp-primary-hover); }
-.button--secondary { color: var(--sp-text-secondary); background: var(--sp-surface); border-color: var(--sp-border-strong); }
-.button--ghost { color: var(--sp-primary); background: transparent; }
-.button--danger { color: #fff; background: var(--sp-danger); border-color: var(--sp-danger); }
+.button--primary, .button-primary { color: #fff; background: var(--sp-primary); border-color: var(--sp-primary); box-shadow: 0 8px 20px rgb(23 104 242 / 0.18); }
+.button--primary:hover, .button-primary:hover { background: var(--sp-primary-hover); }
+.button--secondary, .button-secondary { color: var(--sp-text-secondary); background: var(--sp-surface); border-color: var(--sp-border-strong); }
+.button--ghost, .button-ghost { color: var(--sp-primary); background: transparent; }
+.button--danger, .button-danger { color: #fff; background: var(--sp-danger); border-color: var(--sp-danger); }
 .button:active:not(:disabled) { transform: translateY(1px); }
 .button:disabled { color: var(--sp-text-disabled); background: var(--sp-surface-soft); border-color: var(--sp-border); box-shadow: none; }
 .button__spinner { width: 15px; height: 15px; border: 2px solid currentcolor; border-right-color: transparent; border-radius: 50%; animation: loading-spin 700ms linear infinite; }

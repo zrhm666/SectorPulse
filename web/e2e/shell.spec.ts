@@ -20,8 +20,8 @@ test('desktop sidebar stays still while the main region scrolls', async ({ page 
   expect(await page.locator('body').evaluate((body) => getComputedStyle(body).overflow)).toBe('hidden')
 })
 
-test('navigation becomes a keyboard-dismissible drawer below 1024px', async ({ page }) => {
-  await page.setViewportSize({ width: 960, height: 800 })
+test('navigation becomes a keyboard-dismissible drawer at 1024px and below', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 800 })
   await page.goto('/runs')
   const menu = page.getByRole('button', { name: '打开导航' })
   await expect(menu).toBeVisible()
@@ -37,4 +37,12 @@ test('shell has no page-level horizontal overflow at 390px', async ({ page }) =>
   await page.goto('/')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await expect(page.getByRole('button', { name: '打开导航' })).toBeVisible()
+})
+
+test('legacy primary page actions keep readable text', async ({ page }) => {
+  await page.setViewportSize({ width: 1536, height: 1024 })
+  await page.goto('/')
+  const action = page.getByRole('link', { name: '新建分析', exact: true })
+  await expect(action).toBeVisible()
+  expect(await action.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)')
 })
