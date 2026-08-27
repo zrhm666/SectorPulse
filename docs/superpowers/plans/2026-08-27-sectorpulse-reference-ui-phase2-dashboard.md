@@ -32,6 +32,7 @@
 - Create `backend/src/sector_pulse/storage/operations_query.py`: SQLite 精确计数、30 日趋势和统一近期运行查询。
 - Create `backend/src/sector_pulse/storage/postgres_operations_query.py`: 与 SQLite 返回同一契约的 PostgreSQL 查询。
 - Modify `backend/src/sector_pulse/storage/runtime_bundle.py`: 为两种存储运行时注册 `operations` 查询端口。
+- Create `backend/tests/integration/test_operations_query.py`: 验证 SQLite 统一查询、窗口、限制和去重。
 - Modify `backend/src/sector_pulse/web/operations_schemas.py`: 增量定义新版响应字段。
 - Modify `backend/src/sector_pulse/web/app.py`: 组合聚合结果与数据库、Provider、LLM、授权和调度器就绪状态。
 - Create `backend/tests/unit/application/test_operations_summary.py`: 验证状态映射和趋势空态。
@@ -131,6 +132,7 @@ git commit -m "feat: define operations summary model"
 - Create: `backend/src/sector_pulse/storage/operations_query.py`
 - Create: `backend/src/sector_pulse/storage/postgres_operations_query.py`
 - Modify: `backend/src/sector_pulse/storage/runtime_bundle.py`
+- Create: `backend/tests/integration/test_operations_query.py`
 - Create: `backend/tests/integration/test_postgres_operations_query.py`
 - Modify: `backend/tests/integration/test_operations_summary_api.py`
 
@@ -138,29 +140,23 @@ git commit -m "feat: define operations summary model"
 - Consumes: `phase1b_runs`, `sector_analysis_cards`, `real_data_runs`, `real_data_candidates`。
 - Produces: `SQLiteOperationsQuery.list_records(since, limit=None)` and `PostgresOperationsQuery.list_records(since, limit=None) -> list[OperationalRun]` with identical semantics.
 
-- [ ] **Step 1: Add a failing SQLite integration scenario with both run kinds**
+- [x] **Step 1: Add a failing SQLite integration scenario with both run kinds**
 
-Insert one `phase1b_runs` row and one `real_data_runs` row into the temporary SQLite database, call `/api/operations/summary`, and assert:
+Insert one `phase1b_runs` row and one `real_data_runs` row into the temporary SQLite database, call `SQLiteOperationsQuery.list_records()`, and assert:
 
 ```python
-assert payload["summary"] == {
-    "total": 2,
-    "completed_today": 1,
-    "active": 1,
-    "attention": 1,
-}
-assert [item["kind"] for item in payload["recent_runs"]] == ["data", "content"]
-assert payload["recent_runs"][0]["detail_path"].startswith("/data-runs/")
-assert payload["trend"]["available"] is True
+assert [record.kind for record in records] == ["data", "content"]
+assert records[0].candidate_count == 2
+assert records[1].total_cost_cny == Decimal("0.25")
 ```
 
-- [ ] **Step 2: Run the SQLite integration test and verify RED**
+- [x] **Step 2: Run the SQLite integration test and verify RED**
 
-Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_operations_summary_api.py -q -p no:cacheprovider`
+Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_operations_query.py -q -p no:cacheprovider`
 
 Expected: FAIL because the additive fields are absent.
 
-- [ ] **Step 3: Implement the SQLite query**
+- [x] **Step 3: Implement the SQLite query**
 
 Use one `UNION ALL` query that normalizes both tables into:
 
@@ -171,24 +167,24 @@ elapsed_ms, total_cost_cny, candidate_count
 
 Content candidate count comes from `sector_analysis_cards`; data candidate count comes from `real_data_candidates`. A missing count is `0`, while unavailable elapsed time and cost stay `NULL`.
 
-- [ ] **Step 4: Implement PostgreSQL parity and runtime registration**
+- [x] **Step 4: Implement PostgreSQL parity and runtime registration**
 
 Use SQLAlchemy `text()` with named parameters and `result.mappings()`. Register `operations` in `RuntimeStorageBundle`; wrap PostgreSQL with the existing `BlockingAsyncRepository` bridge. Do not add a migration.
 
-- [ ] **Step 5: Add the PostgreSQL contract test**
+- [x] **Step 5: Add the PostgreSQL contract test**
 
 The test uses the repository’s existing PostgreSQL fixture/skip convention, inserts one row of each kind, and asserts the normalized fields match the SQLite test. It must skip cleanly when PostgreSQL is unavailable rather than replacing it with a mock database.
 
-- [ ] **Step 6: Run storage and integration tests**
+- [x] **Step 6: Run storage and integration tests**
 
 Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_operations_summary_api.py backend/tests/integration/test_postgres_operations_query.py -q -p no:cacheprovider`
 
 Expected: SQLite PASS; PostgreSQL PASS when configured or SKIP with the repository suite’s standard reason.
 
-- [ ] **Step 7: Commit the storage queries**
+- [x] **Step 7: Commit the storage queries**
 
 ```powershell
-git add backend/src/sector_pulse/storage/operations_query.py backend/src/sector_pulse/storage/postgres_operations_query.py backend/src/sector_pulse/storage/runtime_bundle.py backend/tests/integration/test_operations_summary_api.py backend/tests/integration/test_postgres_operations_query.py
+git add backend/src/sector_pulse/storage/operations_query.py backend/src/sector_pulse/storage/postgres_operations_query.py backend/src/sector_pulse/storage/runtime_bundle.py backend/tests/integration/test_operations_query.py backend/tests/integration/test_postgres_operations_query.py
 git commit -m "feat: query real operations history"
 ```
 
