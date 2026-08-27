@@ -7,4 +7,5 @@
 @import url("./components/primitives.css") layer(components);
 @import url("./pages/dashboard.css") layer(components);
 @import url("./pages/data-run.css") layer(components);
+@import url("./pages/review-workspace.css") layer(components);
 @import url("./responsive.css") layer(responsive);

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import DraftWorkspace from '../components/review/DraftWorkspace'
 import EvidenceDecisionPane from '../components/review/EvidenceDecisionPane'
+import ReviewPaneTabs, { type ReviewPane } from '../components/review/ReviewPaneTabs'
 import ReviewQueue from '../components/review/ReviewQueue'
 import EmptyState from '../components/ui/EmptyState'
 import { useFeedback } from '../components/ui/FeedbackProvider'
@@ -14,6 +16,7 @@ import {
 
 export default function ReviewWorkspacePage() {
   const feedback = useFeedback()
+  const [activePane, setActivePane] = useState<ReviewPane>('draft')
   const workspace = useReviewWorkspace()
   const {
     runs, selectedId, selectedRun, versions, governance, approval, decisions,
@@ -41,12 +44,15 @@ export default function ReviewWorkspacePage() {
     {workspaceError && versions.length > 0 && <InlineAlert tone="warning" title="显示最近一次成功数据">{workspaceError}</InlineAlert>}
     {!initialLoading && !queueError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
     {runs.length > 0 && <div className="review-workspace">
-      <ReviewQueue runs={runs} selectedId={selectedId} onSelect={workspace.selectRun} />
-      <div className="review-layout" role="region" aria-label="审核主工作区">
-      {selectedRun && workspaceLoading && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
-      {selectedRun && workspaceError && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><InlineAlert tone="error" title="无法加载审核材料">{workspaceError}<div><button className="button button-secondary" type="button" onClick={() => void workspace.refreshWorkspace()}>重新加载</button></div></InlineAlert></main>}
-      {selectedRun && latest && <>
-        <DraftWorkspace versions={versions} onSave={async (input) => {
+      <ReviewPaneTabs active={activePane} onChange={setActivePane} />
+      <div className="review-workspace__grid" role="region" aria-label="审核主工作区">
+        <div id="review-pane-queue" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-queue" data-pane="queue" data-active={activePane === 'queue'}>
+          <ReviewQueue runs={runs} selectedId={selectedId} onSelect={(runId) => { workspace.selectRun(runId); setActivePane('draft') }} />
+        </div>
+        <div id="review-pane-draft" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-draft" data-pane="draft" data-active={activePane === 'draft'}>
+          {selectedRun && workspaceLoading && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
+          {selectedRun && workspaceError && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><InlineAlert tone="error" title="无法加载审核材料">{workspaceError}<div><button className="button button-secondary" type="button" onClick={() => void workspace.refreshWorkspace()}>重新加载</button></div></InlineAlert></main>}
+          {selectedRun && latest && <DraftWorkspace versions={versions} onSave={async (input) => {
           try {
             await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
             await workspace.refreshWorkspace()
@@ -55,9 +61,11 @@ export default function ReviewWorkspacePage() {
             feedback.error('修改保存失败，请刷新草稿后重试。')
             throw error
           }
-        }} />
-        <EvidenceDecisionPane
-          version={latest}
+          }} />}
+        </div>
+        <div id="review-pane-evidence" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-evidence" data-pane="evidence" data-active={activePane === 'evidence'}>
+          {selectedRun && latest && <EvidenceDecisionPane
+            version={latest}
           governance={governance}
           approval={approval}
           decisions={decisions}
@@ -77,8 +85,8 @@ export default function ReviewWorkspacePage() {
           onReturn={(reason) => runAction(async () => {
             await returnDraft(selectedRun.run_id, selectedRun.draft_id!, reason)
           }, `草稿 v${latest.version} 已退回修改。`, '退回操作失败，请稍后重试。')}
-        />
-      </>}
+          />}
+        </div>
       </div>
     </div>}
   </section>

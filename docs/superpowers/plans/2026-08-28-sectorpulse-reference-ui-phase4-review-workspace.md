@@ -107,14 +107,14 @@ Autosave waits 800 ms after the last input and saves immediately on blur. `saved
 - Create: `web/src/styles/pages/review-workspace.css`
 - Modify: `web/src/styles/index.css`
 
-- [ ] Write layout semantics tests for queue/editor/evidence ownership and narrow-screen pane controls.
-- [ ] Implement desktop `22% / 53% / 25%` columns with min widths, aligned headers and independent vertical scrolling.
-- [ ] Make the queue compact and filterable by pending/approved/all without inventing missing metadata.
-- [ ] Keep the editor's effective reading width between roughly 680–820 px at wide desktop sizes.
-- [ ] At 1024 px and below switch to queue/draft/evidence pane tabs; retain the selected run and active field when changing panes.
-- [ ] Keep all key actions keyboard reachable and maintain one shell-level scroll contract without root overflow.
-- [ ] Run component/page tests, build and Impeccable detector.
-- [ ] Commit: `refactor: build three pane review shell`.
+- [x] Write layout semantics tests for queue/editor/evidence ownership and narrow-screen pane controls.
+- [x] Implement desktop `22% / 53% / 25%` columns with min widths, aligned headers and independent vertical scrolling.
+- [x] Make the queue compact and filterable by pending/approved/all without inventing missing metadata.
+- [x] Keep the editor's effective reading width between roughly 680–820 px at wide desktop sizes.
+- [x] At 1024 px and below switch to queue/draft/evidence pane tabs; retain the selected run and active field when changing panes.
+- [x] Keep all key actions keyboard reachable and maintain one shell-level scroll contract without root overflow.
+- [x] Run component/page tests, build and Impeccable detector (43 files / 143 tests; 105-module build; detector `[]`).
+- [x] Commit: `refactor: build three pane review shell`.
 
 ## Task 3: Add Continuous Structured Autosave
 
