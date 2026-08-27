@@ -66,7 +66,7 @@
 - Produces: `OperationalRun`, `OperationsSnapshot`, `OperationsSummaryQueryPort`, `classify_status(status, kind)`, `build_operations_snapshot(records, now, days=30, recent_limit=10)`。
 - Consumes: 已持久化的运行 ID、类型、模式、状态、Provider、时间、成本和候选数；不访问网络。
 
-- [ ] **Step 1: Write failing classification and aggregation tests**
+- [x] **Step 1: Write failing classification and aggregation tests**
 
 ```python
 def test_build_snapshot_unifies_content_and_data_runs() -> None:
@@ -93,13 +93,13 @@ def test_empty_snapshot_explains_absent_trend() -> None:
     assert snapshot.trend.points == ()
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_operations_summary.py -q -p no:cacheprovider`
 
 Expected: FAIL because `sector_pulse.application.operations_summary` does not exist.
 
-- [ ] **Step 3: Implement canonical status sets and immutable models**
+- [x] **Step 3: Implement canonical status sets and immutable models**
 
 ```python
 CONTENT_ACTIVE = {"RUNNING"}
@@ -112,13 +112,13 @@ DATA_ATTENTION = {"DEGRADED", "BLOCKED", "FAILED", "INTERRUPTED"}
 
 `build_operations_snapshot` must sort by `requested_at` descending, calculate exact summary values, create one point for each UTC calendar day containing records, and return no points plus the exact reason above when no records exist.
 
-- [ ] **Step 4: Run the focused test and verify GREEN**
+- [x] **Step 4: Run the focused test and verify GREEN**
 
 Run: `\.\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_operations_summary.py -q -p no:cacheprovider`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the canonical model**
+- [x] **Step 5: Commit the canonical model**
 
 ```powershell
 git add backend/src/sector_pulse/application/operations_summary.py backend/tests/unit/application/test_operations_summary.py
