@@ -3,6 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import {
   type DataRunCandidateView,
+  type DataRunCandidatePageView,
+  type DataRunSelectionView,
+  type CandidateSort,
+  type SortDirection,
   type DataRunAcquisitionView,
   type DataRunContentView,
   type DataRunEvidenceView,
@@ -14,7 +18,9 @@ import {
   type SectorKind,
   fetchDataRun,
   fetchDataRunAcquisition,
-  fetchDataRunCandidates,
+  fetchDataRunCandidatePage,
+  fetchDataRunSelection,
+  confirmDataRunSelection,
   fetchDataRunContentRun,
   fetchDataRunEvidence,
   fetchDataRunMarket,
@@ -31,6 +37,7 @@ import StatusBadge from '../components/ui/StatusBadge'
 import SummaryStrip from '../components/ui/SummaryStrip'
 import { formatDate } from '../runPresentation'
 import CandidatesPanel from './data-run/CandidatesPanel'
+import CandidateSelectionBar from './data-run/CandidateSelectionBar'
 import AcquisitionSummary from './data-run/AcquisitionSummary'
 import DataRunActionPanel from './data-run/DataRunActionPanel'
 import DataRunTimeline from './data-run/DataRunTimeline'
@@ -57,7 +64,15 @@ export default function DataRunPage() {
   const [runError, setRunError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<WorkbenchTab>('market')
   const [candidates, setCandidates] = useState<DataRunCandidateView[]>([])
+  const [candidatePage, setCandidatePage] = useState<DataRunCandidatePageView | null>(null)
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([])
+  const [selection, setSelection] = useState<DataRunSelectionView | null>(null)
+  const [selectionSaving, setSelectionSaving] = useState(false)
+  const [selectionConflict, setSelectionConflict] = useState(false)
+  const [candidateQuery, setCandidateQuery] = useState('')
+  const [candidateSort, setCandidateSort] = useState<CandidateSort>('rank')
+  const [candidateDirection, setCandidateDirection] = useState<SortDirection>('asc')
+  const [candidateOffset, setCandidateOffset] = useState(0)
   const [candidatesLoading, setCandidatesLoading] = useState(true)
   const [candidatesError, setCandidatesError] = useState<string | null>(null)
   const [contentRun, setContentRun] = useState<DataRunContentView | null>(null)
@@ -99,14 +114,30 @@ export default function DataRunPage() {
   const loadCandidates = useCallback(async () => {
     setCandidatesLoading(true)
     try {
-      const items = await fetchDataRunCandidates(runId)
-      setCandidates(items)
-      setSelectedCandidateIds(items.map((item) => item.sector_id))
+      const page = await fetchDataRunCandidatePage(runId, {
+        query: candidateQuery || undefined,
+        sort: candidateSort,
+        direction: candidateDirection,
+        offset: candidateOffset,
+        limit: 20,
+      })
+      setCandidatePage(page)
+      setCandidates(page.items)
       setCandidatesError(null)
     } catch (reason) {
       setCandidatesError(message(reason, '候选板块加载失败。'))
     } finally {
       setCandidatesLoading(false)
+    }
+  }, [candidateDirection, candidateOffset, candidateQuery, candidateSort, runId])
+
+  const loadSelection = useCallback(async () => {
+    try {
+      const value = await fetchDataRunSelection(runId)
+      setSelection(value)
+      setSelectedCandidateIds(value.selected_sector_ids)
+    } catch (reason) {
+      setCandidatesError(message(reason, '候选确认状态加载失败。'))
     }
   }, [runId])
 
@@ -125,7 +156,10 @@ export default function DataRunPage() {
   useEffect(() => {
     setRun(null)
     setCandidates([])
+    setCandidatePage(null)
     setSelectedCandidateIds([])
+    setSelection(null)
+    setSelectionConflict(false)
     setContentRun(null)
     setAcquisition(null)
     setEvidence(null)
@@ -138,8 +172,9 @@ export default function DataRunPage() {
     setActionError(null)
     void loadRun()
     void loadAcquisition()
+    void loadSelection()
     fetchDataRunContentRun(runId).then(setContentRun).catch(() => setContentRun(null))
-  }, [loadAcquisition, loadRun, runId])
+  }, [loadAcquisition, loadRun, loadSelection, runId])
 
   useEffect(() => {
     if (!run) return
@@ -217,11 +252,7 @@ export default function DataRunPage() {
     setActionBusy(true)
     setActionError(null)
     try {
-      const selected = new Set(selectedCandidateIds)
-      const result = await generateDataRunArticle(
-        runId,
-        candidates.filter((item) => selected.has(item.sector_id)).map((item) => item.sector_id),
-      )
+      const result = await generateDataRunArticle(runId)
       setContentRun({
         run_id: result.run_id,
         status: 'RUNNING',
@@ -234,6 +265,53 @@ export default function DataRunPage() {
       setActionError(message(reason, '分析稿未能启动生成，请检查 LLM 配置后重试。'))
     } finally {
       setActionBusy(false)
+    }
+  }
+
+  const normalizedSelected = [...selectedCandidateIds].sort()
+  const normalizedConfirmed = [...(selection?.selected_sector_ids ?? [])].sort()
+  const selectionDirty = normalizedSelected.join('\u0000') !== normalizedConfirmed.join('\u0000')
+  const selectionDisabledReason = run?.status !== 'READY_FOR_ATTRIBUTION'
+    ? '数据尚未进入候选确认阶段'
+    : candidatesLoading
+      ? '候选板块仍在加载'
+      : selectedCandidateIds.length < 3
+        ? '至少选择 3 个板块'
+        : selectedCandidateIds.length > 12
+          ? '最多选择 12 个板块'
+          : null
+
+  const confirmSelection = async () => {
+    if (!selection || selectionDisabledReason) return
+    setSelectionSaving(true)
+    setCandidatesError(null)
+    try {
+      const value = await confirmDataRunSelection(
+        runId,
+        selectedCandidateIds,
+        selection.version,
+      )
+      setSelection(value)
+      setSelectedCandidateIds(value.selected_sector_ids)
+      setSelectionConflict(false)
+    } catch (reason) {
+      if (reason instanceof Error && reason.message.includes('VERSION_CONFLICT')) {
+        setSelectionConflict(true)
+      }
+      setCandidatesError(message(reason, '候选确认失败；本地选择已保留，请刷新版本后重试。'))
+    } finally {
+      setSelectionSaving(false)
+    }
+  }
+
+  const reloadSelectionVersion = async () => {
+    try {
+      const value = await fetchDataRunSelection(runId)
+      setSelection(value)
+      setSelectionConflict(false)
+      setCandidatesError(null)
+    } catch (reason) {
+      setCandidatesError(message(reason, '最新候选版本加载失败。'))
     }
   }
 
@@ -269,19 +347,19 @@ export default function DataRunPage() {
       { label: '场景', value: run.mode === 'post_close' ? '盘后复盘' : '盘中分析' },
       { label: 'Provider', value: run.provider ?? '尚未记录' },
       { label: 'Cutoff', value: run.cutoff_at ? formatDate(run.cutoff_at) : '尚未产生' },
-      { label: '候选板块', value: candidatesLoading ? '加载中' : candidates.length || '尚未产生' },
+      { label: '候选板块', value: candidatesLoading ? '加载中' : candidatePage?.total || '尚未产生' },
       { label: '完成时间', value: run.finished_at ? formatDate(run.finished_at) : '尚未完成' },
     ]} />
     {runError && <InlineAlert tone="warning" title="刷新未完成">{runError}</InlineAlert>}
     {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
     <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
     <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={acquisitionError} />
-    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} onGenerate={() => void generate()} onRetry={() => void retry()} />
+    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} selectionConfirmed={Boolean(selection?.confirmed)} selectionDirty={selectionDirty} onGenerate={() => void generate()} onRetry={() => void retry()} />
     <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
     <Panel className="data-workbench-panel" density="compact"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
       {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} />}
       {activeTab === 'candidates' && <CandidatesPanel
-        candidates={candidates}
+        page={candidatePage}
         selectedIds={selectedCandidateIds}
         loading={candidatesLoading}
         error={candidatesError}
@@ -289,12 +367,20 @@ export default function DataRunPage() {
         onToggle={(sectorId) => setSelectedCandidateIds((current) => current.includes(sectorId)
           ? current.filter((item) => item !== sectorId)
           : [...current, sectorId])}
-        onSelectAll={() => setSelectedCandidateIds(candidates.map((item) => item.sector_id))}
+        query={candidateQuery}
+        sort={candidateSort}
+        direction={candidateDirection}
+        onSelectPage={() => setSelectedCandidateIds((current) => Array.from(new Set([...current, ...candidates.map((item) => item.sector_id)])))}
         onClear={() => setSelectedCandidateIds([])}
+        onQueryChange={(value) => { setCandidateQuery(value); setCandidateOffset(0) }}
+        onSortChange={(value) => { setCandidateSort(value); setCandidateOffset(0) }}
+        onDirectionChange={(value) => { setCandidateDirection(value); setCandidateOffset(0) }}
+        onPage={setCandidateOffset}
       />}
       {activeTab === 'news-records' && <NewsRecordsPanel data={newsRecords} loading={newsRecordsLoading} error={newsRecordsError} sourceId={newsSourceId} status={newsStatus} sourceOptions={acquisition?.news_sources.map((source) => source.source_id) ?? []} onSourceChange={(value) => { setNewsSourceId(value); setNewsOffset(0) }} onStatusChange={(value) => { setNewsStatus(value); setNewsOffset(0) }} onPage={setNewsOffset} />}
       {activeTab === 'evidence' && <EvidencePanel data={evidence} loading={evidenceLoading} error={evidenceError} />}
       {activeTab === 'quality' && <QualityPanel data={quality} loading={qualityLoading} error={qualityError} />}
     </div></Panel>
+    {activeTab === 'candidates' && <CandidateSelectionBar selectedCount={selectedCandidateIds.length} confirmedVersion={selection?.confirmed ? selection.version : null} dirty={selectionDirty} saving={selectionSaving} disabledReason={selectionDisabledReason} conflict={selectionConflict} onConfirm={() => void confirmSelection()} onReset={() => setSelectedCandidateIds(selection?.selected_sector_ids ?? [])} onReloadVersion={() => void reloadSelectionVersion()} />}
   </section>
 }

@@ -195,15 +195,15 @@ Execution note: evidence events and quality summaries remain complete bounded ru
 - Create: `web/src/styles/pages/data-run.css`
 - Modify: `web/src/styles/index.css`
 
-- [ ] Write failing UI tests for search, score/rank/change/news sorting, page selection, select-all-current-page, clear, dirty state and confirmed version.
-- [ ] Replace the unbounded checkbox list with a compact accessible table showing only available market/news fields.
-- [ ] Add sticky selection summary with selected count, dirty/confirmed state, version, confirm button and cancel-local-edits action.
-- [ ] Disable confirmation outside `READY_FOR_ATTRIBUTION`, while loading, below 3, above 12 or during save.
-- [ ] After a version conflict, preserve local choices and offer reload/reapply instead of silently discarding them.
-- [ ] Make `DataRunActionPanel` require a confirmed non-dirty selection and explain the exact blocking reason.
-- [ ] Add responsive behavior: table viewport scroll only within panel; mobile uses a list-like row treatment without hiding selection state.
-- [ ] Run focused component tests and Impeccable detector after UI files are complete.
-- [ ] Commit: `refactor: build candidate selection workspace`.
+- [x] Write failing UI tests for search, score/rank/change/news sorting, page selection, select-all-current-page, clear, dirty state and confirmed version.
+- [x] Replace the unbounded checkbox list with a compact accessible table showing only available market/news fields.
+- [x] Add sticky selection summary with selected count, dirty/confirmed state, version, confirm button and cancel-local-edits action.
+- [x] Disable confirmation outside `READY_FOR_ATTRIBUTION`, while loading, below 3, above 12 or during save.
+- [x] After a version conflict, preserve local choices and offer reload/reapply instead of silently discarding them.
+- [x] Make `DataRunActionPanel` require a confirmed non-dirty selection and explain the exact blocking reason.
+- [x] Add responsive behavior: table viewport scroll only within panel; mobile uses a list-like row treatment without hiding selection state.
+- [x] Run focused component tests and Impeccable detector after UI files are complete.
+- [x] Commit: `refactor: build candidate selection workspace`.
 
 ## Task 6: Recompose Data Tabs And Detail Drawers
 
