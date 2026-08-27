@@ -89,6 +89,17 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.fetchDataRun).mockResolvedValue(READY_RUN)
+  vi.mocked(api.fetchDataRunSummary).mockResolvedValue({
+    run_id: 'run-1',
+    status: READY_RUN.status,
+    terminal: true,
+    workflow_stage: 'ATTRIBUTION_READY',
+    workflow_stage_index: 5,
+    requested_at: READY_RUN.requested_at,
+    cutoff_at: '2026-08-25T07:01:00Z',
+    finished_at: '2026-08-25T07:02:00Z',
+    candidate_count: 0,
+  })
   mockCandidates([], false)
   vi.mocked(api.fetchDataRunMarket).mockResolvedValue({
     snapshots: [], kind: 'INDUSTRY', items: [], total: 0, offset: 0, limit: 20,
@@ -102,6 +113,15 @@ beforeEach(() => {
   vi.mocked(api.fetchDataRunNewsRecords).mockResolvedValue({
     items: [], total: 0, offset: 0, limit: 20,
     coverage: 'COMPLETE', coverage_notice: null,
+  })
+  vi.mocked(api.fetchDataRunNewsRecord).mockResolvedValue({
+    document_id: 'doc-raw-1', source_id: 'eastmoney-search',
+    citation_url: 'https://example.com/raw-news', title: 'Provider 原始新闻标题',
+    publisher: '东方财富', summary: '这是规范化保存的新闻摘要。',
+    content_kind: 'SUMMARY', content: '这是规范化保存的新闻摘要。',
+    content_available: true, published_at: '2026-08-25T06:00:00Z',
+    source_observed_at: '2026-08-25T06:01:00Z',
+    collected_at: '2026-08-25T07:00:00Z', source_grade: 'REPUTABLE_MEDIA',
   })
   vi.mocked(api.fetchDataRunQuality).mockResolvedValue(READY_RUN.quality_summary!)
   vi.mocked(api.fetchDataRunContentRun).mockResolvedValue(null)
@@ -438,6 +458,9 @@ it('shows independently filterable provider news records and historical coverage
   expect(screen.getByText('这是规范化保存的新闻摘要。')).toBeVisible()
   expect(screen.getByText('历史运行仅保留进入证据链的新闻记录。')).toBeVisible()
   expect(screen.getByRole('link', { name: '查看原文' })).toHaveAttribute('href', 'https://example.com/raw-news')
+  await userEvent.click(screen.getByRole('button', { name: '查看已保存详情' }))
+  expect(await screen.findByRole('dialog', { name: 'Provider 原始新闻标题' })).toBeVisible()
+  expect(screen.getByText('系统未保存新闻全文')).toBeVisible()
 })
 
 it('explains how evidence was mapped to a sector', async () => {

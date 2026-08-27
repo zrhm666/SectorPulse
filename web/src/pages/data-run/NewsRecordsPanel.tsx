@@ -2,7 +2,7 @@ import type { DataRunNewsRecordsView, DataStatus } from '../../dataRunsApi'
 
 const STATUSES: DataStatus[] = ['SUCCESS', 'EMPTY', 'PARTIAL', 'STALE', 'UNAVAILABLE', 'FAILED']
 
-export default function NewsRecordsPanel({ data, loading, error, sourceId, status, sourceOptions, onSourceChange, onStatusChange, onPage }: {
+export default function NewsRecordsPanel({ data, loading, error, sourceId, status, sourceOptions, onSourceChange, onStatusChange, onPage, onOpenDetail }: {
   data: DataRunNewsRecordsView | null
   loading: boolean
   error: string | null
@@ -12,6 +12,7 @@ export default function NewsRecordsPanel({ data, loading, error, sourceId, statu
   onSourceChange: (value: string) => void
   onStatusChange: (value: '' | DataStatus) => void
   onPage: (offset: number) => void
+  onOpenDetail: (documentId: string) => void
 }) {
   return <div>
     <section className="news-record-toolbar" aria-label="新闻筛选">
@@ -27,7 +28,7 @@ export default function NewsRecordsPanel({ data, loading, error, sourceId, statu
         <header><div><h3>{item.title || '无标题新闻'}</h3><p>{item.publisher ?? item.source_id} · {item.source_grade}</p></div><span data-status={item.query_status ?? undefined}>{item.query_status ?? '历史记录'}</span></header>
         <p>{item.summary ?? '该来源未提供摘要。'}</p>
         <dl><div><dt>Provider</dt><dd>{item.query_source_id}</dd></div><div><dt>发布时间</dt><dd>{item.published_at ? new Date(item.published_at).toLocaleString('zh-CN') : '未返回'}</dd></div><div><dt>采集时间</dt><dd>{new Date(item.collected_at).toLocaleString('zh-CN')}</dd></div><div><dt>查询</dt><dd>{item.query_type ?? '历史记录'} · {item.query_ids.length ? item.query_ids.join('、') : '未保存'}</dd></div></dl>
-        {item.citation_url && <a href={item.citation_url} target="_blank" rel="noreferrer">查看原文</a>}
+        <div className="news-record-list__actions"><button className="button button-secondary" type="button" onClick={() => onOpenDetail(item.document_id)}>查看已保存详情</button>{item.citation_url && <a href={item.citation_url} target="_blank" rel="noreferrer">查看原文</a>}</div>
       </article>)}</div>
       <div className="pagination"><button className="button button-secondary" type="button" disabled={data.offset === 0} onClick={() => onPage(Math.max(0, data.offset - data.limit))}>上一页</button><span>{data.offset + 1}–{Math.min(data.offset + data.limit, data.total)} / {data.total}</span><button className="button button-secondary" type="button" disabled={data.offset + data.limit >= data.total} onClick={() => onPage(data.offset + data.limit)}>下一页</button></div>
     </>}

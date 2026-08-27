@@ -221,16 +221,18 @@ Execution note: evidence events and quality summaries remain complete bounded ru
 - Create: `web/src/pages/data-run/WorkbenchDrawers.test.tsx`
 - Modify: `web/src/styles/pages/data-run.css`
 
-- [ ] Write page-state tests for loading, empty, partial acquisition, active refresh, stale data, hard failure, confirmed selection and linked content run.
-- [ ] Recompose page as header, compact summary, five-stage progress, acquisition strip, selection workspace, action bar and stable detail tabs.
-- [ ] Keep one main vertical scroll region; completed stages remain compact and the current stage receives emphasis without animation.
-- [ ] Add market row drawer with field availability and collection provenance.
-- [ ] Add news drawer with title, source, times, content-kind badge, available summary/flash text, lineage and optional safe original link.
-- [ ] Explicitly state `系统未保存新闻全文` when full text is unavailable; never label the summary as article body.
-- [ ] Preserve active tab, filters, pagination and confirmed selection after run polling updates.
-- [ ] Add focus return, Escape close, labelled dialog semantics and mobile full-width drawer behavior.
-- [ ] Run component/page tests, full frontend tests, build and detector.
-- [ ] Commit: `refactor: compose data run workbench`.
+- [x] Write page-state tests for loading, empty, partial acquisition, active refresh, stale data, hard failure, confirmed selection and linked content run.
+- [x] Recompose page as header, compact summary, five-stage progress, acquisition strip, selection workspace, action bar and stable detail tabs.
+- [x] Keep one main vertical scroll region; completed stages remain compact and the current stage receives emphasis without animation.
+- [x] Add market row drawer with field availability and collection provenance.
+- [x] Add news drawer with title, source, times, content-kind badge, available summary/flash text, lineage and optional safe original link.
+- [x] Explicitly state `系统未保存新闻全文` when full text is unavailable; never label the summary as article body.
+- [x] Preserve active tab, filters, pagination and confirmed selection after run polling updates.
+- [x] Add focus return, Escape close, labelled dialog semantics and mobile full-width drawer behavior.
+- [x] Run component/page tests, full frontend tests, build and detector.
+- [x] Commit: `refactor: compose data run workbench`.
+
+Verification evidence (2026-08-28): Vitest passed 39 files / 134 tests; `tsc -b && vite build` completed with 103 transformed modules; Impeccable detector returned `[]`. `DataRunPage` now consumes the reliable recursive-timeout workbench state so polling pauses while hidden, does not overlap, retains stale data on refresh failure and also follows linked content runs.
 
 ## Task 7: Browser Acceptance And Phase Closure
 
