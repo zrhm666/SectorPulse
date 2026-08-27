@@ -15,11 +15,13 @@ class ScheduledDataRunBridge:
         real_repository: SQLiteRealDataRunRepository,
         data_run_service: object,
         writing_service: object,
+        selection_service: object | None = None,
     ) -> None:
         self._tasks = task_repository
         self._real_runs = real_repository
         self._data_runs = data_run_service
         self._writing = writing_service
+        self._selections = selection_service
 
     def start(self, task_run_id: UUID, schedule: ScheduleView) -> UUID:
         values = schedule.input_template
@@ -39,6 +41,10 @@ class ScheduledDataRunBridge:
             data_run = self._real_runs.get_run(data_run_id)
             if data_run is None or data_run.status is not RealDataRunStatus.READY_FOR_ATTRIBUTION:
                 continue
-            self._writing.generate(data_run_id)
+            if self._selections is None:
+                self._writing.generate(data_run_id)
+            else:
+                selection = self._selections.confirm_default(data_run_id)
+                self._writing.generate(data_run_id, selection.selected_sector_ids)
             started += 1
         return started

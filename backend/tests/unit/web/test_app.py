@@ -1,7 +1,11 @@
 # backend/tests/unit/web/test_app.py
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
+from sector_pulse.application.candidate_selection_service import CandidateSelectionRequired
+from sector_pulse.domain.candidate_selection import CandidateSelectionMethod
 from sector_pulse.web.app import create_app
 
 
@@ -25,7 +29,6 @@ class WorkbenchQueries:
 
     def candidates(self, run_id):
         return [{"sector_id": "industry-1", "name": "示例行业"}]
-
 
     def acquisition(self, run_id):
         return {"coverage": "COMPLETE", "market_sources": [], "news_sources": []}
@@ -66,6 +69,40 @@ class WritingActions:
     def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
         self.generate_call = (run_id, sector_ids)
         return self.generated_id
+
+
+class SelectionActions:
+    def __init__(self, run_id: UUID, *, confirmed: bool = False) -> None:
+        self.run_id = run_id
+        self.confirmed = confirmed
+        self.confirm_call = None
+        self.selected_sector_ids = ("sector-1", "sector-2", "sector-3")
+
+    def view(self, run_id: UUID):
+        return self._value(run_id)
+
+    def confirm(self, run_id: UUID, sector_ids: tuple[str, ...], *, expected_version: int):
+        self.confirm_call = (run_id, sector_ids, expected_version)
+        self.confirmed = True
+        self.selected_sector_ids = sector_ids
+        return self._value(run_id, version=expected_version + 1)
+
+    def require_confirmed(self, run_id: UUID):
+        if not self.confirmed:
+            raise CandidateSelectionRequired("CANDIDATE_SELECTION_REQUIRED")
+        return self._value(run_id, version=1)
+
+    def _value(self, run_id: UUID, version: int = 0):
+        return SimpleNamespace(
+            run_id=run_id,
+            confirmed=self.confirmed,
+            version=version if self.confirmed else 0,
+            selected_sector_ids=self.selected_sector_ids,
+            method=CandidateSelectionMethod.MANUAL if self.confirmed else None,
+            confirmed_at=datetime.now(UTC) if self.confirmed else None,
+            data_version="a" * 64,
+            edit_count=1 if self.confirmed else 0,
+        )
 
 
 def test_health_endpoint() -> None:
@@ -162,10 +199,44 @@ def test_retry_returns_new_data_run_id(tmp_path) -> None:
     assert response.json() == {"run_id": str(retry_id)}
 
 
-def test_generate_forwards_manually_selected_candidates(tmp_path) -> None:
+def test_selection_preview_can_be_confirmed_as_a_version(tmp_path) -> None:
+    run_id = uuid4()
+    selections = SelectionActions(run_id)
+    client = TestClient(
+        create_app(
+            database_path=tmp_path / "app.db",
+            static_dir=None,
+            overrides={
+                "data_run_service": DataRunActions(uuid4()),
+                "workbench_queries": WorkbenchQueries(),
+                "candidate_selection_service": selections,
+            },
+        )
+    )
+
+    preview = client.get(f"/api/data-runs/{run_id}/selection")
+    confirmed = client.put(
+        f"/api/data-runs/{run_id}/selection",
+        json={"sector_ids": ["sector-3", "sector-1", "sector-2"], "expected_version": 0},
+    )
+
+    assert preview.status_code == 200
+    assert preview.json()["confirmed"] is False
+    assert confirmed.status_code == 200
+    assert confirmed.json()["confirmed"] is True
+    assert confirmed.json()["version"] == 1
+    assert selections.confirm_call == (
+        run_id,
+        ("sector-3", "sector-1", "sector-2"),
+        0,
+    )
+
+
+def test_generate_uses_confirmed_selection_instead_of_transient_candidates(tmp_path) -> None:
     run_id = uuid4()
     generated_id = uuid4()
     writing = WritingActions(generated_id)
+    selections = SelectionActions(run_id, confirmed=True)
     client = TestClient(
         create_app(
             database_path=tmp_path / "app.db",
@@ -174,6 +245,7 @@ def test_generate_forwards_manually_selected_candidates(tmp_path) -> None:
                 "data_run_service": DataRunActions(uuid4()),
                 "workbench_queries": WorkbenchQueries(),
                 "writing_service": writing,
+                "candidate_selection_service": selections,
             },
         )
     )
@@ -185,15 +257,14 @@ def test_generate_forwards_manually_selected_candidates(tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"run_id": str(generated_id)}
-    assert writing.generate_call == (
-        run_id, ("sector-3", "sector-1", "sector-2")
-    )
+    assert writing.generate_call == (run_id, ("sector-1", "sector-2", "sector-3"))
 
 
-def test_generate_without_selection_keeps_automatic_behavior(tmp_path) -> None:
+def test_generate_without_a_confirmed_selection_is_rejected(tmp_path) -> None:
     run_id = uuid4()
     generated_id = uuid4()
     writing = WritingActions(generated_id)
+    selections = SelectionActions(run_id)
     client = TestClient(
         create_app(
             database_path=tmp_path / "app.db",
@@ -202,12 +273,13 @@ def test_generate_without_selection_keeps_automatic_behavior(tmp_path) -> None:
                 "data_run_service": DataRunActions(uuid4()),
                 "workbench_queries": WorkbenchQueries(),
                 "writing_service": writing,
+                "candidate_selection_service": selections,
             },
         )
     )
 
     response = client.post(f"/api/data-runs/{run_id}/generate")
 
-    assert response.status_code == 200
-    assert response.json() == {"run_id": str(generated_id)}
-    assert writing.generate_call == (run_id, None)
+    assert response.status_code == 409
+    assert response.json() == {"detail": "CANDIDATE_SELECTION_REQUIRED"}
+    assert writing.generate_call is None

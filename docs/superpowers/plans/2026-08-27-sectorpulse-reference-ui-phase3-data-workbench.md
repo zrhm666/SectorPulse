@@ -130,15 +130,15 @@ For the current metadata-only domain, `content` is the persisted short summary w
 - Modify: `backend/tests/unit/application/test_real_data_writing_bridge.py`
 - Modify: `backend/tests/integration/test_real_data_workbench_api.py`
 
-- [ ] Write failing service tests for default preview, manual confirmation, invalid membership, duplicate IDs, stale version and latest confirmed lookup.
-- [ ] Implement confirmation against the run's persisted candidate set and deterministic data version.
-- [ ] Add GET/PUT selection endpoints with typed schemas and 404/409/422 semantics.
-- [ ] Write a failing API test proving `/generate` rejects an unconfirmed run even when transient `sector_ids` are supplied.
-- [ ] Change the Web generation route to resolve the latest confirmed selection and pass only that immutable set to writing.
-- [ ] Preserve scheduled generation by explicitly confirming the system default candidate set before its call to writing.
-- [ ] Verify refresh returns the latest confirmed version and old versions remain queryable through repository tests.
-- [ ] Run focused application/API tests, Ruff and mypy.
-- [ ] Commit: `feat: require confirmed candidate selection`.
+- [x] Write failing service tests for default preview, manual confirmation, invalid membership, duplicate IDs, stale version and latest confirmed lookup.
+- [x] Implement confirmation against the run's persisted candidate set and deterministic data version.
+- [x] Add GET/PUT selection endpoints with typed schemas and 404/409/422 semantics.
+- [x] Write a failing API test proving `/generate` rejects an unconfirmed run even when transient `sector_ids` are supplied.
+- [x] Change the Web generation route to resolve the latest confirmed selection and pass only that immutable set to writing.
+- [x] Preserve scheduled generation by explicitly confirming the system default candidate set before its call to writing.
+- [x] Verify refresh returns the latest confirmed version and old versions remain queryable through repository tests.
+- [x] Run focused application/API tests, Ruff and mypy.
+- [x] Commit: `feat: require confirmed candidate selection`.
 
 ## Task 3: Extend Truthful Workbench Read Models
 
