@@ -69,7 +69,7 @@
 - Consumes: browser pathname string, including nested detail routes.
 - Produces: `RouteGroup`, `RouteContext`, and `resolveRouteContext(pathname: string): RouteContext`.
 
-- [ ] **Step 1: Write the failing route-context test**
+- [x] **Step 1: Write the failing route-context test**
 
 Create `web/src/layout/routeContext.test.ts`:
 
@@ -99,7 +99,7 @@ describe('resolveRouteContext', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test and verify the missing-module failure**
+- [x] **Step 2: Run the test and verify the missing-module failure**
 
 Run:
 
@@ -110,7 +110,7 @@ npm.cmd test -- src/layout/routeContext.test.ts
 
 Expected: FAIL because `./routeContext` does not exist.
 
-- [ ] **Step 3: Implement the exact route mapping**
+- [x] **Step 3: Implement the exact route mapping**
 
 Create `web/src/layout/routeContext.ts`:
 
@@ -143,13 +143,13 @@ export function resolveRouteContext(pathname: string): RouteContext {
 }
 ```
 
-- [ ] **Step 4: Run the focused test**
+- [x] **Step 4: Run the focused test**
 
 Run: `npm.cmd test -- src/layout/routeContext.test.ts`
 
 Expected: 11 cases PASS.
 
-- [ ] **Step 5: Commit the route contract**
+- [x] **Step 5: Commit the route contract**
 
 ```powershell
 Set-Location ..
@@ -172,7 +172,7 @@ git commit -m "feat: add frontend route context contract"
 - Consumes: current selectors and `--ui-*`/`--color-*` variables from `web/src/styles.css`.
 - Produces: one imported stylesheet entry and stable `--sp-*` tokens; legacy selectors continue rendering.
 
-- [ ] **Step 1: Change the entry import before creating the new file**
+- [x] **Step 1: Change the entry import before creating the new file**
 
 In `web/src/main.tsx`, replace:
 
@@ -186,7 +186,7 @@ with:
 import './styles/index.css'
 ```
 
-- [ ] **Step 2: Run the build and verify the unresolved-import failure**
+- [x] **Step 2: Run the build and verify the unresolved-import failure**
 
 Run:
 
@@ -197,7 +197,7 @@ npm.cmd run build
 
 Expected: FAIL because `src/styles/index.css` does not exist.
 
-- [ ] **Step 3: Create the cascade-layer entry**
+- [x] **Step 3: Create the cascade-layer entry**
 
 Create `web/src/styles/index.css`:
 
@@ -211,7 +211,7 @@ Create `web/src/styles/index.css`:
 
 The later tasks append `shell.css`, `components/primitives.css`, and `responsive.css` imports in their named layers. Do not move or mechanically rewrite the legacy file in this phase.
 
-- [ ] **Step 4: Create the project tokens and compatibility aliases**
+- [x] **Step 4: Create the project tokens and compatibility aliases**
 
 Create `web/src/styles/tokens.css` with this contract:
 
@@ -284,7 +284,7 @@ Create `web/src/styles/tokens.css` with this contract:
 }
 ```
 
-- [ ] **Step 5: Create the base document rules**
+- [x] **Step 5: Create the base document rules**
 
 Create `web/src/styles/base.css`:
 
@@ -326,7 +326,7 @@ a { color: var(--sp-primary); }
 }
 ```
 
-- [ ] **Step 6: Run the current frontend suite and build**
+- [x] **Step 6: Run the current frontend suite and build**
 
 Run:
 
@@ -337,7 +337,7 @@ npm.cmd run build
 
 Expected: all existing Vitest tests PASS and Vite build exits 0. Existing pages may still have their previous layout because shell/component layers are introduced in later tasks.
 
-- [ ] **Step 7: Commit the layered foundation**
+- [x] **Step 7: Commit the layered foundation**
 
 ```powershell
 Set-Location ..
@@ -361,7 +361,7 @@ git commit -m "refactor: add layered frontend style foundation"
 - Consumes: `NAV_ITEMS`, `resolveRouteContext()`, React Router `Outlet` and `useLocation()`.
 - Produces: a fixed desktop shell, a route-aware top bar, a focus-managed drawer, and unchanged nested route behavior.
 
-- [ ] **Step 1: Extend shell tests with the new semantic contract**
+- [x] **Step 1: Extend shell tests with the new semantic contract**
 
 Add routes for `/review` and `/data-runs/:runId` to `renderShellAt()`, then add these tests to `web/src/layout/AppShell.test.tsx`:
 
@@ -390,7 +390,7 @@ it('moves focus into the opened navigation and closes it with Escape', async () 
 })
 ```
 
-- [ ] **Step 2: Run the focused test and verify failure**
+- [x] **Step 2: Run the focused test and verify failure**
 
 Run:
 
@@ -401,7 +401,7 @@ npm.cmd test -- src/layout/AppShell.test.tsx src/layout/routeContext.test.ts
 
 Expected: FAIL because the subtitle, breadcrumb and focus management are absent.
 
-- [ ] **Step 3: Update `TopBar` to render the real route context**
+- [x] **Step 3: Update `TopBar` to render the real route context**
 
 Keep the existing props and implement this structure:
 
@@ -435,7 +435,7 @@ export default function TopBar({ navOpen, onToggleNavigation, menuButtonRef }: T
 
 Do not render readiness, notifications or account controls in Phase 1.
 
-- [ ] **Step 4: Update `SidebarNav` identity and drawer focus**
+- [x] **Step 4: Update `SidebarNav` identity and drawer focus**
 
 Add `useEffect` and `useRef`, focus the close button when `open` becomes true, and render this brand structure above the current grouped links:
 
@@ -456,7 +456,7 @@ Add `useEffect` and `useRef`, focus the close button when `open` becomes true, a
 
 Retain the existing `运营` and `管理` groups and all six real links from `NAV_ITEMS`.
 
-- [ ] **Step 5: Keep `AppShell` as the sole scroll owner and restore drawer focus**
+- [x] **Step 5: Keep `AppShell` as the sole scroll owner and restore drawer focus**
 
 Create `menuButtonRef` with `useRef<HTMLButtonElement>(null)`, pass it to `TopBar`, and track the previous `navOpen` value. When an open drawer becomes closed, focus `menuButtonRef.current`; this applies to Escape, close button, backdrop and navigation-link close paths. Retain the Escape listener and nested `Outlet`, add `data-navigation-open={navOpen}` to `.app-shell`, and keep this main contract unchanged:
 
@@ -470,7 +470,7 @@ Create `menuButtonRef` with `useRef<HTMLButtonElement>(null)`, pass it to `TopBa
 
 The main region remains keyboard reachable because it owns independent scrolling.
 
-- [ ] **Step 6: Create desktop shell styles and import them**
+- [x] **Step 6: Create desktop shell styles and import them**
 
 Add this import to `web/src/styles/index.css` after `base.css`:
 
@@ -521,7 +521,7 @@ Create `web/src/styles/shell.css` with the desktop contract:
 
 Keep selectors focused on shell ownership; page-specific card and table rules remain in legacy until their phases.
 
-- [ ] **Step 7: Run shell tests and production build**
+- [x] **Step 7: Run shell tests and production build**
 
 Run:
 
@@ -532,7 +532,7 @@ npm.cmd run build
 
 Expected: focused tests PASS and build exits 0.
 
-- [ ] **Step 8: Commit the unified shell**
+- [x] **Step 8: Commit the unified shell**
 
 ```powershell
 Set-Location ..
@@ -558,7 +558,7 @@ git commit -m "refactor: align the unified application shell"
 - Consumes: native `ButtonHTMLAttributes`, optional `AppIconName`, existing PageHeader callers.
 - Produces: `ButtonProps`, `Button`, and additive `PageHeaderProps.meta?: ReactNode` without breaking existing calls.
 
-- [ ] **Step 1: Write failing Button and PageHeader tests**
+- [x] **Step 1: Write failing Button and PageHeader tests**
 
 Create `web/src/components/ui/Button.test.tsx`:
 
@@ -593,7 +593,7 @@ it('renders optional page metadata before actions', () => {
 })
 ```
 
-- [ ] **Step 2: Run focused tests and verify failure**
+- [x] **Step 2: Run focused tests and verify failure**
 
 Run:
 
@@ -604,7 +604,7 @@ npm.cmd test -- src/components/ui/Button.test.tsx src/components/ui/UiPrimitives
 
 Expected: FAIL because `Button` and `PageHeaderProps.meta` do not exist.
 
-- [ ] **Step 3: Implement the Button contract**
+- [x] **Step 3: Implement the Button contract**
 
 Create `web/src/components/ui/Button.tsx`:
 
@@ -653,7 +653,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
 export default Button
 ```
 
-- [ ] **Step 4: Add PageHeader metadata without breaking existing props**
+- [x] **Step 4: Add PageHeader metadata without breaking existing props**
 
 Extend `PageHeaderProps` with `meta?: ReactNode` and render the action side as:
 
@@ -668,11 +668,11 @@ Extend `PageHeaderProps` with `meta?: ReactNode` and render the action side as:
 
 The existing title, description and eyebrow elements remain unchanged.
 
-- [ ] **Step 5: Use Button for shell menu and close actions**
+- [x] **Step 5: Use Button for shell menu and close actions**
 
 Replace the raw menu and close `<button>` elements with `Button` using `variant="secondary"`, `size="compact"`, existing class names, icons and accessible labels. Do not change their click handlers or ARIA relationships.
 
-- [ ] **Step 6: Add primitive styles and import them**
+- [x] **Step 6: Add primitive styles and import them**
 
 Add this import to `web/src/styles/index.css` after `shell.css`:
 
@@ -721,7 +721,7 @@ Create `web/src/styles/components/primitives.css` with these contracts:
 
 Keep the existing `@keyframes loading-spin` from legacy available through the layer order; do not duplicate it.
 
-- [ ] **Step 7: Run component, shell and build verification**
+- [x] **Step 7: Run component, shell and build verification**
 
 Run:
 
@@ -732,7 +732,7 @@ npm.cmd run build
 
 Expected: all focused tests PASS and build exits 0.
 
-- [ ] **Step 8: Commit primitive contracts**
+- [x] **Step 8: Commit primitive contracts**
 
 ```powershell
 Set-Location ..
@@ -754,7 +754,7 @@ git commit -m "feat: add reference ui action primitives"
 - Consumes: built SPA, `.app-shell`, `.sidebar-nav`, `.app-main`, mobile menu and backdrop contracts.
 - Produces: executable desktop and responsive shell acceptance at 1536, 960 and 390 widths.
 
-- [ ] **Step 1: Write the failing browser contract**
+- [x] **Step 1: Write the failing browser contract**
 
 Create `web/e2e/shell.spec.ts`:
 
@@ -800,7 +800,7 @@ test('shell has no page-level horizontal overflow at 390px', async ({ page }) =>
 })
 ```
 
-- [ ] **Step 2: Build and run the new Playwright file**
+- [x] **Step 2: Build and run the new Playwright file**
 
 Run:
 
@@ -812,7 +812,7 @@ npm.cmd run test:e2e -- e2e/shell.spec.ts
 
 Expected before responsive implementation: the 960px menu visibility check fails because the current legacy breakpoint is 900px.
 
-- [ ] **Step 3: Import the responsive layer**
+- [x] **Step 3: Import the responsive layer**
 
 Add this final import to `web/src/styles/index.css`:
 
@@ -820,7 +820,7 @@ Add this final import to `web/src/styles/index.css`:
 @import url("./responsive.css") layer(responsive);
 ```
 
-- [ ] **Step 4: Implement the approved breakpoints**
+- [x] **Step 4: Implement the approved breakpoints**
 
 Create `web/src/styles/responsive.css`:
 
@@ -877,7 +877,7 @@ Create `web/src/styles/responsive.css`:
 
 If the Playwright test reveals a legacy selector with higher specificity, add the narrowest override to `responsive.css`; do not edit page-specific legacy layout in Phase 1.
 
-- [ ] **Step 5: Run unit, build and browser checks**
+- [x] **Step 5: Run unit, build and browser checks**
 
 Run:
 
@@ -889,7 +889,7 @@ npm.cmd run test:e2e -- e2e/shell.spec.ts
 
 Expected: focused Vitest tests PASS, build exits 0, and all three shell Playwright tests PASS.
 
-- [ ] **Step 6: Commit responsive shell enforcement**
+- [x] **Step 6: Commit responsive shell enforcement**
 
 ```powershell
 Set-Location ..
@@ -910,7 +910,7 @@ git commit -m "test: enforce responsive application shell"
 - Consumes: all Phase 1 commits and current configured local frontend/backend runtime.
 - Produces: fresh automated and visual evidence; Phase 2 may consume only the verified shell, token and component contracts.
 
-- [ ] **Step 1: Run the complete frontend unit suite**
+- [x] **Step 1: Run the complete frontend unit suite**
 
 Run:
 
@@ -921,7 +921,7 @@ npm.cmd test
 
 Expected: every Vitest file passes with no unexpected skipped test. Record the actual file and test totals.
 
-- [ ] **Step 2: Run the production build**
+- [x] **Step 2: Run the production build**
 
 Run:
 
@@ -931,7 +931,7 @@ npm.cmd run build
 
 Expected: TypeScript and Vite exit 0; `web/dist/index.html` exists.
 
-- [ ] **Step 3: Run all Playwright tests**
+- [x] **Step 3: Run all Playwright tests**
 
 Run:
 
@@ -941,7 +941,7 @@ npm.cmd run test:e2e
 
 Expected: existing smoke test and new shell tests pass.
 
-- [ ] **Step 4: Run backend non-live regression because the built frontend is served by FastAPI**
+- [x] **Step 4: Run backend non-live regression because the built frontend is served by FastAPI**
 
 Run from repository root:
 
@@ -952,7 +952,7 @@ Set-Location ..
 
 Expected: all collected non-live backend tests pass. Do not run quota-consuming live data or LLM tests in Phase 1.
 
-- [ ] **Step 5: Perform browser visual acceptance with the approved frontend skills**
+- [x] **Step 5: Perform browser visual acceptance with the approved frontend skills**
 
 Use `browser:control-in-app-browser` to inspect the actual built application. Use `design-taste-frontend` for visual hierarchy review and `impeccable` for responsive, accessibility and interaction review.
 
@@ -970,7 +970,7 @@ Check these routes:
 
 At 1536×1024 confirm sidebar width, topbar height, brand hierarchy, active navigation, independent main scroll and no duplicated product header. At 1024×768 and 390×844 confirm drawer focus, Escape close, backdrop close, 44px controls, no clipped action and no page-level horizontal overflow.
 
-- [ ] **Step 6: Record actual evidence**
+- [x] **Step 6: Record actual evidence**
 
 Create `docs/superpowers/acceptance/2026-08-27-sectorpulse-reference-ui-phase1.md` containing:
 
@@ -1003,11 +1003,11 @@ State that dashboard content redesign and new aggregation fields belong to Phase
 
 Write observed values, not predicted totals.
 
-- [ ] **Step 7: Update plan tracking from evidence only**
+- [x] **Step 7: Update plan tracking from evidence only**
 
 Mark completed checkboxes in this Phase 1 plan and the Phase 1 section of the master plan only when their corresponding test or browser evidence exists. Do not mark Phase 2 work complete.
 
-- [ ] **Step 8: Check repository hygiene**
+- [x] **Step 8: Check repository hygiene**
 
 Run:
 
@@ -1019,7 +1019,7 @@ git check-ignore .env web/node_modules web/dist web/tsconfig.tsbuildinfo
 
 Expected: no whitespace errors; secrets, dependencies and generated build outputs are ignored; only the Phase 1 acceptance and plan tracking files remain uncommitted.
 
-- [ ] **Step 9: Commit Phase 1 acceptance**
+- [x] **Step 9: Commit Phase 1 acceptance**
 
 ```powershell
 git add docs/superpowers/acceptance/2026-08-27-sectorpulse-reference-ui-phase1.md docs/superpowers/plans/2026-08-27-sectorpulse-reference-ui-refactor-master.md docs/superpowers/plans/2026-08-27-sectorpulse-reference-ui-phase1-foundation.md
