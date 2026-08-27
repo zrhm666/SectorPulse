@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import SidebarNav from './SidebarNav'
 import TopBar from './TopBar'
@@ -7,6 +7,8 @@ import FeedbackProvider from '../components/ui/FeedbackProvider'
 
 export default function AppShell() {
   const [navOpen, setNavOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const previousNavOpenRef = useRef(navOpen)
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setNavOpen(false) }
@@ -14,11 +16,16 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [])
 
+  useEffect(() => {
+    if (previousNavOpenRef.current && !navOpen) menuButtonRef.current?.focus()
+    previousNavOpenRef.current = navOpen
+  }, [navOpen])
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-navigation-open={navOpen}>
       <SidebarNav items={NAV_ITEMS} open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="app-shell__body">
-        <TopBar navOpen={navOpen} onToggleNavigation={() => setNavOpen((open) => !open)} />
+        <TopBar menuButtonRef={menuButtonRef} navOpen={navOpen} onToggleNavigation={() => setNavOpen((open) => !open)} />
         <FeedbackProvider><main className="app-main" id="main-content" tabIndex={0}><Outlet /></main></FeedbackProvider>
       </div>
     </div>
