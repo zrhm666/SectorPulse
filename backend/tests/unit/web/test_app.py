@@ -13,6 +13,7 @@ class WorkbenchQueries:
     def __init__(self) -> None:
         self.market_call: tuple[UUID, str, int, int] | None = None
         self.news_records_call = None
+        self.candidates_call = None
 
     def market(self, run_id, kind, *, offset, limit):
         self.market_call = (run_id, kind.value, offset, limit)
@@ -27,8 +28,49 @@ class WorkbenchQueries:
     def content_run(self, run_id):
         return None
 
-    def candidates(self, run_id):
-        return [{"sector_id": "industry-1", "name": "示例行业"}]
+    def candidates(self, run_id, *, query, sort, direction, offset, limit):
+        self.candidates_call = (run_id, query, sort, direction, offset, limit)
+        return {
+            "items": [
+                {
+                    "sector_id": "industry-1",
+                    "sector_kind": "INDUSTRY",
+                    "rank": 1,
+                    "score": "9.8",
+                    "reasons": ["涨幅领先"],
+                    "name": "示例行业",
+                    "pct_change": "1.2",
+                    "turnover_rate": None,
+                    "total_market_cap": None,
+                    "advancers": 10,
+                    "decliners": 5,
+                    "leader_name": "示例龙头",
+                    "leader_pct_change": "3.1",
+                    "field_availability": {"pct_change": True},
+                    "news_count": 2,
+                }
+            ],
+            "total": 1,
+            "offset": offset,
+            "limit": limit,
+            "query": query,
+            "sort": sort,
+            "direction": direction,
+            "data_version": "a" * 64,
+        }
+
+    def summary(self, run_id):
+        return {
+            "run_id": str(run_id),
+            "status": "READY_FOR_ATTRIBUTION",
+            "workflow_stage": "ATTRIBUTION_READY",
+            "workflow_stage_index": 5,
+            "terminal": True,
+            "requested_at": datetime.now(UTC),
+            "cutoff_at": datetime.now(UTC),
+            "finished_at": None,
+            "candidate_count": 1,
+        }
 
     def acquisition(self, run_id):
         return {"coverage": "COMPLETE", "market_sources": [], "news_sources": []}
@@ -47,6 +89,25 @@ class WorkbenchQueries:
             "total": 1,
             "offset": offset,
             "limit": limit,
+        }
+
+    def news_record(self, run_id, document_id):
+        if document_id == "missing":
+            raise KeyError(document_id)
+        return {
+            "document_id": document_id,
+            "source_id": "fixture-news",
+            "content_kind": "SUMMARY",
+            "content": "已保存摘要",
+            "content_available": True,
+            "citation_url": "https://example.com/news",
+            "title": "示例新闻",
+            "publisher": "示例媒体",
+            "summary": "已保存摘要",
+            "published_at": datetime.now(UTC),
+            "source_observed_at": datetime.now(UTC),
+            "collected_at": datetime.now(UTC),
+            "source_grade": "REPUTABLE_MEDIA",
         }
 
 
@@ -154,7 +215,25 @@ def test_data_run_workbench_endpoints_return_independent_payloads(tmp_path) -> N
     assert records.status_code == 200
     assert records.json()["total"] == 1
     assert workbench.news_records_call == (run_id, "eastmoney", "SUCCESS", 20, 10)
-    assert client.get(f"/api/data-runs/{run_id}/candidates").json()[0]["name"] == "示例行业"
+    candidates = client.get(
+        f"/api/data-runs/{run_id}/candidates"
+        "?query=行业&sort=news_count&direction=desc&offset=1&limit=10"
+    )
+    assert candidates.json()["items"][0]["name"] == "示例行业"
+    assert workbench.candidates_call == (
+        run_id,
+        "行业",
+        "news_count",
+        "desc",
+        1,
+        10,
+    )
+    summary = client.get(f"/api/data-runs/{run_id}/summary")
+    assert summary.json()["workflow_stage"] == "ATTRIBUTION_READY"
+    detail = client.get(f"/api/data-runs/{run_id}/news-records/doc-1")
+    assert detail.status_code == 200
+    assert detail.json()["content_kind"] == "SUMMARY"
+    assert client.get(f"/api/data-runs/{run_id}/news-records/missing").status_code == 404
 
 
 def test_market_query_parameters_are_validated(tmp_path) -> None:
@@ -177,6 +256,9 @@ def test_market_query_parameters_are_validated(tmp_path) -> None:
     assert client.get(f"/api/data-runs/{run_id}/news-records?limit=0").status_code == 422
     assert client.get(f"/api/data-runs/{run_id}/news-records?limit=101").status_code == 422
     assert client.get(f"/api/data-runs/{run_id}/news-records?status=OTHER").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/candidates?sort=unknown").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/candidates?direction=sideways").status_code == 422
+    assert client.get(f"/api/data-runs/{run_id}/candidates?offset=-1").status_code == 422
 
 
 def test_retry_returns_new_data_run_id(tmp_path) -> None:

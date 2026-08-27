@@ -150,15 +150,17 @@ For the current metadata-only domain, `content` is the persisted short summary w
 - Create: `backend/tests/unit/application/test_data_run_workbench_queries.py`
 - Modify: `backend/tests/integration/test_real_data_workbench_api.py`
 
-- [ ] Write failing tests for candidate search, sort, pagination, stable tie-breaking, market facts, news coverage count and candidate `data_version`.
-- [ ] Implement candidate paging without invoking market/news providers.
-- [ ] Add explicit workflow-stage and run-summary fields only where they are derived from persisted status/timestamps.
-- [ ] Write failing tests for news `content_kind`, `content_available`, safe citation URL and detail lookup by document ID.
-- [ ] Implement additive news list fields and `GET /api/data-runs/{run_id}/news-records/{document_id}`.
-- [ ] Reject unsafe citation schemes by returning `citation_url=null`; do not rewrite or follow the URL.
-- [ ] Keep evidence/quality routes compatible and record why they remain non-paged when their bounded cardinality is below the large-list threshold.
-- [ ] Run focused query/API tests for SQLite; run PostgreSQL tests only if the configured service is reachable.
-- [ ] Commit: `feat: extend data workbench read models`.
+- [x] Write failing tests for candidate search, sort, pagination, stable tie-breaking, market facts, news coverage count and candidate `data_version`.
+- [x] Implement candidate paging without invoking market/news providers.
+- [x] Add explicit workflow-stage and run-summary fields only where they are derived from persisted status/timestamps.
+- [x] Write failing tests for news `content_kind`, `content_available`, safe citation URL and detail lookup by document ID.
+- [x] Implement additive news list fields and `GET /api/data-runs/{run_id}/news-records/{document_id}`.
+- [x] Reject unsafe citation schemes by returning `citation_url=null`; do not rewrite or follow the URL.
+- [x] Keep evidence/quality routes compatible and record why they remain non-paged when their bounded cardinality is below the large-list threshold.
+- [x] Run focused query/API tests for SQLite; run PostgreSQL tests only if the configured service is reachable.
+- [x] Commit: `feat: extend data workbench read models`.
+
+Execution note: evidence events and quality summaries remain complete bounded run-level payloads, while candidates, market rows and news records are paged. The configured PostgreSQL contract test was attempted on 2026-08-28 but the local service refused the connection with `ConnectionRefusedError [WinError 1225]`; SQLite and non-live tests remain authoritative until PostgreSQL is reachable.
 
 ## Task 4: Add Typed Frontend State And Reliable Polling
 

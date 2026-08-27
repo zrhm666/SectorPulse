@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
+from sector_pulse.domain.candidate_selection import candidate_data_version
 from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
 from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.domain.news_retrieval import (
@@ -115,11 +116,25 @@ def _seed(
         run_id,
         (
             RealDataCandidate(
+                sector_id="industry-1",
+                sector_kind=SectorKind.INDUSTRY,
+                rank=2,
+                score=Decimal("8.0"),
+                reasons=("成交活跃",),
+            ),
+            RealDataCandidate(
                 sector_id="industry-2",
                 sector_kind=SectorKind.INDUSTRY,
                 rank=1,
                 score=Decimal("9.8"),
                 reasons=("涨幅领先",),
+            ),
+            RealDataCandidate(
+                sector_id="industry-3",
+                sector_kind=SectorKind.INDUSTRY,
+                rank=3,
+                score=Decimal("8.0"),
+                reasons=("新闻升温",),
             ),
         ),
     )
@@ -149,8 +164,9 @@ def _seed(
         update={
             "document_id": "doc-unrelated",
             "canonical_locator": "https://example.com/unrelated",
-            "citation_url": "https://example.com/unrelated",
+            "citation_url": "javascript:alert(1)",
             "title": "无关新闻",
+            "summary": None,
             "content_hash": "b" * 64,
         }
     )
@@ -211,17 +227,21 @@ def _seed(
         ),
     )
     query_documents = (
-        NewsQueryDocumentLink(
-            run_id=run_id,
-            query_id=linked_query.query_id,
-            document_id=linked_document.document_id,
-        ),
-        NewsQueryDocumentLink(
-            run_id=run_id,
-            query_id=unrelated_query.query_id,
-            document_id=unrelated_document.document_id,
-        ),
-    ) if with_lineage else ()
+        (
+            NewsQueryDocumentLink(
+                run_id=run_id,
+                query_id=linked_query.query_id,
+                document_id=linked_document.document_id,
+            ),
+            NewsQueryDocumentLink(
+                run_id=run_id,
+                query_id=unrelated_query.query_id,
+                document_id=unrelated_document.document_id,
+            ),
+        )
+        if with_lineage
+        else ()
+    )
     storage.news_retrieval.save_audit(
         run_id,
         metrics if with_lineage else (),
@@ -266,7 +286,61 @@ def test_market_paginates_and_candidates_resolve_names(tmp_path: Path) -> None:
     assert market["total"] == 3
     assert market["offset"] == 1
     assert {item["kind"] for item in market["snapshots"]} == {"INDUSTRY", "CONCEPT"}
-    assert queries.candidates(run.run_id)[0]["name"] == "行业二"
+    candidates = queries.candidates(
+        run.run_id,
+        query=None,
+        sort="rank",
+        direction="asc",
+        offset=0,
+        limit=20,
+    )
+    assert candidates["items"][0]["name"] == "行业二"
+
+
+def test_candidates_search_sort_page_and_expose_persisted_facts(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path)
+
+    result = queries.candidates(
+        run.run_id,
+        query="行业",
+        sort="score",
+        direction="desc",
+        offset=1,
+        limit=1,
+    )
+
+    assert result["total"] == 3
+    assert result["offset"] == 1
+    assert result["limit"] == 1
+    assert result["query"] == "行业"
+    assert result["sort"] == "score"
+    assert result["direction"] == "desc"
+    assert result["items"][0]["sector_id"] == "industry-1"
+    assert result["items"][0]["pct_change"] == "1"
+    assert result["items"][0]["news_count"] == 0
+    assert result["data_version"] == candidate_data_version(
+        tuple(queries._real_data_runs.get_candidates(run.run_id))
+    )
+
+
+def test_candidates_use_rank_as_a_stable_tie_breaker(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path)
+
+    result = queries.candidates(
+        run.run_id,
+        query=None,
+        sort="score",
+        direction="desc",
+        offset=0,
+        limit=20,
+    )
+
+    assert [item["sector_id"] for item in result["items"]] == [
+        "industry-2",
+        "industry-1",
+        "industry-3",
+    ]
+    assert result["items"][0]["news_count"] == 1
 
 
 def test_evidence_returns_only_events_linked_to_the_run(tmp_path: Path) -> None:
@@ -279,7 +353,8 @@ def test_evidence_returns_only_events_linked_to_the_run(tmp_path: Path) -> None:
     document = result["events"][0]["documents"][0]
     assert document["title"] == "关联新闻"
     assert document["summary"] == "只返回摘要，不返回正文。"
-    assert "content" not in document
+    assert document["content"] == "只返回摘要，不返回正文。"
+    assert document["content_kind"] == "SUMMARY"
 
 
 def test_quality_and_content_run_are_restored(tmp_path: Path) -> None:
@@ -340,12 +415,66 @@ def test_news_records_are_run_scoped_filtered_and_paginated(tmp_path: Path) -> N
     assert result["items"][0]["query_status"] == "PARTIAL"
 
 
+def test_news_detail_labels_saved_summary_and_rejects_unsafe_links(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path)
+
+    linked = queries.news_record(run.run_id, "doc-linked")
+    unrelated = queries.news_record(run.run_id, "doc-unrelated")
+
+    assert linked["content_kind"] == "SUMMARY"
+    assert linked["content_available"] is True
+    assert linked["content"] == "只返回摘要，不返回正文。"
+    assert linked["citation_url"] == "https://example.com/linked"
+    assert unrelated["citation_url"] is None
+
+
+def test_news_detail_returns_link_only_and_null_for_unsafe_url(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path)
+
+    detail = queries.news_record(run.run_id, "doc-unrelated")
+
+    assert detail["content_kind"] == "LINK_ONLY"
+    assert detail["content_available"] is False
+    assert detail["content"] is None
+    assert detail["citation_url"] is None
+
+
+def test_cls_summary_is_truthfully_labeled_as_flash(tmp_path: Path) -> None:
+    queries, _run = _seed(tmp_path)
+    document = NewsDocument(
+        document_id="doc-flash",
+        source_id="cls",
+        canonical_locator="urn:flash:1",
+        title="盘中快讯",
+        summary="板块异动。",
+        published_at=NOW,
+        collected_at=NOW,
+        content_hash="c" * 64,
+        source_grade=SourceGrade.REPUTABLE_MEDIA,
+    )
+
+    detail = queries._document_summary(document)
+
+    assert detail["content_kind"] == "FLASH"
+    assert detail["content"] == "板块异动。"
+
+
+def test_workflow_summary_is_derived_from_persisted_run_state(tmp_path: Path) -> None:
+    queries, run = _seed(tmp_path)
+
+    summary = queries.summary(run.run_id)
+
+    assert summary["status"] == "READY_FOR_ATTRIBUTION"
+    assert summary["workflow_stage"] == "ATTRIBUTION_READY"
+    assert summary["workflow_stage_index"] == 5
+    assert summary["terminal"] is True
+    assert summary["candidate_count"] == 3
+
+
 def test_historical_news_records_are_explicitly_linked_only(tmp_path: Path) -> None:
     queries, run = _seed(tmp_path, with_lineage=False)
 
-    result = queries.news_records(
-        run.run_id, source_id=None, status=None, offset=0, limit=20
-    )
+    result = queries.news_records(run.run_id, source_id=None, status=None, offset=0, limit=20)
 
     assert result["coverage"] == "LINKED_ONLY"
     assert result["total"] == 1

@@ -64,6 +64,9 @@ from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSumm
 from sector_pulse.web.data_run_schemas import (
     CandidateSelectionConfirmRequest,
     CandidateSelectionResponse,
+    DataRunCandidatePageResponse,
+    DataRunNewsDetailResponse,
+    DataRunWorkflowSummaryResponse,
     GenerateDataRunRequest,
     NewDataRunRequest,
 )
@@ -871,10 +874,37 @@ def create_app(
                 raise HTTPException(404, "run not found")
             return result
 
-        @app.get("/api/data-runs/{run_id}/candidates")
-        async def get_data_run_candidates(run_id: UUID) -> list[dict[str, object]]:
+        @app.get(
+            "/api/data-runs/{run_id}/candidates",
+            response_model=DataRunCandidatePageResponse,
+        )
+        async def get_data_run_candidates(
+            run_id: UUID,
+            query: str | None = Query(default=None, max_length=100),
+            sort: str = Query(default="rank", pattern="^(rank|score|name|pct_change|news_count)$"),
+            direction: str = Query(default="asc", pattern="^(asc|desc)$"),
+            offset: int = Query(default=0, ge=0),
+            limit: int = Query(default=20, ge=1, le=100),
+        ) -> dict[str, object]:
             try:
-                return workbench_queries.candidates(run_id)
+                return workbench_queries.candidates(
+                    run_id,
+                    query=query,
+                    sort=sort,
+                    direction=direction,
+                    offset=offset,
+                    limit=limit,
+                )
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get(
+            "/api/data-runs/{run_id}/summary",
+            response_model=DataRunWorkflowSummaryResponse,
+        )
+        async def get_data_run_summary(run_id: UUID) -> dict[str, object]:
+            try:
+                return workbench_queries.summary(run_id)
             except KeyError as exc:
                 raise HTTPException(404, "run not found") from exc
 
@@ -935,6 +965,18 @@ def create_app(
                 )
             except KeyError as exc:
                 raise HTTPException(404, "run not found") from exc
+
+        @app.get(
+            "/api/data-runs/{run_id}/news-records/{document_id}",
+            response_model=DataRunNewsDetailResponse,
+        )
+        async def get_data_run_news_record(
+            run_id: UUID, document_id: str
+        ) -> dict[str, object]:
+            try:
+                return workbench_queries.news_record(run_id, document_id)
+            except KeyError as exc:
+                raise HTTPException(404, "news record not found") from exc
 
         @app.get("/api/data-runs/{run_id}/market")
         async def get_data_run_market(

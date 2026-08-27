@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
+from urllib.parse import urlparse
 from uuid import UUID
 
+from sector_pulse.domain.candidate_selection import candidate_data_version
 from sector_pulse.domain.market import SectorKind, SectorUniverseSnapshot
 from sector_pulse.domain.news import NewsDocument, NewsEvent
 from sector_pulse.domain.news_retrieval import (
@@ -98,19 +100,116 @@ class DataRunWorkbenchQueries:
             "limit": limit,
         }
 
-    def candidates(self, run_id: UUID) -> list[dict[str, object]]:
+    def candidates(
+        self,
+        run_id: UUID,
+        *,
+        query: str | None,
+        sort: str,
+        direction: str,
+        offset: int,
+        limit: int,
+    ) -> dict[str, object]:
         self._require_run(run_id)
-        names = {
-            (snapshot.kind, sector.provider_sector_id): sector.name
+        sectors = {
+            (snapshot.kind, sector.provider_sector_id): sector
             for snapshot in self._snapshots(run_id).values()
             for sector in snapshot.sectors
         }
+        available_fields = {
+            snapshot.kind: set(self._available_fields(snapshot))
+            for snapshot in self._snapshots(run_id).values()
+        }
+        news_counts: dict[str, int] = {}
+        seen_links: set[tuple[str, str]] = set()
+        for link in self._news_retrieval.list_links(run_id):
+            key = (link.sector_id, link.event_id)
+            if key in seen_links:
+                continue
+            seen_links.add(key)
+            news_counts[link.sector_id] = news_counts.get(link.sector_id, 0) + 1
+        candidates = sorted(
+            self._real_data_runs.get_candidates(run_id),
+            key=lambda item: (item.rank, item.sector_id),
+        )
         result: list[dict[str, object]] = []
-        for candidate in self._real_data_runs.get_candidates(run_id):
+        for candidate in candidates:
             payload = candidate.model_dump(mode="json")
-            payload["name"] = names.get((candidate.sector_kind, candidate.sector_id))
+            sector = sectors.get((candidate.sector_kind, candidate.sector_id))
+            sector_payload = sector.model_dump(mode="json") if sector else {}
+            payload["name"] = sector.name if sector else None
+            for field in (
+                "pct_change",
+                "turnover_rate",
+                "total_market_cap",
+                "advancers",
+                "decliners",
+                "leader_name",
+                "leader_pct_change",
+            ):
+                payload[field] = (
+                    sector_payload.get(field)
+                    if sector and field in available_fields.get(candidate.sector_kind, set())
+                    else None
+                )
+            payload["field_availability"] = {
+                field: field in available_fields.get(candidate.sector_kind, set())
+                for field in (
+                    "pct_change",
+                    "turnover_rate",
+                    "total_market_cap",
+                    "advancers",
+                    "decliners",
+                    "leader_name",
+                    "leader_pct_change",
+                )
+            }
+            payload["news_count"] = news_counts.get(candidate.sector_id, 0)
             result.append(payload)
-        return result
+        normalized_query = (query or "").strip()
+        if normalized_query:
+            needle = normalized_query.casefold()
+            result = [
+                item
+                for item in result
+                if needle in str(item["sector_id"]).casefold()
+                or needle in str(item.get("name") or "").casefold()
+            ]
+        total = len(result)
+        result = self._sort_candidates(result, sort=sort, direction=direction)
+        return {
+            "items": result[offset : offset + limit],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "query": normalized_query or None,
+            "sort": sort,
+            "direction": direction,
+            "data_version": candidate_data_version(tuple(candidates)),
+        }
+
+    def summary(self, run_id: UUID) -> dict[str, object]:
+        run = self._require_run(run_id)
+        stage_map = {
+            "PREFLIGHT": ("PREFLIGHT", 0),
+            "FETCHING_MARKET": ("MARKET_COLLECTION", 1),
+            "RANKING_PRE_CANDIDATES": ("PRE_CANDIDATE_RANKING", 2),
+            "FETCHING_NEWS": ("NEWS_COLLECTION", 3),
+            "BUILDING_EVIDENCE": ("EVIDENCE_BUILDING", 4),
+            "READY_FOR_ATTRIBUTION": ("ATTRIBUTION_READY", 5),
+        }
+        stage, index = stage_map.get(run.status.value, ("TERMINATED", 5))
+        return {
+            "run_id": str(run.run_id),
+            "status": run.status.value,
+            "workflow_stage": stage,
+            "workflow_stage_index": index,
+            "terminal": run.status.is_terminal,
+            "requested_at": self._datetime(run.request.requested_at),
+            "cutoff_at": self._datetime(run.cutoff_at),
+            "finished_at": self._datetime(run.finished_at),
+            "candidate_count": len(self._real_data_runs.get_candidates(run_id)),
+        }
 
     def evidence(self, run_id: UUID) -> dict[str, object]:
         self._require_run(run_id)
@@ -165,8 +264,7 @@ class DataRunWorkbenchQueries:
         snapshots = self._snapshots(run_id)
         queries = self._news_retrieval.list_queries(run_id)
         metrics = {
-            item.source_id: item
-            for item in self._news_retrieval.list_source_metrics(run_id)
+            item.source_id: item for item in self._news_retrieval.list_source_metrics(run_id)
         }
         query_documents = self._news_retrieval.list_query_documents(run_id)
         coverage = "COMPLETE" if metrics or query_documents else "LINKED_ONLY"
@@ -211,9 +309,7 @@ class DataRunWorkbenchQueries:
                 }
             )
         return {
-            "market_sources": [
-                self._snapshot_summary(snapshot) for snapshot in snapshots.values()
-            ],
+            "market_sources": [self._snapshot_summary(snapshot) for snapshot in snapshots.values()],
             "news_sources": news_sources,
             "counts": {
                 "provider_results": sum(item.result_count for item in queries),
@@ -298,6 +394,15 @@ class DataRunWorkbenchQueries:
             "coverage_notice": self._coverage_notice(coverage),
         }
 
+    def news_record(self, run_id: UUID, document_id: str) -> dict[str, object]:
+        self._require_run(run_id)
+        if document_id not in self._run_document_ids(run_id):
+            raise KeyError(document_id)
+        document = self._news.get_documents((document_id,)).get(document_id)
+        if document is None:
+            raise KeyError(document_id)
+        return self._document_summary(document)
+
     def quality(self, run_id: UUID) -> dict[str, object]:
         run = self._require_run(run_id)
         quality = run.quality.model_dump(mode="json")
@@ -372,10 +477,27 @@ class DataRunWorkbenchQueries:
     def _linked_news_ids(self, run_id: UUID) -> tuple[set[str], set[str]]:
         event_ids = {item.event_id for item in self._news_retrieval.list_links(run_id)}
         events = self._news.get_events(tuple(sorted(event_ids)))
-        document_ids = {
-            document_id for event in events for document_id in event.document_ids
-        }
+        document_ids = {document_id for event in events for document_id in event.document_ids}
         return event_ids, document_ids
+
+    def _run_document_ids(self, run_id: UUID) -> set[str]:
+        _event_ids, linked = self._linked_news_ids(run_id)
+        return linked | {
+            item.document_id for item in self._news_retrieval.list_query_documents(run_id)
+        }
+
+    @staticmethod
+    def _sort_candidates(
+        items: list[dict[str, object]], *, sort: str, direction: str
+    ) -> list[dict[str, object]]:
+        ordered = sorted(
+            items,
+            key=lambda item: (cast(int, item["rank"]), str(item["sector_id"])),
+        )
+        available = [item for item in ordered if item.get(sort) is not None]
+        missing = [item for item in ordered if item.get(sort) is None]
+        available.sort(key=lambda item: cast(Any, item[sort]), reverse=direction == "desc")
+        return available + missing
 
     @staticmethod
     def _aggregate_status(statuses: tuple[DataStatus, ...]) -> str:
@@ -396,18 +518,38 @@ class DataRunWorkbenchQueries:
 
     @staticmethod
     def _document_summary(document: NewsDocument) -> dict[str, object]:
+        content = document.summary.strip() if document.summary else None
+        content_kind = (
+            "FLASH"
+            if content and document.source_id == "cls"
+            else "SUMMARY"
+            if content
+            else "LINK_ONLY"
+        )
         return {
             "document_id": document.document_id,
             "source_id": document.source_id,
-            "citation_url": document.citation_url,
+            "citation_url": DataRunWorkbenchQueries._safe_citation_url(document.citation_url),
             "title": document.title,
             "publisher": document.publisher,
             "summary": document.summary,
+            "content_kind": content_kind,
+            "content": content,
+            "content_available": content is not None,
             "published_at": DataRunWorkbenchQueries._datetime(document.published_at),
             "source_observed_at": DataRunWorkbenchQueries._datetime(document.source_observed_at),
             "collected_at": DataRunWorkbenchQueries._datetime(document.collected_at),
             "source_grade": document.source_grade.value,
         }
+
+    @staticmethod
+    def _safe_citation_url(value: str | None) -> str | None:
+        if not value:
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return None
+        return value
 
     @staticmethod
     def _datetime(value: datetime | None) -> str | None:
