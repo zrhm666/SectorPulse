@@ -7,6 +7,7 @@ from typing import Any
 
 from sector_pulse.application.postgres_review_analytics import PostgresReviewAnalyticsQueries
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.candidate_selection_repository import SQLiteCandidateSelectionRepository
 from sector_pulse.storage.draft_edit_repository import SQLiteDraftEditRepository
 from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
 from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
@@ -20,6 +21,9 @@ from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsReposi
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_agent_invocation_repository import (
     PostgresAgentInvocationRepository,
+)
+from sector_pulse.storage.postgres_candidate_selection_repository import (
+    PostgresCandidateSelectionRepository,
 )
 from sector_pulse.storage.postgres_draft_edit_repository import PostgresDraftEditRepository
 from sector_pulse.storage.postgres_evidence_repository import PostgresEvidenceRepository
@@ -105,6 +109,7 @@ class RuntimeStorageBundle:
     shadow: object | None = None
     governance: object | None = None
     operations: object | None = None
+    candidate_selections: object | None = None
 
 
 def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
@@ -121,6 +126,7 @@ def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
         prompt_golden=SQLitePromptGoldenRepository(database), release_audit=SQLiteReleaseAuditRepository(database),
         shadow=SQLiteShadowAcceptanceRepository(database), governance=SQLiteGovernanceRepository(database),
         operations=SQLiteOperationsQuery(database),
+        candidate_selections=SQLiteCandidateSelectionRepository(database),
     )
 
 
@@ -142,4 +148,7 @@ def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
         release_audit=BlockingAsyncRepository(PostgresReleaseAuditRepository(database)),
         shadow=BlockingAsyncRepository(PostgresShadowAcceptanceRepository(database)), governance=BlockingAsyncRepository(PostgresGovernanceRepository(database)),
         operations=BlockingAsyncRepository(PostgresOperationsQuery(database)),
+        candidate_selections=BlockingAsyncRepository(
+            PostgresCandidateSelectionRepository(database)
+        ),
     )

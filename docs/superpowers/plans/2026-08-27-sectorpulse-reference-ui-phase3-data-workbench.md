@@ -107,14 +107,14 @@ For the current metadata-only domain, `content` is the persisted short summary w
 - Create: `backend/tests/integration/test_candidate_selection_repository.py`
 - Create: `backend/tests/integration/test_postgres_candidate_selection_repository.py`
 
-- [ ] Write domain tests for uniqueness, 3–12 bounds, UTC confirmation time, immutable versions and deterministic candidate data hashes.
-- [ ] Run focused tests and verify RED because the domain model does not exist.
-- [ ] Implement the frozen selection model and hash helper.
-- [ ] Write repository tests for no selection, append-only versions, latest lookup, optimistic version conflicts and run deletion cascade.
-- [ ] Add migration 015 with `(run_id, version)` primary key, JSON candidate IDs, method, confirmed time, data version and edit count.
-- [ ] Implement SQLite and PostgreSQL repositories with the same contract and register them in `RuntimeStorageBundle`.
-- [ ] Run domain/storage tests, Ruff and mypy for changed backend files.
-- [ ] Commit: `feat: persist candidate selection versions`.
+- [x] Write domain tests for uniqueness, 3–12 bounds, UTC confirmation time, immutable versions and deterministic candidate data hashes.
+- [x] Run focused tests and verify RED because the domain model does not exist.
+- [x] Implement the frozen selection model and hash helper.
+- [x] Write repository tests for no selection, append-only versions, latest lookup, optimistic version conflicts and run deletion cascade.
+- [x] Add migration 015 with `(run_id, version)` primary key, JSON candidate IDs, method, confirmed time, data version and edit count.
+- [x] Implement SQLite and PostgreSQL repositories with the same contract and register them in `RuntimeStorageBundle`.
+- [x] Run domain/storage tests, Ruff and mypy for changed backend files.
+- [x] Commit: `feat: persist candidate selection versions`.
 
 ## Task 2: Enforce Confirmation In The Generation Boundary
 
