@@ -305,7 +305,7 @@ git commit -m "feat: add reliable operations polling"
 - Consumes: Phase 2 `OperationsSummary` and `useOperationsSummary`.
 - Produces: a truthful `DashboardLayout` with metric cards, real trend, readiness list, recent runs, loading/error/empty/stale states and actual routes.
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 Tests assert that:
 
@@ -317,21 +317,21 @@ Tests assert that:
 - `candidate_count=null` renders `暂无` rather than `0`;
 - table empty state does not include invented records.
 
-- [ ] **Step 2: Run component tests and verify RED**
+- [x] **Step 2: Run component tests and verify RED**
 
 Run: `Set-Location web; npm.cmd test -- src/components/dashboard/DashboardComponents.test.tsx`
 
 Expected: FAIL because the components do not exist.
 
-- [ ] **Step 3: Implement semantic dashboard components**
+- [x] **Step 3: Implement semantic dashboard components**
 
 Use existing `MetricCard`, `Panel`, `StatusBadge`, `Button`, and `AppIcon`. Draw the trend with one accessible SVG per selected range and include a visually available summary such as `最近 7 天共 12 次运行` outside the graphic. Do not add a chart dependency, tooltip-only facts, gradients, fake percentages or animation.
 
-- [ ] **Step 4: Write failing page-state tests**
+- [x] **Step 4: Write failing page-state tests**
 
 Mock `useOperationsSummary` rather than timers. Cover initial loading, empty success, full success, partial readiness warning, initial hard failure, retained stale data, refreshing label and active-run polling copy.
 
-- [ ] **Step 5: Recompose `OperationsDashboardPage`**
+- [x] **Step 5: Recompose `OperationsDashboardPage`**
 
 The page contains:
 
@@ -344,17 +344,17 @@ recent runs table
 
 Initial failure uses a full recovery alert. Refresh failure with retained data uses a compact warning banner and keeps all last successful cards visible. The refresh button exposes a loading label without changing width.
 
-- [ ] **Step 6: Add page-scoped CSS**
+- [x] **Step 6: Add page-scoped CSS**
 
 At desktop, use a constrained Dashboard width, four-card row, `minmax(0, 2fr) minmax(300px, 1fr)` middle grid and a compact table. At 1024px use two metric columns and stack trend/readiness. At 767px use one metric column and horizontally scroll only the table viewport. Preserve visible focus, 44px mobile targets, reduced motion, and no full-page horizontal overflow.
 
-- [ ] **Step 7: Run frontend tests and build**
+- [x] **Step 7: Run frontend tests and build**
 
 Run: `Set-Location web; npm.cmd test -- src/components/dashboard/DashboardComponents.test.tsx src/pages/OperationsDashboardPage.test.tsx src/App.test.tsx; npm.cmd run build`
 
 Expected: all tests PASS and Vite build succeeds.
 
-- [ ] **Step 8: Run the Impeccable detector for changed UI files**
+- [x] **Step 8: Run the Impeccable detector for changed UI files**
 
 Run:
 
@@ -364,7 +364,7 @@ node C:\Users\18067\.codex\skills\impeccable\scripts\detect.mjs --json web/src/p
 
 Expected: no unresolved detector findings.
 
-- [ ] **Step 9: Commit the dashboard UI**
+- [x] **Step 9: Commit the dashboard UI**
 
 ```powershell
 git add web/src/components/dashboard web/src/pages/OperationsDashboardPage.tsx web/src/pages/OperationsDashboardPage.test.tsx web/src/styles/index.css web/src/styles/pages/dashboard.css
@@ -382,11 +382,11 @@ git commit -m "refactor: build truthful operations dashboard"
 - Consumes: completed Phase 2 API and dashboard.
 - Produces: repeatable viewport assertions and an evidence-backed acceptance record.
 
-- [ ] **Step 1: Add Playwright coverage**
+- [x] **Step 1: Add Playwright coverage**
 
 Stub `/api/operations/summary` with deterministic contract fixtures only inside E2E tests. Assert that 1536×1024 and 1440×900 show four metrics, two-column trend/readiness and recent table without page overflow; 1024×768 stacks the middle panels; 390×844 keeps all controls reachable and confines horizontal scrolling to the table wrapper.
 
-- [ ] **Step 2: Run complete frontend verification**
+- [x] **Step 2: Run complete frontend verification**
 
 Run:
 
@@ -400,7 +400,7 @@ Set-Location ..
 
 Expected: all Vitest, build and Playwright checks PASS.
 
-- [ ] **Step 3: Run non-live backend verification**
+- [x] **Step 3: Run non-live backend verification**
 
 Run:
 
@@ -411,7 +411,7 @@ $env:SECTOR_PULSE_DATABASE_URL = ''
 
 Expected: all SQLite and unit tests PASS; PostgreSQL-only tests SKIP because this command intentionally clears the URL.
 
-- [ ] **Step 4: Verify PostgreSQL when the configured service is reachable**
+- [x] **Step 4: Verify PostgreSQL when the configured service is reachable**
 
 Run without overriding `SECTOR_PULSE_DATABASE_URL`:
 
@@ -421,21 +421,21 @@ Run without overriding `SECTOR_PULSE_DATABASE_URL`:
 
 Expected: PASS when PostgreSQL is reachable. If the configured service refuses connection, record that exact environmental exception; do not report PostgreSQL acceptance as passed.
 
-- [ ] **Step 5: Perform live browser inspection**
+- [x] **Step 5: Perform live browser inspection**
 
 Use the actual local page at 1536×1024, 1440×900, 1024×768 and 390×844. Inspect loading, empty database, real-record success, active refresh indicator, stale-data warning and hard failure. Confirm no console errors, clipped actions, invented values or navigation regressions.
 
-- [ ] **Step 6: Run final repository checks**
+- [x] **Step 6: Run final repository checks**
 
 Run: `git diff --check; git status --short`
 
 Expected: no whitespace errors; only Phase 2 acceptance/master-plan edits remain before the closure commit.
 
-- [ ] **Step 7: Write acceptance evidence and close Phase 2**
+- [x] **Step 7: Write acceptance evidence and close Phase 2**
 
 The acceptance report records exact command results, viewport outcomes, PostgreSQL result or exception, detector result and remaining non-blocking warnings. Mark Phase 2 tasks complete in the master plan only when evidence exists.
 
-- [ ] **Step 8: Commit Phase 2 acceptance**
+- [x] **Step 8: Commit Phase 2 acceptance**
 
 ```powershell
 git add web/e2e/dashboard.spec.ts docs/superpowers/acceptance/2026-08-27-sectorpulse-reference-ui-phase2.md docs/superpowers/plans/2026-08-27-sectorpulse-reference-ui-refactor-master.md

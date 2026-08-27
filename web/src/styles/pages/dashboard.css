@@ -1,8 +1,14 @@
 .operations-dashboard {
   width: min(100%, 1400px);
+  min-width: 0;
   margin-inline: auto;
   overflow-x: clip;
 }
+
+.operations-dashboard > *,
+.operations-dashboard__middle > *,
+.operations-recent,
+.operations-recent .panel__body { min-width: 0; }
 
 .operations-dashboard .page-header { margin-bottom: 0; }
 
@@ -212,7 +218,13 @@
 .operations-readiness__copy strong { color: var(--sp-text); font-size: 14px; }
 .operations-readiness__copy small { overflow: hidden; color: var(--sp-text-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 
-.operations-recent__viewport { width: 100%; overflow-x: auto; scrollbar-gutter: stable; }
+.operations-recent__viewport {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  contain: inline-size paint;
+  scrollbar-gutter: stable;
+}
 
 .operations-recent__table {
   width: 100%;

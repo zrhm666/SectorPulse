@@ -107,12 +107,12 @@ git status --short
 - `backend/tests/unit/web/`
 - `backend/tests/integration/`
 
-- [ ] 审计当前 `/api/operations/summary` 与 PostgreSQL 运行字段。
-- [ ] 先写后端聚合失败测试，再增量增加 `summary`、`trend`、`readiness`、`recent_runs`、`generated_at`。
-- [ ] 先写前端加载、空、部分降级、失败和运行中测试，再实现指标、趋势、状态与近期表格。
-- [ ] 只有数据库可可靠计算时才显示变化值；未知值返回 `null` 和原因。
-- [ ] 存在运行中任务时每 5 秒刷新，页面隐藏时暂停，失败时保留最后成功数据。
-- [ ] 在空数据库和已有真实记录两种状态下浏览器验收。
+- [x] 审计当前 `/api/operations/summary` 与 PostgreSQL 运行字段。
+- [x] 先写后端聚合失败测试，再增量增加 `summary`、`trend`、`readiness`、`recent_runs`、`generated_at`。
+- [x] 先写前端加载、空、部分降级、失败和运行中测试，再实现指标、趋势、状态与近期表格。
+- [x] 只有数据库可可靠计算时才显示变化值；未知值返回 `null` 和原因。
+- [x] 存在运行中任务时每 5 秒刷新，页面隐藏时暂停，失败时保留最后成功数据。
+- [x] 在空数据库和已有真实记录两种状态下浏览器验收。
 
 **Exit commands:**
 
