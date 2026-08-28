@@ -14,7 +14,7 @@
 
 </div>
 
-![SectorPulse 运营总览](docs/design/references/sectorpulse-soft-blue-dashboard.png)
+![SectorPulse 运营总览](docs/screenshots/sectorpulse-operations-dashboard.png)
 
 SectorPulse 不把模型生成的结论当作终点。它将市场快照、新闻记录、候选板块、引用证据、草稿版本和审核动作持久化，让一次分析为什么产生、使用了什么信息、经过了哪些修改都可以回看。
 
@@ -89,10 +89,10 @@ Set-Location ..
 
 ### 3. 完成第一次分析
 
-1. 进入“新建分析”。
-2. 选择“盘中分析”或“盘后复盘”。
-3. 首次使用建议选择 **Fixture 演练**。
-4. 查看运行详情、生成的分析稿和审核工作台。
+1. 进入“新建分析”，先选择业务场景；盘中 / 盘后参数只用于 Live 数据运行。
+2. 选择执行方式；首次使用建议选择 **Fixture 演练**，它会运行固定内容样例。
+3. 在参数确认页核对系统真正会提交的参数。
+4. 确认启动后，查看运行详情、生成的分析稿和审核工作台。
 
 Fixture 使用仓库内的可复现样例，不调用真实数据源，也不消耗 LLM 额度。
 
@@ -102,13 +102,17 @@ Fixture 使用仓库内的可复现样例，不调用真实数据源，也不消
 
 查看采集来源、行情板块、新闻记录、质量报告和候选结果，并在写作前选择分析板块。
 
-![SectorPulse 数据运行工作台](docs/design/references/sectorpulse-soft-blue-data-workbench.png)
+![SectorPulse 数据运行工作台](docs/screenshots/sectorpulse-data-workbench.png)
+
+上图来自隔离的确定性 Fixture 验收库，用于展示当前生产构建如何呈现已持久化的采集、质量和候选数据；不会调用实时 Provider。
 
 ### 审核工作台
 
 在同一页面编辑草稿、检查引用来源、记录证据决定，并执行批准或退回。
 
-![SectorPulse 审核工作台](docs/design/references/sectorpulse-soft-blue-review-workspace.png)
+![SectorPulse 审核工作台](docs/screenshots/sectorpulse-review-workspace.png)
+
+上图来自当前生产构建的 Fixture 内容运行，展示真实可用的版本、编辑、治理和审核界面。
 
 ## Live 实时运行
 

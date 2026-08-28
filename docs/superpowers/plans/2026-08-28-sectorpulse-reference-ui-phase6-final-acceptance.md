@@ -91,23 +91,23 @@
 - Consumes: current `web/dist`, fixture provider, isolated SQLite database, production FastAPI static serving.
 - Produces: three current-product PNGs and README links that no longer imply design reference images are implementation screenshots.
 
-- [ ] **Step 1: Start an isolated production application**
+- [x] **Step 1: Start an isolated production application**
 
   Build the frontend; start FastAPI on an unused loopback port with PostgreSQL disabled, Fixture LLM selected and database path `.tmp-test/phase6-browser.db`. Create only deterministic fixture content needed for dashboard, data workbench and review workspace screenshots.
 
-- [ ] **Step 2: Capture the three real desktop pages**
+- [x] **Step 2: Capture the three real desktop pages**
 
   At 1536×1024 capture the dashboard, a populated data workbench and a populated review workspace. Verify no root overflow and no browser warning/error entries before each capture. Save PNGs under `docs/screenshots/`.
 
-- [ ] **Step 3: Render and inspect saved PNGs**
+- [x] **Step 3: Render and inspect saved PNGs**
 
   Open each local image at original detail and verify crop, readable hierarchy, absence of secrets, correct current navigation and truthful fixture labels. Re-capture any image with clipping, transient loading or empty accidental content.
 
-- [ ] **Step 4: Update README and design-reference wording**
+- [x] **Step 4: Update README and design-reference wording**
 
   Replace README image links with `docs/screenshots/*`, update the four-step quick-start wording and clarify that `docs/design/references/*` are historical visual targets rather than product screenshots. Keep architecture, safety and startup commands accurate.
 
-- [ ] **Step 5: Verify Markdown targets and commit**
+- [x] **Step 5: Verify Markdown targets and commit**
 
   Check every relative README link exists, inspect `git diff --check`, and commit README/screenshots/design wording as `docs: refresh readme with actual product screens`.
 

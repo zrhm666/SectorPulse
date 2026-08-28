@@ -8,13 +8,19 @@
 
 ## 1. 文档定位
 
-本规范从 README 中的三张设计参考图提炼 SectorPulse 专用的视觉、布局、组件和交互规则。后续阶段可以扩展组件，但不能在未更新本文档的情况下另起一套颜色、间距、导航或卡片体系。
+本规范从重构初期的三张设计参考图提炼 SectorPulse 专用的视觉、布局、组件和交互规则。README 现已改为展示当前生产构建截图；历史参考图仍保留在本目录，作为设计来源而不是产品现状证明。后续阶段可以扩展组件，但不能在未更新本文档的情况下另起一套颜色、间距、导航或卡片体系。
 
 三张图片是高保真视觉与布局目标，不是现有产品截图，也不是功能需求清单：
 
 - [运营总览参考](./references/sectorpulse-soft-blue-dashboard.png)
 - [数据工作台参考](./references/sectorpulse-soft-blue-data-workbench.png)
 - [审核工作台参考](./references/sectorpulse-soft-blue-review-workspace.png)
+
+当前实现截图：
+
+- [运营总览实图](../screenshots/sectorpulse-operations-dashboard.png)
+- [数据工作台实图](../screenshots/sectorpulse-data-workbench.png)
+- [审核工作台实图](../screenshots/sectorpulse-review-workspace.png)
 
 适配后的运营总览布局原型：
 
