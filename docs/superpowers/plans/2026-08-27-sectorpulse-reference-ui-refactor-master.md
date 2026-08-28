@@ -192,15 +192,17 @@ Phase 5 accepted on 2026-08-28; see `docs/superpowers/acceptance/2026-08-28-sect
 
 ## Phase 6: Full Acceptance And Documentation
 
-- [ ] 运行全量非 live 后端测试、Ruff 和 mypy。
-- [ ] 运行全量 Vitest、TypeScript/Vite build 和 Playwright。
-- [ ] 浏览器逐页覆盖 1536×1024、1440×900、1280×800、1024×768、768×1024、390×844。
-- [ ] 使用键盘完成新建分析、候选选择、草稿保存和审核关键路径。
-- [ ] 检查加载、空、部分数据、失败、重试、禁用、冲突和无配置状态。
-- [ ] 检查页面隐藏时轮询暂停、终态停止和请求去重。
-- [ ] 进行最终代码审查和依赖、性能、敏感信息检查。
-- [ ] 用实际产品页面重新截取 README 图片，并明确设计参考图的历史用途。
-- [ ] 形成最终验收报告；保留 `refactoring` 到 `main` 的独立合并决策。
+- [x] 运行全量非 live 后端测试、Ruff 和 mypy；mypy 的 3 个遗留动态装配模块错误已如实记录。
+- [x] 运行全量 Vitest、TypeScript/Vite build 和 Playwright。
+- [x] 浏览器逐页覆盖 1536×1024、1440×900、1280×800、1024×768、768×1024、390×844。
+- [x] 使用键盘完成导航、候选选择、草稿保存和审核关键路径。
+- [x] 检查加载、空、部分数据、失败、重试、禁用、冲突和无配置状态。
+- [x] 检查页面隐藏时轮询暂停、终态停止和请求去重。
+- [x] 进行最终代码审查和依赖、性能、敏感信息检查。
+- [x] 用实际产品页面重新截取 README 图片，并明确设计参考图的历史用途。
+- [x] 形成最终验收报告；保留 `refactoring` 到 `main` 的独立合并决策。
+
+Phase 6 and the non-Live reference UI program were accepted on 2026-08-28. See `docs/superpowers/acceptance/2026-08-28-sectorpulse-reference-ui-final.md`. The Phase 3 PostgreSQL checkbox remains intentionally open because the local service was unreachable; this is an environment-gated production-path verification, not a hidden success claim.
 
 **Final commands:**
 

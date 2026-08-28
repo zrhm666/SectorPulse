@@ -122,23 +122,23 @@
 - Consumes: all Phase 1–6 commits and acceptance suites.
 - Produces: one final evidence document and a clean, reviewable `refactoring` branch.
 
-- [ ] **Step 1: Run complete frontend verification**
+- [x] **Step 1: Run complete frontend verification**
 
   Run `npm.cmd test -- --run`, `npm.cmd run build`, all five Playwright specs and the Impeccable detector for changed UI files. Expected: zero failures and no unresolved detector findings.
 
-- [ ] **Step 2: Run complete backend verification**
+- [x] **Step 2: Run complete backend verification**
 
   Run non-Live Pytest with PostgreSQL integration tests excluded only when the local service is unavailable, Ruff, and changed-source strict mypy for all Python files changed from `main`. Record both passing evidence and any legacy baseline errors exactly.
 
-- [ ] **Step 3: Recheck repository integrity**
+- [x] **Step 3: Recheck repository integrity**
 
   Run `git diff --check main...HEAD`, verify no untracked generated artifacts, confirm branch name and list commits since `main`. Ensure all temporary browser services and SQLite files are removed.
 
-- [ ] **Step 4: Write final acceptance and close plans**
+- [x] **Step 4: Write final acceptance and close plans**
 
   Record exact test counts, browser coverage, screenshots, review findings, dependency/security results and non-blocking warnings. Mark Phase 6 complete in the master plan and this plan only when every required result has evidence.
 
-- [ ] **Step 5: Commit final acceptance**
+- [x] **Step 5: Commit final acceptance**
 
   Commit plan/report updates as `docs: complete reference ui final acceptance`. Do not merge branches.
 
