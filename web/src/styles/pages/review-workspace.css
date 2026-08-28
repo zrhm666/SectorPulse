@@ -99,12 +99,15 @@
 }
 
 .review-workspace__pane .review-queue li > button {
-  align-items: center;
+  align-items: stretch;
+  flex-direction: column;
   padding: 10px;
 }
 
 .review-workspace__pane .review-queue .status-badge {
+  align-self: flex-start;
   max-width: 86px;
+  margin-top: 7px;
   font-size: .6875rem;
 }
 
