@@ -50,13 +50,15 @@ Verification evidence (2026-08-28): focused Vitest passed 2 tests; production bu
 
 **Files:** `NewAnalysisPage.tsx`, tests, `styles/pages/operations-pages.css`
 
-- [ ] Expand flow to 场景 → 执行方式 → 参数确认 → 启动.
-- [ ] Keep preflight loading/error and explicit Live blockers; Fixture never claims real data or LLM usage.
-- [ ] Present only parameters actually submitted by current APIs.
-- [ ] Prevent duplicate submission and retain user choices when moving backward.
-- [ ] Add compact sticky summary on desktop and a single-column order on mobile.
-- [ ] Run focused tests, build and detector.
-- [ ] Commit `refactor: build guided analysis launcher`.
+- [x] Expand flow to 场景 → 执行方式 → 参数确认 → 启动.
+- [x] Keep preflight loading/error and explicit Live blockers; Fixture never claims real data or LLM usage.
+- [x] Present only parameters actually submitted by current APIs.
+- [x] Prevent duplicate submission and retain user choices when moving backward.
+- [x] Add compact sticky summary on desktop and a single-column order on mobile.
+- [x] Run focused tests, build and detector.
+- [x] Commit `refactor: build guided analysis launcher`.
+
+Verification evidence (2026-08-28): focused Vitest passed 3 tests; production build transformed 106 modules; Impeccable detector returned `[]`; the submit ref lock prevents same-render duplicate requests and backward navigation retains both selected values.
 
 ## Task 3: Clarify The Content Run Workspace
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { createRun, fetchFixtureInput } from '../api'
@@ -13,7 +13,13 @@ import { fetchOperationsSummary, type OperationsSummary } from '../operationsApi
 type Mode = 'intraday' | 'post_close'
 type Provider = 'fixture' | 'live'
 
-const stages = ['选择场景', '确认运行条件', '提交分析']
+const stages = ['场景', '执行方式', '参数确认', '启动']
+const stageDescriptions = [
+  '选择最符合当前工作时点的分析场景。',
+  '选择安全演练或实时链路，并检查启动条件。',
+  '核对本次请求真正会提交的参数。',
+  '最后确认后启动；在此之前不会调用数据源或 LLM。',
+]
 
 export default function NewAnalysisPage() {
   const navigate = useNavigate()
@@ -24,10 +30,14 @@ export default function NewAnalysisPage() {
   const [preflightError, setPreflightError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(false)
+  const submitLock = useRef(false)
 
-  useEffect(() => {
+  const loadPreflight = useCallback(() => {
+    setPreflightError(false)
     fetchOperationsSummary().then(setSummary).catch(() => setPreflightError(true))
   }, [])
+
+  useEffect(() => { loadPreflight() }, [loadPreflight])
 
   const liveBlockers = useMemo(() => {
     if (!summary) return ['系统状态尚未加载完成']
@@ -42,7 +52,8 @@ export default function NewAnalysisPage() {
   const blocked = provider === 'live' && liveBlockers.length > 0
 
   async function submit() {
-    if (submitting || blocked) return
+    if (submitLock.current || blocked) return
+    submitLock.current = true
     setSubmitting(true)
     setSubmitError(false)
     try {
@@ -57,14 +68,15 @@ export default function NewAnalysisPage() {
     } catch {
       setSubmitError(true)
       setSubmitting(false)
+      submitLock.current = false
     }
   }
 
   return (
-    <section className="density-comfortable">
+    <section className="analysis-launcher-page density-comfortable">
       <PageHeader
         title="新建分析"
-        description="先选择分析场景，再确认当前环境是否具备运行条件。"
+        description="通过四个清晰步骤配置并启动一次真实分析。"
         actions={<Link className="button button-secondary" to="/runs">返回运行历史</Link>}
       />
 
@@ -77,7 +89,7 @@ export default function NewAnalysisPage() {
       </ol>
 
       <div className="analysis-flow">
-        <Panel title={stages[stage]} description={stage === 0 ? '选择最符合当前工作时点的分析方式。' : stage === 1 ? '选择安全演练或实时链路，并完成启动前检查。' : '确认本次运行参数后启动。'}>
+        <Panel title={stages[stage]} description={stageDescriptions[stage]}>
           {stage === 0 && (
             <div className="choice-grid">
               <button className="choice-card" data-selected={mode === 'intraday'} aria-pressed={mode === 'intraday'} onClick={() => setMode('intraday')} type="button">
@@ -99,7 +111,7 @@ export default function NewAnalysisPage() {
                   <AppIcon name="activity" /><strong>Live 实时运行</strong><span>拉取实时数据并在数据就绪后调用已配置的 LLM。</span>
                 </button>
               </div>
-              {preflightError && <InlineAlert tone="error" title="无法读取系统状态">请先到系统状态页确认服务可用，然后重试。</InlineAlert>}
+              {preflightError && <InlineAlert tone="error" title="无法读取系统状态"><p>实时运行条件暂时无法确认。</p><button className="button button-secondary" type="button" onClick={loadPreflight}>重新检查</button></InlineAlert>}
               {!summary && !preflightError && <LoadingState label="正在检查运行条件…" />}
               {provider === 'live' && summary && liveBlockers.length > 0 && (
                 <InlineAlert tone="warning" title="实时运行暂不可用"><ul>{liveBlockers.map((item) => <li key={item}>{item}</li>)}</ul></InlineAlert>
@@ -119,19 +131,34 @@ export default function NewAnalysisPage() {
             </dl>
           )}
 
+          {stage === 3 && (
+            <div className="launch-confirmation">
+              <div className="launch-confirmation__mark"><AppIcon name="activity" /></div>
+              <div>
+                <strong>{provider === 'fixture' ? 'Fixture 分析已准备好' : '实时分析已准备好'}</strong>
+                <p>{mode === 'intraday' ? '盘中分析' : '盘后复盘'} · {provider === 'fixture' ? '使用内置样例，不调用实时数据和真实 LLM' : '预选 30 个候选，最终保留 12 个'}</p>
+              </div>
+            </div>
+          )}
+
           {submitError && <InlineAlert tone="error" title="分析未能启动">请求未成功，请检查系统状态后重试。</InlineAlert>}
 
           <div className="flow-actions">
             {stage > 0 && <button className="button button-secondary" type="button" disabled={submitting} onClick={() => setStage(stage - 1)}>上一步</button>}
-            {stage < 2 && <button className="button button-primary" type="button" disabled={stage === 1 && blocked} onClick={() => setStage(stage + 1)}>{stage === 0 ? '下一步：确认运行条件' : '下一步：提交分析'}</button>}
-            {stage === 2 && <button className="button button-primary" type="button" disabled={submitting || blocked} onClick={submit}>{submitting ? '正在启动…' : provider === 'fixture' ? '启动 Fixture 分析' : '启动实时分析'}</button>}
+            {stage < 3 && <button className="button button-primary" type="button" disabled={stage === 1 && blocked} onClick={() => setStage(stage + 1)}>{stage === 0 ? '下一步：选择执行方式' : stage === 1 ? '下一步：确认参数' : '下一步：启动'}</button>}
+            {stage === 3 && <button className="button button-primary" type="button" disabled={submitting || blocked} onClick={submit}>{submitting ? '正在启动…' : provider === 'fixture' ? '启动 Fixture 分析' : '启动实时分析'}</button>}
           </div>
         </Panel>
 
-        <aside className="flow-note">
-          <strong>本次流程</strong>
-          <p>{mode === 'intraday' ? '盘中分析' : '盘后复盘'} · {provider === 'fixture' ? '安全演练' : '实时运行'}</p>
-          <p>提交前不会调用数据源或 LLM。Fixture 可用于检查完整前后端流程。</p>
+        <aside className="flow-note launcher-summary" aria-label="本次分析摘要">
+          <span className="launcher-summary__eyebrow">本次分析</span>
+          <strong>{mode === 'intraday' ? '盘中分析' : '盘后复盘'}</strong>
+          <dl>
+            <div><dt>执行方式</dt><dd>{provider === 'fixture' ? 'Fixture 演练' : 'Live 实时运行'}</dd></div>
+            <div><dt>候选范围</dt><dd>{provider === 'fixture' ? '内置样例' : '30 → 12'}</dd></div>
+            <div><dt>当前步骤</dt><dd>{stage + 1} / 4</dd></div>
+          </dl>
+          <p>启动前不会调用数据源或 LLM；返回上一步不会丢失当前选择。</p>
         </aside>
       </div>
     </section>

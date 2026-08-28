@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -49,15 +49,18 @@ describe('NewAnalysisPage', () => {
     vi.mocked(createDataRun).mockResolvedValue({ run_id: 'live-run' })
   })
 
-  it('creates a fixture run through the three-stage flow', async () => {
+  it('creates a fixture run through the four-step flow and submits only real parameters', async () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: '新建分析' })).toBeVisible()
     const progress = screen.getByRole('list', { name: '新建分析进度' })
-    expect(within(progress).getByText('选择场景').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(progress).getByText('场景').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(progress).getAllByRole('listitem')).toHaveLength(4)
     fireEvent.click(screen.getByRole('button', { name: /盘后复盘/ }))
-    fireEvent.click(screen.getByRole('button', { name: '下一步：确认运行条件' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：选择执行方式' }))
     fireEvent.click(screen.getByRole('button', { name: /Fixture 演练/ }))
-    fireEvent.click(screen.getByRole('button', { name: '下一步：提交分析' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：确认参数' }))
+    expect(screen.getByText('内置可复现样例')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: '下一步：启动' }))
     fireEvent.click(screen.getByRole('button', { name: '启动 Fixture 分析' }))
 
     expect(await screen.findByText('内容运行详情')).toBeVisible()
@@ -73,12 +76,35 @@ describe('NewAnalysisPage', () => {
     })
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: /盘中分析/ }))
-    fireEvent.click(screen.getByRole('button', { name: '下一步：确认运行条件' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：选择执行方式' }))
     fireEvent.click(screen.getByRole('button', { name: /Live 实时运行/ }))
 
     expect(screen.getByText(/创建 .live-data-consent/)).toBeVisible()
     expect(screen.getByText(/创建 .live-llm-consent/)).toBeVisible()
-    expect(screen.getByRole('button', { name: '下一步：提交分析' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '下一步：确认参数' })).toBeDisabled()
     await waitFor(() => expect(createDataRun).not.toHaveBeenCalled())
+  })
+
+  it('retains choices when moving backward and prevents duplicate submission', async () => {
+    let resolveCreate!: (value: { run_id: string }) => void
+    const pendingCreate = new Promise<{ run_id: string }>((resolve) => { resolveCreate = resolve })
+    vi.mocked(createRun).mockReturnValue(pendingCreate)
+    renderPage()
+    await screen.findByRole('button', { name: /盘中分析/ })
+    fireEvent.click(screen.getByRole('button', { name: /盘后复盘/ }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：选择执行方式' }))
+    fireEvent.click(screen.getByRole('button', { name: /Fixture 演练/ }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：确认参数' }))
+    fireEvent.click(screen.getByRole('button', { name: '上一步' }))
+    expect(screen.getByRole('button', { name: /Fixture 演练/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: '下一步：确认参数' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：启动' }))
+    const submit = screen.getByRole('button', { name: '启动 Fixture 分析' })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+    expect(createRun).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: '正在启动…' })).toBeDisabled()
+    await act(async () => { resolveCreate({ run_id: 'fixture-run' }) })
+    expect(await screen.findByText('内容运行详情')).toBeVisible()
   })
 })

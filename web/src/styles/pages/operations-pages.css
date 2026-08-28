@@ -123,3 +123,129 @@
     left: 0;
   }
 }
+
+.analysis-launcher-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.analysis-launcher-page > .page-header,
+.analysis-launcher-page > .stepper {
+  margin: 0;
+}
+
+.analysis-launcher-page .stepper {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analysis-launcher-page .analysis-flow {
+  grid-template-columns: minmax(0, 1fr) 17.5rem;
+}
+
+.analysis-launcher-page .panel {
+  min-height: 27rem;
+}
+
+.launcher-summary {
+  position: sticky;
+  top: var(--space-5);
+  order: initial;
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+  box-shadow: var(--sp-shadow-card);
+}
+
+.launcher-summary__eyebrow {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--sp-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.launcher-summary > strong {
+  display: block;
+  font-size: 1.25rem;
+}
+
+.launcher-summary dl {
+  margin: var(--space-5) 0;
+}
+
+.launcher-summary dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--sp-border-soft);
+}
+
+.launcher-summary dt {
+  color: var(--sp-text-muted);
+}
+
+.launcher-summary dd {
+  margin: 0;
+  color: var(--sp-text);
+  font-weight: 650;
+  text-align: right;
+}
+
+.launch-confirmation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 11rem;
+  padding: var(--space-5);
+  border: 1px solid var(--sp-border);
+  border-radius: var(--radius-lg);
+  background: var(--sp-surface-soft);
+}
+
+.launch-confirmation__mark {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--sp-primary-soft);
+  color: var(--sp-primary);
+}
+
+.launch-confirmation p {
+  margin: var(--space-2) 0 0;
+  color: var(--sp-text-secondary);
+}
+
+@media (max-width: 840px) {
+  .analysis-launcher-page .analysis-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-summary {
+    position: static;
+    order: initial;
+  }
+}
+
+@media (max-width: 620px) {
+  .analysis-launcher-page .stepper strong {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .analysis-launcher-page .stepper li::after {
+    left: 32px;
+  }
+
+  .analysis-launcher-page .panel {
+    min-height: 0;
+  }
+}
