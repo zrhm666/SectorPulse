@@ -250,6 +250,121 @@
   }
 }
 
+.management-drawer-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(16 33 61 / 0.28);
+  backdrop-filter: blur(2px);
+}
+
+.management-drawer {
+  display: grid;
+  width: min(30rem, 100%);
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--sp-surface);
+  box-shadow: var(--sp-shadow-float);
+}
+
+.management-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--sp-border);
+}
+
+.management-drawer__header h2,
+.management-drawer__header p {
+  margin: 0;
+}
+
+.management-drawer__header p {
+  margin-top: var(--space-2);
+  color: var(--sp-text-secondary);
+}
+
+.management-drawer__close {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--sp-border);
+  border-radius: 50%;
+  background: var(--sp-surface);
+  color: var(--sp-text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.management-drawer__body {
+  min-height: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+
+.management-drawer .schedule-form {
+  grid-template-columns: 1fr;
+}
+
+.management-drawer .schedule-form__actions {
+  position: sticky;
+  bottom: calc(var(--space-5) * -1);
+  margin: var(--space-4) calc(var(--space-5) * -1) calc(var(--space-5) * -1);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+}
+
+.task-event-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-event-list li {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, auto) 1fr;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--sp-border-soft);
+}
+
+.task-event-list time {
+  color: var(--sp-text-muted);
+  font-size: 0.8125rem;
+}
+
+.task-event-list p {
+  margin: var(--space-1) 0 0;
+  color: var(--sp-text-secondary);
+}
+
+.status-check-time {
+  margin: 0;
+  color: var(--sp-text-muted);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+@media (max-width: 620px) {
+  .management-drawer {
+    width: 100%;
+  }
+
+  .task-event-list li {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}
+
 .content-run-page .detail-actions {
   display: flex;
   flex-wrap: wrap;

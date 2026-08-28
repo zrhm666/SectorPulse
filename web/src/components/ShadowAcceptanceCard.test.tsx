@@ -19,6 +19,11 @@ describe('ShadowAcceptanceCard', () => {
     expect(screen.getByText('1/20')).toBeInTheDocument()
   })
 
+  it('distinguishes a true empty state from partial history', () => {
+    render(<ShadowAcceptanceCard runs={[]} progress={{ trading_days: 0, passed: 0, failed: 0, blocked: 0, remaining: 20, complete: false }} />)
+    expect(screen.getByText('尚未开始影子验收。')).toBeVisible()
+  })
+
   it('shows every historical run in a read-only table', () => {
     const runs = Array.from({ length: 6 }, (_, index) => ({
       shadow_id: `shadow-${index}`,

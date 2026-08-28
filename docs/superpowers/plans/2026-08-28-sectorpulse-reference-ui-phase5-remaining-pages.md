@@ -78,14 +78,16 @@ Verification evidence (2026-08-28): focused suites passed 10 tests; full fronten
 
 **Files:** SchedulePage, TaskRunPage, SystemStatusPage, ShadowAcceptancePage, tests, `components/ui/ManagementDrawer.tsx`, CSS
 
-- [ ] Move schedule creation into an accessible side drawer; retain create and trigger only.
-- [ ] Do not expose schedule edit/delete until corresponding backend contracts exist.
-- [ ] Remove fake task retry/recover buttons; add load failure/retry and render persisted task events.
-- [ ] Present readiness, consent, safe configuration labels and generated check time without secrets.
-- [ ] Keep shadow acceptance paused/read-only with explicit true empty, partial and history states.
-- [ ] Verify drawer focus return, Escape, responsive layout, loading/error/empty states and no console logging of request errors.
-- [ ] Run focused/full tests, build and detector.
-- [ ] Commit `refactor: finish management page system`.
+- [x] Move schedule creation into an accessible side drawer; retain create and trigger only.
+- [x] Do not expose schedule edit/delete until corresponding backend contracts exist.
+- [x] Remove fake task retry/recover buttons; add load failure/retry and render persisted task events.
+- [x] Present readiness, consent, safe configuration labels and generated check time without secrets.
+- [x] Keep shadow acceptance paused/read-only with explicit true empty, partial and history states.
+- [x] Verify drawer focus return, Escape, responsive layout, loading/error/empty states and no console logging of request errors.
+- [x] Run focused/full tests, build and detector.
+- [x] Commit `refactor: finish management page system`.
+
+Verification evidence (2026-08-28): focused management suites passed 15 tests; full frontend passed 45 files / 160 tests; production build transformed 108 modules; Impeccable detector returned `[]`; the generic drawer test verifies initial focus, Escape close and focus return.
 
 ## Task 5: Browser Acceptance And Phase Closure
 
