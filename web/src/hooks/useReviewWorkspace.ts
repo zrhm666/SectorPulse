@@ -27,6 +27,9 @@ export type ReviewWorkspaceState = {
   selectRun: (runId: string) => void
   refreshQueue: () => Promise<void>
   refreshWorkspace: () => Promise<void>
+  refreshGovernance: () => Promise<void>
+  refreshApproval: () => Promise<void>
+  refreshDecisions: () => Promise<void>
 }
 
 function reviewable(items: RunSummary[]): RunSummary[] {
@@ -133,6 +136,27 @@ export default function useReviewWorkspace(): ReviewWorkspaceState {
     if (run) await loadWorkspace(run, true)
   }, [loadWorkspace, runs])
 
+  const refreshGovernance = useCallback(async () => {
+    const runId = selectedIdRef.current
+    if (!runId) return
+    const report = await fetchGovernance(runId)
+    if (mountedRef.current && selectedIdRef.current === runId) setGovernance(report)
+  }, [])
+
+  const refreshApproval = useCallback(async () => {
+    const run = runs.find((item) => item.run_id === selectedIdRef.current)
+    if (!run?.draft_id) return
+    const currentApproval = await fetchApproval(run.run_id, run.draft_id)
+    if (mountedRef.current && selectedIdRef.current === run.run_id) setApproval(currentApproval)
+  }, [runs])
+
+  const refreshDecisions = useCallback(async () => {
+    const run = runs.find((item) => item.run_id === selectedIdRef.current)
+    if (!run?.draft_id) return
+    const items = await fetchEvidenceDecisions(run.run_id, run.draft_id)
+    if (mountedRef.current && selectedIdRef.current === run.run_id) setDecisions(items)
+  }, [runs])
+
   useEffect(() => {
     mountedRef.current = true
     void refreshQueue()
@@ -151,5 +175,6 @@ export default function useReviewWorkspace(): ReviewWorkspaceState {
     runs, selectedId, selectedRun, versions, governance, approval, decisions,
     initialLoading, workspaceLoading, queueError, workspaceError, stale,
     selectRun: setSelectedId, refreshQueue, refreshWorkspace,
+    refreshGovernance, refreshApproval, refreshDecisions,
   }
 }

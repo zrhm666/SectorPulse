@@ -43,3 +43,15 @@ it('retains text and offers retry after a failed autosave', async () => {
   expect(screen.getByLabelText('导语')).toHaveValue('离线文本')
   expect(screen.getByRole('button', { name: '重试保存导语' })).toBeEnabled()
 })
+
+it('emits the focused section and its persisted source mapping', () => {
+  const onFocusField = vi.fn()
+  const mappedVersions = [{
+    ...versions[1],
+    sections: [{ section_id: 'agri', heading: '农业板块', body: '正文', source_ids: ['source-2'] }],
+  }]
+  render(<DraftWorkspace versions={mappedVersions} onSave={vi.fn()} onFocusField={onFocusField} />)
+
+  fireEvent.focus(screen.getByLabelText('农业板块'))
+  expect(onFocusField).toHaveBeenCalledWith({ key: 'sections/agri/body', label: '农业板块', sourceIds: ['source-2'] })
+})

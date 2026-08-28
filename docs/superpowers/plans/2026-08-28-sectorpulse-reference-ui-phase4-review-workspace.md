@@ -145,15 +145,15 @@ Autosave waits 800 ms after the last input and saves immediately on blur. `saved
 - Modify: `web/src/pages/ReviewWorkspacePage.tsx`
 - Modify: `web/src/styles/pages/review-workspace.css`
 
-- [ ] Emit the focused field/section context and its persisted `source_ids` from the editor.
-- [ ] Show related sources first; when no field-level mapping exists, label the global fallback explicitly.
-- [ ] Add source/governance/audit subviews without nested card stacks or hidden actions.
-- [ ] Keep evidence decision reason and return reason independent and require both frontend/backend-valid input.
-- [ ] Disable approval while governance fails, an edit is pending, a historical version is open or a save conflict exists; explain the exact reason.
-- [ ] After approve/revoke/return/decision, reload only affected state and retain editor/queue context.
-- [ ] Verify safe links, focus return for confirmations and no automatic text rewriting after evidence decisions.
-- [ ] Run focused tests, build and detector.
-- [ ] Commit: `refactor: connect review evidence and governance`.
+- [x] Emit the focused field/section context and its persisted `source_ids` from the editor.
+- [x] Show related sources first; when no field-level mapping exists, label the global fallback explicitly.
+- [x] Add source/governance/audit subviews without nested card stacks or hidden actions.
+- [x] Keep evidence decision reason and return reason independent and require both frontend/backend-valid input.
+- [x] Disable approval while governance fails, an edit is pending, a historical version is open or a save conflict exists; explain the exact reason.
+- [x] After approve/revoke/return/decision, reload only affected state and retain editor/queue context.
+- [x] Verify safe links, focus return for confirmations and no automatic text rewriting after evidence decisions.
+- [x] Run focused tests, build and detector (44 files / 154 tests; 106-module build; detector `[]`).
+- [x] Commit: `refactor: connect review evidence and governance`.
 
 ## Task 5: Browser Acceptance And Phase Closure
 

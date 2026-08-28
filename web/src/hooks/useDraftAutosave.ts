@@ -204,6 +204,10 @@ export default function useDraftAutosave({ version, fields: definitions, enabled
     () => Object.values(fields).some((field) => ['dirty', 'saving', 'failed', 'conflict'].includes(field.status)),
     [fields],
   )
+  const hasConflict = useMemo(
+    () => Object.values(fields).some((field) => field.status === 'conflict'),
+    [fields],
+  )
 
-  return { fields, setValue, flush, retry, hasPending }
+  return { fields, setValue, flush, retry, hasPending, hasConflict }
 }

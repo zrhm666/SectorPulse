@@ -3,7 +3,10 @@ import type { DraftVersionView } from '../../api'
 import type { DraftPatchInput, DraftPatchResponse } from '../../editingApi'
 import useDraftAutosave, { type AutosaveStatus } from '../../hooks/useDraftAutosave'
 
-type Editable = { key: string; path: string; label: string; value: string; rows: number }
+type Editable = { key: string; path: string; label: string; value: string; rows: number; sourceIds?: string[] }
+
+export type DraftFieldContext = { key: string; label: string; sourceIds?: string[] }
+export type DraftWorkspaceState = { hasPending: boolean; hasConflict: boolean; readOnly: boolean; version: number }
 
 const STATUS_COPY: Record<AutosaveStatus, string> = {
   clean: '已保存',
@@ -18,9 +21,11 @@ type Props = {
   versions: DraftVersionView[]
   onSave: (input: DraftPatchInput) => Promise<DraftPatchResponse>
   onPendingChange?: (pending: boolean) => void
+  onFocusField?: (field: DraftFieldContext) => void
+  onStateChange?: (state: DraftWorkspaceState) => void
 }
 
-export default function DraftWorkspace({ versions, onSave, onPendingChange }: Props) {
+export default function DraftWorkspace({ versions, onSave, onPendingChange, onFocusField, onStateChange }: Props) {
   const latest = versions[versions.length - 1]
   const [selected, setSelected] = useState(latest?.version ?? 0)
   useEffect(() => { if (latest) setSelected(latest.version) }, [latest?.version])
@@ -34,6 +39,7 @@ export default function DraftWorkspace({ versions, onSave, onPendingChange }: Pr
       label: section.heading,
       value: section.body,
       rows: 9,
+      sourceIds: section.source_ids,
     })),
     { key: 'conclusion', path: 'conclusion', label: '结论', value: version.conclusion, rows: 5 },
     { key: 'risk_notice', path: 'risk_notice', label: '风险提示', value: version.risk_notice, rows: 3 },
@@ -48,6 +54,14 @@ export default function DraftWorkspace({ versions, onSave, onPendingChange }: Pr
 
   useEffect(() => onPendingChange?.(autosave.hasPending), [autosave.hasPending, onPendingChange])
   useEffect(() => () => onPendingChange?.(false), [onPendingChange])
+  useEffect(() => {
+    if (version) onStateChange?.({
+      hasPending: autosave.hasPending,
+      hasConflict: autosave.hasConflict,
+      readOnly,
+      version: version.version,
+    })
+  }, [autosave.hasConflict, autosave.hasPending, onStateChange, readOnly, version?.version])
 
   if (!version) return <main className="draft-workspace" aria-label="草稿编辑区"><p>暂无草稿内容。</p></main>
 
@@ -82,6 +96,7 @@ export default function DraftWorkspace({ versions, onSave, onPendingChange }: Pr
             rows={field.rows}
             onChange={(event) => autosave.setValue(field.key, event.target.value)}
             onBlur={() => autosave.flush(field.key)}
+            onFocus={() => onFocusField?.({ key: field.key, label: field.label, sourceIds: field.sourceIds })}
           />
           {needsAttention && <div className="draft-field-recovery">
             <span>{state.status === 'conflict' ? '本地文本已保留。请基于最新版本重试。' : '本地文本已保留，请检查连接后重试。'}</span>

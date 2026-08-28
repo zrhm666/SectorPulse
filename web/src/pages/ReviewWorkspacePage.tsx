@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import DraftWorkspace from '../components/review/DraftWorkspace'
+import { useEffect, useState } from 'react'
+import DraftWorkspace, { type DraftFieldContext, type DraftWorkspaceState } from '../components/review/DraftWorkspace'
 import EvidenceDecisionPane from '../components/review/EvidenceDecisionPane'
 import ReviewPaneTabs, { type ReviewPane } from '../components/review/ReviewPaneTabs'
 import ReviewQueue from '../components/review/ReviewQueue'
@@ -17,7 +17,8 @@ import {
 export default function ReviewWorkspacePage() {
   const feedback = useFeedback()
   const [activePane, setActivePane] = useState<ReviewPane>('draft')
-  const [hasPendingEdits, setHasPendingEdits] = useState(false)
+  const [activeField, setActiveField] = useState<DraftFieldContext | null>(null)
+  const [draftState, setDraftState] = useState<DraftWorkspaceState>({ hasPending: false, hasConflict: false, readOnly: false, version: 0 })
   const workspace = useReviewWorkspace()
   const {
     runs, selectedId, selectedRun, versions, governance, approval, decisions,
@@ -25,11 +26,11 @@ export default function ReviewWorkspacePage() {
   } = workspace
 
   const runAction = async (
-    action: () => Promise<void>, successMessage: string, errorMessage: string,
+    action: () => Promise<void>, refresh: () => Promise<void>, successMessage: string, errorMessage: string,
   ) => {
     try {
       await action()
-      await workspace.refreshWorkspace()
+      await refresh()
       feedback.success(successMessage)
     } catch {
       feedback.error(errorMessage)
@@ -37,6 +38,22 @@ export default function ReviewWorkspacePage() {
   }
 
   const latest = versions[versions.length - 1]
+  const displayedVersion = versions.find((item) => item.version === draftState.version) ?? latest
+  const governancePassed = governance?.passed ?? governance?.status === 'PASS'
+  const approvalDisabledReason = draftState.readOnly
+    ? '正在查看历史版本，不能批准。'
+    : draftState.hasConflict
+      ? '草稿存在版本冲突，请先重试或处理本地修改。'
+      : draftState.hasPending
+        ? '草稿仍有未保存的修改，请等待保存完成。'
+        : !governancePassed
+          ? '治理检查未通过，不能批准。'
+          : null
+
+  useEffect(() => {
+    setActiveField(null)
+    setDraftState({ hasPending: false, hasConflict: false, readOnly: false, version: 0 })
+  }, [selectedId])
 
   return <section className="review-page">
     <PageHeader title="审核工作台" description="集中阅读、修改和核准已生成的分析草稿。" />
@@ -49,7 +66,7 @@ export default function ReviewWorkspacePage() {
       <div className="review-workspace__grid" role="region" aria-label="审核主工作区">
         <div id="review-pane-queue" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-queue" data-pane="queue" data-active={activePane === 'queue'}>
           <ReviewQueue runs={runs} selectedId={selectedId} onSelect={(runId) => {
-            if (hasPendingEdits) {
+            if (draftState.hasPending) {
               feedback.error('当前草稿仍有未保存或冲突的修改，请处理后再切换运行。')
               return
             }
@@ -60,7 +77,7 @@ export default function ReviewWorkspacePage() {
         <div id="review-pane-draft" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-draft" data-pane="draft" data-active={activePane === 'draft'}>
           {selectedRun && workspaceLoading && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
           {selectedRun && workspaceError && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><InlineAlert tone="error" title="无法加载审核材料">{workspaceError}<div><button className="button button-secondary" type="button" onClick={() => void workspace.refreshWorkspace()}>重新加载</button></div></InlineAlert></main>}
-          {selectedRun && latest && <DraftWorkspace versions={versions} onPendingChange={setHasPendingEdits} onSave={async (input) => {
+          {selectedRun && latest && <DraftWorkspace versions={versions} onFocusField={setActiveField} onStateChange={setDraftState} onSave={async (input) => {
           try {
             const result = await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
             await workspace.refreshWorkspace()
@@ -77,27 +94,29 @@ export default function ReviewWorkspacePage() {
           }} />}
         </div>
         <div id="review-pane-evidence" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-evidence" data-pane="evidence" data-active={activePane === 'evidence'}>
-          {selectedRun && latest && <EvidenceDecisionPane
-            version={latest}
+          {selectedRun && displayedVersion && <EvidenceDecisionPane
+            version={displayedVersion}
           governance={governance}
           approval={approval}
           decisions={decisions}
-          exportUrl={approval?.status === 'APPROVED_FOR_COPY'
+          activeField={activeField}
+          approvalDisabledReason={approvalDisabledReason}
+          exportUrl={approval?.status === 'APPROVED_FOR_COPY' && displayedVersion.version === latest.version
             ? approvedExportUrl(selectedRun.run_id, selectedRun.draft_id!) : undefined}
           onDecision={(sourceId, decision, reason) => runAction(async () => {
             await recordEvidenceDecision(selectedRun.run_id, selectedRun.draft_id!, {
               source_id: sourceId, decision, reason,
             })
-          }, '证据决定已记录。', '证据决定保存失败，请稍后重试。')}
+          }, workspace.refreshDecisions, '证据决定已记录。', '证据决定保存失败，请稍后重试。')}
           onApprove={() => runAction(async () => {
             await approveDraft(selectedRun.run_id, selectedRun.draft_id!)
-          }, `草稿 v${latest.version} 已批准。`, '批准失败，请刷新草稿状态后重试。')}
+          }, workspace.refreshApproval, `草稿 v${latest.version} 已批准。`, '批准失败，请刷新草稿状态后重试。')}
           onRevoke={() => runAction(async () => {
             await revokeDraft(selectedRun.run_id, selectedRun.draft_id!)
-          }, '批准已撤销。', '撤销批准失败，请稍后重试。')}
+          }, workspace.refreshApproval, '批准已撤销。', '撤销批准失败，请稍后重试。')}
           onReturn={(reason) => runAction(async () => {
             await returnDraft(selectedRun.run_id, selectedRun.draft_id!, reason)
-          }, `草稿 v${latest.version} 已退回修改。`, '退回操作失败，请稍后重试。')}
+          }, workspace.refreshApproval, `草稿 v${latest.version} 已退回修改。`, '退回操作失败，请稍后重试。')}
           />}
         </div>
       </div>
