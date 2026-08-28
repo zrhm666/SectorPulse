@@ -1,29 +1,94 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { DraftVersionView } from '../../api'
+import type { DraftPatchInput, DraftPatchResponse } from '../../editingApi'
+import useDraftAutosave, { type AutosaveStatus } from '../../hooks/useDraftAutosave'
 
-async function hash(value: string) {
-  const bytes = new TextEncoder().encode(value)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
+type Editable = { key: string; path: string; label: string; value: string; rows: number }
+
+const STATUS_COPY: Record<AutosaveStatus, string> = {
+  clean: '已保存',
+  dirty: '等待保存',
+  saving: '正在保存',
+  saved: '刚刚保存',
+  failed: '保存失败',
+  conflict: '版本冲突',
 }
 
-type Editable = { key: string; label: string; value: string }
+type Props = {
+  versions: DraftVersionView[]
+  onSave: (input: DraftPatchInput) => Promise<DraftPatchResponse>
+  onPendingChange?: (pending: boolean) => void
+}
 
-export default function DraftWorkspace({ versions, onSave }: { versions: DraftVersionView[]; onSave: (input: { base_version: number; path: string; old_value_hash: string; value: string }) => Promise<void> }) {
+export default function DraftWorkspace({ versions, onSave, onPendingChange }: Props) {
   const latest = versions[versions.length - 1]
   const [selected, setSelected] = useState(latest?.version ?? 0)
-  const [values, setValues] = useState<Record<string, string>>({})
-  const [saving, setSaving] = useState<string | null>(null)
   useEffect(() => { if (latest) setSelected(latest.version) }, [latest?.version])
   const version = versions.find((item) => item.version === selected) ?? latest
-  if (!version) return <p>暂无草稿内容。</p>
-  const fields: Editable[] = [
-    { key: 'titles', label: '标题', value: version.titles[0] ?? '' },
-    { key: 'introduction', label: '导语', value: version.introduction },
-    ...version.sections.map((section) => ({ key: `sections/${section.section_id}/body`, label: section.heading, value: section.body })),
-    { key: 'conclusion', label: '结论', value: version.conclusion },
-    { key: 'risk_notice', label: '风险提示', value: version.risk_notice },
-  ]
-  const readOnly = version.version !== latest.version
-  return <main className="draft-workspace" aria-label="草稿编辑区"><div className="review-pane__header"><div><h2>{version.titles[0] || '未命名草稿'}</h2><p>当前编辑版本 v{latest.version}</p></div><label>查看版本<select aria-label="查看草稿版本" value={version.version} onChange={(event) => setSelected(Number(event.target.value))}>{versions.map((item) => <option key={item.version} value={item.version}>v{item.version}</option>)}</select></label></div>{readOnly && <p className="readonly-note">正在查看历史版本 v{version.version}，历史内容不可修改。</p>}<div className="editor-fields">{fields.map((field) => { const value = values[field.key] ?? field.value; return <section key={field.key} className="editor-field"><label htmlFor={`field-${field.key}`}>{field.label}</label><textarea id={`field-${field.key}`} value={value} readOnly={readOnly} rows={field.key.startsWith('sections/') ? 8 : 3} onChange={(event) => setValues((items) => ({ ...items, [field.key]: event.target.value }))} />{!readOnly && <button className="button button-secondary" type="button" disabled={saving !== null || value === field.value} onClick={async () => { setSaving(field.key); try { await onSave({ base_version: latest.version, path: field.key === 'titles' ? 'titles/0' : field.key, old_value_hash: await hash(field.value), value }); setValues({}) } catch { /* The page reports request errors through shared feedback. */ } finally { setSaving(null) } }}>{saving === field.key ? '正在保存…' : `保存${field.label}`}</button>}</section>})}</div></main>
+  const definitions = useMemo<Editable[]>(() => version ? [
+    { key: 'titles', path: 'titles/0', label: '标题', value: version.titles[0] ?? '', rows: 2 },
+    { key: 'introduction', path: 'introduction', label: '导语', value: version.introduction, rows: 4 },
+    ...version.sections.map((section) => ({
+      key: `sections/${section.section_id}/body`,
+      path: `sections/${section.section_id}/body`,
+      label: section.heading,
+      value: section.body,
+      rows: 9,
+    })),
+    { key: 'conclusion', path: 'conclusion', label: '结论', value: version.conclusion, rows: 5 },
+    { key: 'risk_notice', path: 'risk_notice', label: '风险提示', value: version.risk_notice, rows: 3 },
+  ] : [], [version])
+  const readOnly = Boolean(version && latest && version.version !== latest.version)
+  const autosave = useDraftAutosave({
+    version: latest?.version ?? 1,
+    fields: definitions,
+    enabled: Boolean(version) && !readOnly,
+    onSave,
+  })
+
+  useEffect(() => onPendingChange?.(autosave.hasPending), [autosave.hasPending, onPendingChange])
+  useEffect(() => () => onPendingChange?.(false), [onPendingChange])
+
+  if (!version) return <main className="draft-workspace" aria-label="草稿编辑区"><p>暂无草稿内容。</p></main>
+
+  return <main className="draft-workspace" aria-label="草稿编辑区">
+    <div className="review-pane__header draft-workspace__header">
+      <div>
+        <p className="draft-workspace__eyebrow">结构化分析草稿</p>
+        <h2>{version.titles[0] || '未命名草稿'}</h2>
+        <p>{readOnly ? `历史版本 v${version.version}` : `当前编辑版本 v${latest.version}`}</p>
+      </div>
+      <div className="draft-workspace__tools">
+        <output className="draft-save-summary" data-pending={autosave.hasPending} aria-live="polite">
+          {readOnly ? '只读' : autosave.hasPending ? '有更改待处理' : '所有更改已保存'}
+        </output>
+        <label>查看版本<select aria-label="查看草稿版本" value={version.version} disabled={autosave.hasPending} onChange={(event) => setSelected(Number(event.target.value))}>{versions.map((item) => <option key={item.version} value={item.version}>v{item.version}</option>)}</select></label>
+      </div>
+    </div>
+    {readOnly && <p className="readonly-note">正在查看历史版本 v{version.version}，历史内容不可修改，也不会触发自动保存。</p>}
+    <article className="draft-document" aria-label={`草稿版本 v${version.version}`}>
+      {definitions.map((field) => {
+        const state = autosave.fields[field.key] ?? { value: field.value, status: 'clean' as const, queued: false }
+        const needsAttention = state.status === 'failed' || state.status === 'conflict'
+        return <section key={field.key} className="draft-document__section" data-save-status={state.status}>
+          <div className="draft-document__section-heading">
+            <label htmlFor={`field-${field.key}`}>{field.label}</label>
+            {!readOnly && <span className="draft-field-status" role="status" data-status={state.status}>{STATUS_COPY[state.status]}{state.queued ? ' · 新修改排队中' : ''}</span>}
+          </div>
+          <textarea
+            id={`field-${field.key}`}
+            value={state.value}
+            readOnly={readOnly}
+            rows={field.rows}
+            onChange={(event) => autosave.setValue(field.key, event.target.value)}
+            onBlur={() => autosave.flush(field.key)}
+          />
+          {needsAttention && <div className="draft-field-recovery">
+            <span>{state.status === 'conflict' ? '本地文本已保留。请基于最新版本重试。' : '本地文本已保留，请检查连接后重试。'}</span>
+            <button className="button button-secondary" type="button" onClick={() => autosave.retry(field.key)}>重试保存{field.label}</button>
+          </div>}
+        </section>
+      })}
+    </article>
+  </main>
 }

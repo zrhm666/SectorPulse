@@ -126,14 +126,14 @@ Autosave waits 800 ms after the last input and saves immediately on blur. `saved
 - Create: `web/src/hooks/useDraftAutosave.test.tsx`
 - Modify: `web/src/styles/pages/review-workspace.css`
 
-- [ ] Write failing tests for dirty state, 800 ms debounce, immediate blur save, no-op unchanged text, one in-flight request, queued newer text and cleanup.
-- [ ] Write failing tests for success, network failure and 409 conflict with local text retained.
-- [ ] Render title, introduction, sections, conclusion and risk notice as one continuous document surface with subtle focus boundaries.
-- [ ] Replace per-field save buttons with a persistent save-state indicator and explicit retry/reload controls only when needed.
-- [ ] Keep historical versions read-only and prevent autosave when browsing them.
-- [ ] On successful save, refresh versions and rebase untouched fields without replacing another dirty field.
-- [ ] Run focused tests, full frontend tests and build.
-- [ ] Commit: `feat: add structured draft autosave`.
+- [x] Write failing tests for dirty state, 800 ms debounce, immediate blur save, no-op unchanged text, one in-flight request, queued newer text and cleanup.
+- [x] Write failing tests for success, network failure and 409 conflict with local text retained.
+- [x] Render title, introduction, sections, conclusion and risk notice as one continuous document surface with subtle focus boundaries.
+- [x] Replace per-field save buttons with a persistent save-state indicator and explicit retry/reload controls only when needed.
+- [x] Keep historical versions read-only and prevent autosave when browsing them.
+- [x] On successful save, refresh versions and rebase untouched fields without replacing another dirty field.
+- [x] Run focused tests, full frontend tests and build (44 files / 149 tests; 106-module build; detector `[]`).
+- [x] Commit: `feat: add structured draft autosave`.
 
 ## Task 4: Make Evidence Contextual And Governance Actions Safe
 

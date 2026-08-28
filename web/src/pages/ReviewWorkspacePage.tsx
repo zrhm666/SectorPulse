@@ -11,12 +11,13 @@ import PageHeader from '../components/ui/PageHeader'
 import useReviewWorkspace from '../hooks/useReviewWorkspace'
 import {
   applyDraftPatch, approveDraft, approvedExportUrl,
-  recordEvidenceDecision, returnDraft, revokeDraft,
+  recordEvidenceDecision, returnDraft, ReviewApiError, revokeDraft,
 } from '../editingApi'
 
 export default function ReviewWorkspacePage() {
   const feedback = useFeedback()
   const [activePane, setActivePane] = useState<ReviewPane>('draft')
+  const [hasPendingEdits, setHasPendingEdits] = useState(false)
   const workspace = useReviewWorkspace()
   const {
     runs, selectedId, selectedRun, versions, governance, approval, decisions,
@@ -47,18 +48,30 @@ export default function ReviewWorkspacePage() {
       <ReviewPaneTabs active={activePane} onChange={setActivePane} />
       <div className="review-workspace__grid" role="region" aria-label="审核主工作区">
         <div id="review-pane-queue" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-queue" data-pane="queue" data-active={activePane === 'queue'}>
-          <ReviewQueue runs={runs} selectedId={selectedId} onSelect={(runId) => { workspace.selectRun(runId); setActivePane('draft') }} />
+          <ReviewQueue runs={runs} selectedId={selectedId} onSelect={(runId) => {
+            if (hasPendingEdits) {
+              feedback.error('当前草稿仍有未保存或冲突的修改，请处理后再切换运行。')
+              return
+            }
+            workspace.selectRun(runId)
+            setActivePane('draft')
+          }} />
         </div>
         <div id="review-pane-draft" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-draft" data-pane="draft" data-active={activePane === 'draft'}>
           {selectedRun && workspaceLoading && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
           {selectedRun && workspaceError && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><InlineAlert tone="error" title="无法加载审核材料">{workspaceError}<div><button className="button button-secondary" type="button" onClick={() => void workspace.refreshWorkspace()}>重新加载</button></div></InlineAlert></main>}
-          {selectedRun && latest && <DraftWorkspace versions={versions} onSave={async (input) => {
+          {selectedRun && latest && <DraftWorkspace versions={versions} onPendingChange={setHasPendingEdits} onSave={async (input) => {
           try {
-            await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
+            const result = await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
             await workspace.refreshWorkspace()
-            feedback.success('修改已保存为新版本。')
+            return result
           } catch (error) {
-            feedback.error('修改保存失败，请刷新草稿后重试。')
+            if (error instanceof ReviewApiError && error.code === 'CONFLICT') {
+              await workspace.refreshWorkspace()
+              feedback.error('草稿已被其他修改更新；本地文本已保留，请重试保存。')
+            } else {
+              feedback.error('修改保存失败，本地文本已保留，请检查连接后重试。')
+            }
             throw error
           }
           }} />}

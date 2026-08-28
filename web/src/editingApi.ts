@@ -5,6 +5,13 @@ export interface DraftPatchInput {
   value: string
 }
 
+export interface DraftPatchResponse {
+  draft_id: string
+  version: number
+  status: string
+  content: Record<string, unknown>
+}
+
 export class ReviewApiError extends Error {
   constructor(
     message: string,
@@ -47,8 +54,8 @@ export interface GovernanceResponse {
   issues: Array<{ code: string; message: string; severity: string }>
 }
 
-export async function applyDraftPatch(runId: string, draftId: string, input: DraftPatchInput, signal?: AbortSignal) {
-  return reviewRequest(`/api/runs/${runId}/drafts/${draftId}/patches`, {
+export async function applyDraftPatch(runId: string, draftId: string, input: DraftPatchInput, signal?: AbortSignal): Promise<DraftPatchResponse> {
+  return reviewRequest<DraftPatchResponse>(`/api/runs/${runId}/drafts/${draftId}/patches`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Actor': 'reviewer' },
     body: JSON.stringify({ base_version: input.base_version, operations: [{ path: input.path, old_value_hash: input.old_value_hash, value: input.value }] }),
