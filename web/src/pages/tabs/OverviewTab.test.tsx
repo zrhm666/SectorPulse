@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
-import OverviewTab from './OverviewTab'
+import ContentRunStageRail from '../../components/runs/ContentRunStageRail'
 
 const failedDraftRun = {
   run_id: 'run-1',
@@ -13,7 +13,7 @@ const failedDraftRun = {
 }
 
 it('reconstructs truthful stages for a historical draft generation failure', () => {
-  render(<OverviewTab events={[]} done run={failedDraftRun} />)
+  render(<ContentRunStageRail events={[]} done run={failedDraftRun} />)
 
   expect(screen.getAllByTestId('timeline-state').map((node) => node.textContent)).toEqual([
     '已完成',
@@ -27,7 +27,7 @@ it('reconstructs truthful stages for a historical draft generation failure', () 
 
 it('shows an editorial fallback as degraded completion', () => {
   render(
-    <OverviewTab
+    <ContentRunStageRail
       events={[{ type: 'progress', stage: 'editorial.fallback', detail: {} }]}
       done={false}
       run={{ ...failedDraftRun, status: 'RUNNING' }}
@@ -38,7 +38,7 @@ it('shows an editorial fallback as degraded completion', () => {
 })
 
 it('does not invent completed stages for a generic failed historical run', () => {
-  render(<OverviewTab events={[]} done run={{ ...failedDraftRun, status: 'FAILED' }} />)
+  render(<ContentRunStageRail events={[]} done run={{ ...failedDraftRun, status: 'FAILED' }} />)
 
   expect(screen.queryByText('已完成')).not.toBeInTheDocument()
 })

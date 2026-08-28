@@ -36,14 +36,15 @@ function reviewable(items: RunSummary[]): RunSummary[] {
   return items.filter((item) => Boolean(item.draft_id) && item.status !== 'RUNNING')
 }
 
-function preferredRun(items: RunSummary[], currentId: string | null): string | null {
+function preferredRun(items: RunSummary[], currentId: string | null, requestedId?: string | null): string | null {
   if (currentId && items.some((item) => item.run_id === currentId)) return currentId
+  if (requestedId && items.some((item) => item.run_id === requestedId)) return requestedId
   return items.find((item) => item.status === 'READY_FOR_HUMAN_REVIEW')?.run_id
     ?? items[0]?.run_id
     ?? null
 }
 
-export default function useReviewWorkspace(): ReviewWorkspaceState {
+export default function useReviewWorkspace(requestedId?: string | null): ReviewWorkspaceState {
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [versions, setVersions] = useState<DraftVersionView[]>([])
@@ -73,7 +74,7 @@ export default function useReviewWorkspace(): ReviewWorkspaceState {
       const items = reviewable(await fetchRuns(controller.signal))
       if (!mountedRef.current || controller.signal.aborted) return
       setRuns(items)
-      setSelectedId(preferredRun(items, selectedIdRef.current))
+      setSelectedId(preferredRun(items, selectedIdRef.current, requestedId))
       setQueueError(null)
     } catch {
       if (!mountedRef.current || controller.signal.aborted) return
@@ -82,7 +83,7 @@ export default function useReviewWorkspace(): ReviewWorkspaceState {
       if (queueControllerRef.current === controller) queueControllerRef.current = null
       if (mountedRef.current) setInitialLoading(false)
     }
-  }, [])
+  }, [requestedId])
 
   const selectedRun = useMemo(
     () => runs.find((run) => run.run_id === selectedId) ?? null,

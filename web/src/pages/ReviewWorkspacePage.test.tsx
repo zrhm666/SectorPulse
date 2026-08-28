@@ -75,3 +75,14 @@ it('refreshes only approval state after a successful approval action', async () 
   expect(editing.fetchApproval).toHaveBeenCalledTimes(2)
   expect(api.fetchDraft).toHaveBeenCalledTimes(1)
 })
+
+it('opens the run requested by a direct review link', async () => {
+  vi.mocked(api.fetchRuns).mockResolvedValue([
+    { run_id: 'run-1', requested_at: '2026-08-23T01:00:00Z', provider: 'fixture', status: 'READY_FOR_HUMAN_REVIEW', elapsed_ms: 100, total_cost_cny: '0', draft_id: 'draft-1' },
+    { run_id: 'run-2', requested_at: '2026-08-23T02:00:00Z', provider: 'live', status: 'READY_FOR_HUMAN_REVIEW', elapsed_ms: 100, total_cost_cny: '0', draft_id: 'draft-2' },
+  ])
+  render(<MemoryRouter initialEntries={['/review?run=run-2']}><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
+
+  expect(await screen.findByRole('button', { name: '审核运行 run-2' })).toHaveAttribute('data-selected', 'true')
+  expect(api.fetchDraft).toHaveBeenCalledWith('run-2', expect.any(AbortSignal))
+})

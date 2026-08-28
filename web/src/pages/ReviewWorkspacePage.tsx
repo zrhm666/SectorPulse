@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import DraftWorkspace, { type DraftFieldContext, type DraftWorkspaceState } from '../components/review/DraftWorkspace'
 import EvidenceDecisionPane from '../components/review/EvidenceDecisionPane'
 import ReviewPaneTabs, { type ReviewPane } from '../components/review/ReviewPaneTabs'
@@ -15,11 +16,12 @@ import {
 } from '../editingApi'
 
 export default function ReviewWorkspacePage() {
+  const [searchParams] = useSearchParams()
   const feedback = useFeedback()
   const [activePane, setActivePane] = useState<ReviewPane>('draft')
   const [activeField, setActiveField] = useState<DraftFieldContext | null>(null)
   const [draftState, setDraftState] = useState<DraftWorkspaceState>({ hasPending: false, hasConflict: false, readOnly: false, version: 0 })
-  const workspace = useReviewWorkspace()
+  const workspace = useReviewWorkspace(searchParams.get('run'))
   const {
     runs, selectedId, selectedRun, versions, governance, approval, decisions,
     initialLoading, workspaceLoading, queueError, workspaceError,

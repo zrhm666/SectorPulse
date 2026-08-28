@@ -14,6 +14,7 @@ import PageHeader from '../components/ui/PageHeader'
 import StatusBadge from '../components/ui/StatusBadge'
 import SummaryStrip from '../components/ui/SummaryStrip'
 import { formatDate, formatDuration } from '../runPresentation'
+import ContentRunStageRail from '../components/runs/ContentRunStageRail'
 
 const TABS = [
   ['overview', '概览'], ['radar', '板块雷达'], ['evidence', '证据'], ['draft', '草稿'], ['review', '审核'], ['governance', '治理'],
@@ -53,7 +54,7 @@ export default function RunDetailPage() {
     }
   }
 
-  const { events, done } = useRunSSE(runId ?? null, refresh)
+  const { events, done, error: streamError } = useRunSSE(runId ?? null, refresh)
 
   return (
     <section className="content-run-page density-compact">
@@ -69,9 +70,11 @@ export default function RunDetailPage() {
           { label: '成本', value: run.total_cost_cny != null ? `¥${run.total_cost_cny}` : '待完成' },
           { label: '板块数', value: run.sector_count ?? 0 },
         ]} />
-        {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成">本次运行没有生成可审核产物。请检查系统状态；若保留了输入快照，可直接重试。</InlineAlert>}
+        {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成"><p>{run.error_message ?? '本次运行未能完成，请检查系统状态。'}</p>{run.input_json_hash && <p>已保留输入快照，可使用相同输入重新运行。</p>}</InlineAlert>}
+        {streamError && run.status !== 'FAILED' && <InlineAlert tone="warning" title="实时进度已中断">{streamError}。页面仍保留最近一次运行快照。</InlineAlert>}
         {retryError && <InlineAlert tone="error" title="重试未能启动">请检查 Provider 和系统配置后再试。</InlineAlert>}
-        {run.retryable && <div className="detail-actions"><button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button></div>}
+        <div className="detail-actions">{run.draft_id && run.status === 'READY_FOR_HUMAN_REVIEW' && <Link className="button button-primary" to={`/review?run=${encodeURIComponent(run.run_id)}`}>进入审核工作台</Link>}{run.retryable && <button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button>}</div>
+        <ContentRunStageRail events={events} done={done} run={run} />
         <div className="tabbar" role="tablist" aria-label="运行详情视图">{TABS.map(([key, label]) => <button key={key} id={`content-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`content-panel-${key}`} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
         <div id={`content-panel-${tab}`} role="tabpanel" aria-labelledby={`content-tab-${tab}`} className="tab-panel">
           {tab === 'overview' && <OverviewTab events={events} done={done} run={run} />}

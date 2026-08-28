@@ -64,13 +64,15 @@ Verification evidence (2026-08-28): focused Vitest passed 3 tests; production bu
 
 **Files:** `RunDetailPage.tsx`, related tabs/tests, `styles/pages/operations-pages.css`
 
-- [ ] Add a truthful stage rail derived from status/SSE events without fabricating completed stages.
-- [ ] Keep snapshot-first loading, SSE refresh, terminal handling and stored draft access after failure.
-- [ ] Group overview, attribution, evidence, draft, review and governance into a stable responsive view switcher.
-- [ ] Expose retry only from `retryable`; preserve safe failure message and input-snapshot wording.
-- [ ] Add direct review-workspace link when a draft is reviewable.
-- [ ] Run focused/full tests, build and detector.
-- [ ] Commit `refactor: clarify content run workspace`.
+- [x] Add a truthful stage rail derived from status/SSE events without fabricating completed stages.
+- [x] Keep snapshot-first loading, SSE refresh, terminal handling and stored draft access after failure.
+- [x] Group overview, attribution, evidence, draft, review and governance into a stable responsive view switcher.
+- [x] Expose retry only from `retryable`; preserve safe failure message and input-snapshot wording.
+- [x] Add direct review-workspace link when a draft is reviewable.
+- [x] Run focused/full tests, build and detector.
+- [x] Commit `refactor: clarify content run workspace`.
+
+Verification evidence (2026-08-28): focused suites passed 10 tests; full frontend passed 44 files / 157 tests after one isolated autosave timing rerun confirmed the first full-run failure was transient; production build transformed 107 modules; Impeccable detector returned `[]`.
 
 ## Task 4: Finish Management Pages Without Fake Actions
 
