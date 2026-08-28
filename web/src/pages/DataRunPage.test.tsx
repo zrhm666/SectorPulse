@@ -47,6 +47,29 @@ const CANDIDATES = Array.from({ length: 4 }, (_, index) => ({
   reasons: ['综合评分领先'],
 }))
 
+function mockCandidates(items = CANDIDATES, confirmed = true) {
+  vi.mocked(api.fetchDataRunCandidatePage).mockResolvedValue({
+    items,
+    total: items.length,
+    offset: 0,
+    limit: 20,
+    query: null,
+    sort: 'rank',
+    direction: 'asc',
+    data_version: 'a'.repeat(64),
+  })
+  vi.mocked(api.fetchDataRunSelection).mockResolvedValue({
+    run_id: 'run-1',
+    confirmed,
+    version: confirmed ? 1 : 0,
+    selected_sector_ids: items.map((item) => item.sector_id),
+    method: confirmed ? 'DEFAULT' : null,
+    confirmed_at: confirmed ? '2026-08-25T07:02:00Z' : null,
+    data_version: 'a'.repeat(64),
+    edit_count: 0,
+  })
+}
+
 function LocationProbe() {
   return <output data-testid="location">{useLocation().pathname}</output>
 }
@@ -66,7 +89,18 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.fetchDataRun).mockResolvedValue(READY_RUN)
-  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue([])
+  vi.mocked(api.fetchDataRunSummary).mockResolvedValue({
+    run_id: 'run-1',
+    status: READY_RUN.status,
+    terminal: true,
+    workflow_stage: 'ATTRIBUTION_READY',
+    workflow_stage_index: 5,
+    requested_at: READY_RUN.requested_at,
+    cutoff_at: '2026-08-25T07:01:00Z',
+    finished_at: '2026-08-25T07:02:00Z',
+    candidate_count: 0,
+  })
+  mockCandidates([], false)
   vi.mocked(api.fetchDataRunMarket).mockResolvedValue({
     snapshots: [], kind: 'INDUSTRY', items: [], total: 0, offset: 0, limit: 20,
   })
@@ -80,9 +114,25 @@ beforeEach(() => {
     items: [], total: 0, offset: 0, limit: 20,
     coverage: 'COMPLETE', coverage_notice: null,
   })
+  vi.mocked(api.fetchDataRunNewsRecord).mockResolvedValue({
+    document_id: 'doc-raw-1', source_id: 'eastmoney-search',
+    citation_url: 'https://example.com/raw-news', title: 'Provider 原始新闻标题',
+    publisher: '东方财富', summary: '这是规范化保存的新闻摘要。',
+    content_kind: 'SUMMARY', content: '这是规范化保存的新闻摘要。',
+    content_available: true, published_at: '2026-08-25T06:00:00Z',
+    source_observed_at: '2026-08-25T06:01:00Z',
+    collected_at: '2026-08-25T07:00:00Z', source_grade: 'REPUTABLE_MEDIA',
+  })
   vi.mocked(api.fetchDataRunQuality).mockResolvedValue(READY_RUN.quality_summary!)
   vi.mocked(api.fetchDataRunContentRun).mockResolvedValue(null)
   vi.mocked(api.generateDataRunArticle).mockResolvedValue({ run_id: 'run-1' })
+  vi.mocked(api.confirmDataRunSelection).mockImplementation(
+    async (_runId, sectorIds, expectedVersion) => ({
+      run_id: 'run-1', confirmed: true, version: expectedVersion + 1,
+      selected_sector_ids: sectorIds, method: 'MANUAL',
+      confirmed_at: '2026-08-25T07:03:00Z', data_version: 'a'.repeat(64), edit_count: 1,
+    }),
+  )
   vi.mocked(api.retryDataRun).mockResolvedValue({ run_id: 'run-2' })
 })
 
@@ -112,7 +162,7 @@ it('shows only the current collection stage as running', async () => {
 })
 
 it('stays on the data page after starting article generation', async () => {
-  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue(CANDIDATES.slice(0, 3))
+  mockCandidates(CANDIDATES.slice(0, 3))
   renderPage()
 
   await userEvent.click(await screen.findByRole('button', { name: '生成分析稿' }))
@@ -125,30 +175,50 @@ it('stays on the data page after starting article generation', async () => {
 })
 
 it('generates the article with only the candidates selected by the user', async () => {
-  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue(CANDIDATES)
+  mockCandidates(CANDIDATES)
   renderPage()
 
   await userEvent.click(await screen.findByRole('tab', { name: '候选板块' }))
-  expect(await screen.findByText('已选择 4 / 4')).toBeVisible()
+  expect(await screen.findByText('已选择 4 个')).toBeVisible()
   await userEvent.click(screen.getByRole('checkbox', { name: '选择候选板块 2' }))
-  expect(screen.getByText('已选择 3 / 4')).toBeVisible()
+  expect(screen.getByText('已选择 3 个')).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: '确认 3 个板块' }))
   await userEvent.click(screen.getByRole('button', { name: '生成分析稿' }))
 
-  expect(api.generateDataRunArticle).toHaveBeenCalledWith(
-    'run-1', ['industry-1', 'industry-3', 'industry-4'],
+  expect(api.confirmDataRunSelection).toHaveBeenCalledWith(
+    'run-1', ['industry-1', 'industry-3', 'industry-4'], 1,
   )
+  expect(api.generateDataRunArticle).toHaveBeenCalledWith('run-1')
 })
 
 it('requires at least three selected candidates before generation', async () => {
-  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue(CANDIDATES)
+  mockCandidates(CANDIDATES)
   renderPage()
 
   await userEvent.click(await screen.findByRole('tab', { name: '候选板块' }))
   await userEvent.click(await screen.findByRole('checkbox', { name: '选择候选板块 1' }))
   await userEvent.click(screen.getByRole('checkbox', { name: '选择候选板块 2' }))
 
-  expect(screen.getByText('已选择 2 / 4')).toBeVisible()
+  expect(screen.getByText('已选择 2 个')).toBeVisible()
   expect(screen.getByRole('button', { name: '生成分析稿' })).toBeDisabled()
+})
+
+it('keeps local candidate choices when confirmation finds a version conflict', async () => {
+  mockCandidates(CANDIDATES)
+  vi.mocked(api.confirmDataRunSelection).mockRejectedValueOnce(
+    new Error('CANDIDATE_SELECTION_VERSION_CONFLICT'),
+  )
+  renderPage()
+
+  await userEvent.click(await screen.findByRole('tab', { name: '候选板块' }))
+  await userEvent.click(await screen.findByRole('checkbox', { name: '选择候选板块 2' }))
+  await userEvent.click(screen.getByRole('button', { name: '确认 3 个板块' }))
+
+  expect(await screen.findByText('CANDIDATE_SELECTION_VERSION_CONFLICT')).toBeVisible()
+  expect(screen.getByText('已选择 3 个')).toBeVisible()
+  expect(screen.getByRole('checkbox', { name: '选择候选板块 2' })).not.toBeChecked()
+  await userEvent.click(screen.getByRole('button', { name: '加载最新版本并保留选择' }))
+  expect(screen.getByRole('checkbox', { name: '选择候选板块 2' })).not.toBeChecked()
 })
 
 it('restores the content run action after refresh', async () => {
@@ -198,7 +268,7 @@ it('shows market, candidate, linked news, and quality data', async () => {
     }],
     total: 1, offset: 0, limit: 20,
   })
-  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue([{
+  mockCandidates([{
     sector_id: 'industry-1', sector_kind: 'INDUSTRY', name: '机器人', rank: 1,
     score: '9.8', reasons: ['涨幅领先'],
   }])
@@ -241,7 +311,7 @@ it('shows market, candidate, linked news, and quality data', async () => {
 
 it('keeps other panels usable when market loading fails', async () => {
   vi.mocked(api.fetchDataRunMarket).mockRejectedValue(new Error('market unavailable'))
-  vi.mocked(api.fetchDataRunCandidates).mockResolvedValue([{
+  mockCandidates([{
     sector_id: 'industry-1', sector_kind: 'INDUSTRY', name: '机器人', rank: 1,
     score: '9.8', reasons: ['涨幅领先'],
   }])
@@ -388,6 +458,9 @@ it('shows independently filterable provider news records and historical coverage
   expect(screen.getByText('这是规范化保存的新闻摘要。')).toBeVisible()
   expect(screen.getByText('历史运行仅保留进入证据链的新闻记录。')).toBeVisible()
   expect(screen.getByRole('link', { name: '查看原文' })).toHaveAttribute('href', 'https://example.com/raw-news')
+  await userEvent.click(screen.getByRole('button', { name: '查看已保存详情' }))
+  expect(await screen.findByRole('dialog', { name: 'Provider 原始新闻标题' })).toBeVisible()
+  expect(screen.getByText('系统未保存新闻全文')).toBeVisible()
 })
 
 it('explains how evidence was mapped to a sector', async () => {

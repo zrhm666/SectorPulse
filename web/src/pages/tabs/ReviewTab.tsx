@@ -1,12 +1,34 @@
 // web/src/pages/tabs/ReviewTab.tsx
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchReview, ReviewView } from '../../api'
+import InlineAlert from '../../components/ui/InlineAlert'
+import LoadingState from '../../components/ui/LoadingState'
 
 export default function ReviewTab({ runId }: { runId: string }) {
   const [review, setReview] = useState<ReviewView>({ decision: null, revision_round: null, issues: [] })
-  useEffect(() => {
-    fetchReview(runId).then(setReview).catch(console.error)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const requestId = useRef(0)
+  const load = useCallback(async () => {
+    const currentRequest = ++requestId.current
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const result = await fetchReview(runId)
+      if (currentRequest === requestId.current) setReview(result)
+    } catch {
+      if (currentRequest === requestId.current) setLoadError(true)
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false)
+    }
   }, [runId])
+  useEffect(() => {
+    void load()
+    return () => { requestId.current += 1 }
+  }, [load])
+
+  if (loading) return <LoadingState label="正在加载审核结果…" />
+  if (loadError) return <InlineAlert tone="error" title="无法加载审核结果"><button className="button button-secondary" type="button" onClick={() => void load()}>重新加载</button></InlineAlert>
 
   return (
     <div>

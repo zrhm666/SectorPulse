@@ -54,6 +54,7 @@ describe('SchedulePage', () => {
     await screen.findByText('盘后')
 
     await userEvent.click(screen.getByRole('button', { name: '新建计划' }))
+    expect(screen.getByRole('dialog', { name: '新建调度计划' })).toBeVisible()
     await userEvent.type(screen.getByLabelText('计划名称'), '盘中')
     await userEvent.selectOptions(screen.getByLabelText('分析模式'), 'intraday')
     await userEvent.clear(screen.getByLabelText('执行时间'))
@@ -62,5 +63,6 @@ describe('SchedulePage', () => {
 
     expect(api.createSchedule).toHaveBeenCalledWith(expect.objectContaining({ name: '盘中', mode: 'intraday', local_time: '10:30', timezone: 'Asia/Shanghai' }))
     expect(await screen.findByText('盘中')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

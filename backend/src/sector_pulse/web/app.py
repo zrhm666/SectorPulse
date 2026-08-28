@@ -3,8 +3,9 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -13,9 +14,19 @@ from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
+from sector_pulse.application.candidate_selection_service import (
+    CandidateSelectionInvalid,
+    CandidateSelectionNotFound,
+    CandidateSelectionRequired,
+    CandidateSelectionService,
+)
 from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.application.governance_service import GovernanceService
+from sector_pulse.application.operations_summary import (
+    OperationsSummaryQueryPort,
+    build_operations_snapshot,
+)
 from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
@@ -29,6 +40,7 @@ from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
 from sector_pulse.domain.article import ArticleDraft
+from sector_pulse.domain.candidate_selection import CandidateSelectionVersionConflict
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.real_data_run import RealDataRunRequest
@@ -49,7 +61,15 @@ from sector_pulse.storage.draft_edit_repository import (
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import build_postgres_storage, build_sqlite_storage
 from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
-from sector_pulse.web.data_run_schemas import GenerateDataRunRequest, NewDataRunRequest
+from sector_pulse.web.data_run_schemas import (
+    CandidateSelectionConfirmRequest,
+    CandidateSelectionResponse,
+    DataRunCandidatePageResponse,
+    DataRunNewsDetailResponse,
+    DataRunWorkflowSummaryResponse,
+    GenerateDataRunRequest,
+    NewDataRunRequest,
+)
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
 from sector_pulse.web.editing_schemas import (
@@ -59,11 +79,17 @@ from sector_pulse.web.editing_schemas import (
 )
 from sector_pulse.web.operations_schemas import (
     OperationsConsentStatus,
+    OperationsCoreSummary,
     OperationsDatabaseStatus,
     OperationsLlmStatus,
     OperationsProviderStatus,
+    OperationsReadiness,
+    OperationsReadinessItem,
+    OperationsRecentRun,
     OperationsRunSummary,
     OperationsSummaryResponse,
+    OperationsTrend,
+    OperationsTrendPoint,
 )
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
@@ -85,6 +111,81 @@ from sector_pulse.web.shadow_schemas import (
     ShadowRunUpdateRequest,
 )
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
+
+
+def _build_operations_readiness(
+    *,
+    database_backend: str,
+    preflight_available: bool,
+    missing_requirements: tuple[str, ...],
+    llm_provider: str,
+    llm_configured: bool,
+    live_llm_consent: bool,
+    scheduler_enabled: bool,
+    scheduler_started: bool,
+) -> OperationsReadiness:
+    if preflight_available:
+        live_data = OperationsReadinessItem(
+            status="ready",
+            label="实时数据",
+            detail="Provider 与授权已就绪",
+        )
+    else:
+        missing = "、".join(missing_requirements) or "运行前置条件"
+        live_data = OperationsReadinessItem(
+            status="unavailable",
+            label="实时数据",
+            detail=f"缺少：{missing}",
+        )
+
+    if not llm_configured:
+        llm = OperationsReadinessItem(
+            status="unavailable",
+            label="LLM",
+            detail="模型配置不完整",
+        )
+    elif llm_provider == "fixture" or live_llm_consent:
+        llm = OperationsReadinessItem(
+            status="ready",
+            label="LLM",
+            detail=f"{llm_provider} 已就绪",
+        )
+    else:
+        llm = OperationsReadinessItem(
+            status="warning",
+            label="LLM",
+            detail="配置完成，尚未确认实时 LLM 授权",
+        )
+
+    if not scheduler_enabled:
+        scheduler_status = OperationsReadinessItem(
+            status="disabled",
+            label="调度器",
+            detail="当前配置为停用",
+        )
+    elif scheduler_started:
+        scheduler_status = OperationsReadinessItem(
+            status="ready",
+            label="调度器",
+            detail="定时调度已启动",
+        )
+    else:
+        scheduler_status = OperationsReadinessItem(
+            status="warning",
+            label="调度器",
+            detail="已启用但尚未启动",
+        )
+
+    return OperationsReadiness(
+        database=OperationsReadinessItem(
+            status="ready",
+            label="数据库",
+            detail=("PostgreSQL 已连接" if database_backend == "postgresql" else "SQLite 已连接"),
+        ),
+        live_data=live_data,
+        llm=llm,
+        scheduler=scheduler_status,
+    )
 
 
 def create_app(
@@ -145,6 +246,15 @@ def create_app(
     workbench_queries = overrides.get("workbench_queries") if overrides else None
     if workbench_queries is None:
         workbench_queries = DataRunWorkbenchQueries(storage)
+    candidate_selection_service = (
+        overrides.get("candidate_selection_service") if overrides else None
+    )
+    if candidate_selection_service is None:
+        if storage.candidate_selections is None:
+            raise RuntimeError("candidate selection repository is not configured")
+        candidate_selection_service = CandidateSelectionService(
+            real_repository, storage.candidate_selections
+        )
     data_run_service = overrides.get("data_run_service") if overrides else None
     if data_run_service is None:
         provider_factory = RealDataProviderFactory()
@@ -195,6 +305,11 @@ def create_app(
     async def operations_summary() -> OperationsSummaryResponse:
         runs = queries.list()
         preflight = RealDataProviderFactory().preflight()
+        generated_at = datetime.now(UTC)
+        operations_query = cast(OperationsSummaryQueryPort | None, storage.operations)
+        if operations_query is None:
+            raise RuntimeError("operations query is not configured")
+        snapshot = build_operations_snapshot(operations_query.list_records(), now=generated_at)
         database_name = (
             urlparse(settings.database_url).path.lstrip("/")
             if settings.database_url
@@ -209,9 +324,8 @@ def create_app(
                 provider=settings.llm_provider,
                 model=settings.llm_model,
                 budget_cny_per_run=settings.budget_cny_per_run,
-                configured=settings.llm_provider == "fixture" or bool(
-                    settings.llm_base_url and settings.llm_api_key
-                ),
+                configured=settings.llm_provider == "fixture"
+                or bool(settings.llm_base_url and settings.llm_api_key),
             ),
             consent=OperationsConsentStatus(
                 live_data=Path(".live-data-consent").is_file(),
@@ -224,19 +338,75 @@ def create_app(
             runs=OperationsRunSummary(
                 total=len(runs),
                 running=sum(run.status == "RUNNING" for run in runs),
-                awaiting_review=sum(
-                    run.status == "READY_FOR_HUMAN_REVIEW" for run in runs
-                ),
+                awaiting_review=sum(run.status == "READY_FOR_HUMAN_REVIEW" for run in runs),
                 failed=sum(run.status == "FAILED" for run in runs),
                 recent=runs[:8],
             ),
+            summary=OperationsCoreSummary(
+                total=snapshot.summary.total,
+                completed_today=snapshot.summary.completed_today,
+                active=snapshot.summary.active,
+                attention=snapshot.summary.attention,
+            ),
+            trend=OperationsTrend(
+                available=snapshot.trend.available,
+                reason=snapshot.trend.reason,
+                points=tuple(
+                    OperationsTrendPoint(
+                        date=point.date,
+                        total=point.total,
+                        completed=point.completed,
+                        failed=point.failed,
+                    )
+                    for point in snapshot.trend.points
+                ),
+            ),
+            readiness=_build_operations_readiness(
+                database_backend=(
+                    "postgresql" if isinstance(database, PostgresDatabase) else "sqlite"
+                ),
+                preflight_available=preflight.available,
+                missing_requirements=preflight.missing,
+                llm_provider=settings.llm_provider,
+                llm_configured=(
+                    settings.llm_provider == "fixture"
+                    or bool(settings.llm_base_url and settings.llm_api_key)
+                ),
+                live_llm_consent=Path(".live-llm-consent").is_file(),
+                scheduler_enabled=settings.scheduler_enabled,
+                scheduler_started=scheduler is not None,
+            ),
+            recent_runs=tuple(
+                OperationsRecentRun(
+                    run_id=run.run_id,
+                    kind=run.kind,
+                    mode=run.mode,
+                    status=run.status,
+                    provider=run.provider,
+                    requested_at=run.requested_at,
+                    finished_at=run.finished_at,
+                    elapsed_ms=run.elapsed_ms,
+                    total_cost_cny=run.total_cost_cny,
+                    candidate_count=run.candidate_count,
+                    detail_path=(
+                        f"/runs/{run.run_id}"
+                        if run.kind == "content"
+                        else f"/data-runs/{run.run_id}"
+                    ),
+                )
+                for run in snapshot.recent_runs
+            ),
+            generated_at=generated_at,
         )
 
     @app.get("/api/analytics/summary", response_model=ReviewSummaryResponse)
     async def analytics_summary(from_at: str, to_at: str) -> ReviewSummaryResponse:
         from datetime import datetime
+
         try:
-            result = review_analytics.summary(datetime.fromisoformat(from_at), datetime.fromisoformat(to_at))
+            result = review_analytics.summary(
+                datetime.fromisoformat(from_at), datetime.fromisoformat(to_at)
+            )
         except ValueError as exc:
             raise HTTPException(422, "from_at and to_at must be ISO timestamps") from exc
         return ReviewSummaryResponse.model_validate(result.model_dump())
@@ -250,13 +420,37 @@ def create_app(
         from datetime import UTC, datetime
 
         from sector_pulse.domain.shadow_acceptance import ShadowRun
-        item = ShadowRun(run_id=request.run_id, trading_date=request.trading_date, mode=request.mode, provider_status=request.provider_status, created_at=datetime.now(UTC))
+
+        item = ShadowRun(
+            run_id=request.run_id,
+            trading_date=request.trading_date,
+            mode=request.mode,
+            provider_status=request.provider_status,
+            created_at=datetime.now(UTC),
+        )
         shadow_repository.save_run(item)
-        return ShadowRunResponse(shadow_id=item.shadow_id, run_id=item.run_id, trading_date=item.trading_date, mode=item.mode, status=item.status.value, created_at=item.created_at)
+        return ShadowRunResponse(
+            shadow_id=item.shadow_id,
+            run_id=item.run_id,
+            trading_date=item.trading_date,
+            mode=item.mode,
+            status=item.status.value,
+            created_at=item.created_at,
+        )
 
     @app.get("/api/shadow-runs", response_model=list[ShadowRunResponse])
     async def list_shadow_runs() -> list[ShadowRunResponse]:
-        return [ShadowRunResponse(shadow_id=item.shadow_id, run_id=item.run_id, trading_date=item.trading_date, mode=item.mode, status=item.status.value, created_at=item.created_at) for item in shadow_repository.list_runs()]
+        return [
+            ShadowRunResponse(
+                shadow_id=item.shadow_id,
+                run_id=item.run_id,
+                trading_date=item.trading_date,
+                mode=item.mode,
+                status=item.status.value,
+                created_at=item.created_at,
+            )
+            for item in shadow_repository.list_runs()
+        ]
 
     @app.get("/api/shadow-runs/summary", response_model=ShadowProgressResponse)
     async def shadow_progress() -> ShadowProgressResponse:
@@ -267,16 +461,26 @@ def create_app(
         blocked = sum(item.status.value == "BLOCKED" for item in runs)
         days = len(dates)
         return ShadowProgressResponse(
-            trading_days=days, passed=passed, failed=failed, blocked=blocked,
-            remaining=max(0, 20 - days), complete=days >= 20,
+            trading_days=days,
+            passed=passed,
+            failed=failed,
+            blocked=blocked,
+            remaining=max(0, 20 - days),
+            complete=days >= 20,
         )
 
     @app.patch("/api/shadow-runs/{shadow_id}", response_model=ShadowRunResponse)
-    async def update_shadow_run(shadow_id: UUID, request: ShadowRunUpdateRequest) -> ShadowRunResponse:
+    async def update_shadow_run(
+        shadow_id: UUID, request: ShadowRunUpdateRequest
+    ) -> ShadowRunResponse:
         from datetime import UTC, datetime
 
         from sector_pulse.domain.shadow_acceptance import ShadowRun, ShadowRunStatus
-        item = next((run for run in shadow_repository.list_runs(limit=1000) if run.shadow_id == shadow_id), None)
+
+        item = next(
+            (run for run in shadow_repository.list_runs(limit=1000) if run.shadow_id == shadow_id),
+            None,
+        )
         if item is None:
             raise HTTPException(404, "shadow run not found")
         try:
@@ -284,29 +488,60 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(422, "invalid shadow run status") from exc
         values = item.model_dump()
-        values.update(status=status, provider_status=request.provider_status,
-                            cutoff_at=request.cutoff_at, metrics=request.metrics,
-                            failure_reason=request.failure_reason,
-                            finished_at=datetime.now(UTC) if status is not ShadowRunStatus.STARTED else None)
+        values.update(
+            status=status,
+            provider_status=request.provider_status,
+            cutoff_at=request.cutoff_at,
+            metrics=request.metrics,
+            failure_reason=request.failure_reason,
+            finished_at=datetime.now(UTC) if status is not ShadowRunStatus.STARTED else None,
+        )
         updated = ShadowRun(**values)
         shadow_repository.update_run(shadow_id, updated)
-        return ShadowRunResponse(shadow_id=updated.shadow_id, run_id=updated.run_id, trading_date=updated.trading_date, mode=updated.mode, status=updated.status.value, created_at=updated.created_at)
+        return ShadowRunResponse(
+            shadow_id=updated.shadow_id,
+            run_id=updated.run_id,
+            trading_date=updated.trading_date,
+            mode=updated.mode,
+            status=updated.status.value,
+            created_at=updated.created_at,
+        )
 
     @app.post("/api/shadow-runs/{shadow_id}/recovery-drills", status_code=201)
-    async def record_recovery_drill(shadow_id: UUID, request: RecoveryDrillRequest) -> dict[str, str]:
+    async def record_recovery_drill(
+        shadow_id: UUID, request: RecoveryDrillRequest
+    ) -> dict[str, str]:
         from datetime import UTC, datetime
 
         from sector_pulse.domain.shadow_acceptance import RecoveryDrill
-        item = RecoveryDrill(shadow_id=shadow_id, fault_type=request.fault_type, recovered=request.recovered, recovery_seconds=request.recovery_seconds, notes=request.notes, created_at=datetime.now(UTC))
+
+        item = RecoveryDrill(
+            shadow_id=shadow_id,
+            fault_type=request.fault_type,
+            recovered=request.recovered,
+            recovery_seconds=request.recovery_seconds,
+            notes=request.notes,
+            created_at=datetime.now(UTC),
+        )
         shadow_repository.save_recovery(item)
         return {"drill_id": str(item.drill_id), "status": "RECORDED"}
 
     @app.post("/api/shadow-runs/{shadow_id}/compliance", status_code=201)
-    async def record_compliance(shadow_id: UUID, request: ComplianceRecordRequest) -> dict[str, str]:
+    async def record_compliance(
+        shadow_id: UUID, request: ComplianceRecordRequest
+    ) -> dict[str, str]:
         from datetime import UTC, datetime
 
         from sector_pulse.domain.shadow_acceptance import ComplianceRecord
-        item = ComplianceRecord(shadow_id=shadow_id, rules_version=request.rules_version, decision=request.decision, reviewer=request.reviewer, notes=request.notes, created_at=datetime.now(UTC))
+
+        item = ComplianceRecord(
+            shadow_id=shadow_id,
+            rules_version=request.rules_version,
+            decision=request.decision,
+            reviewer=request.reviewer,
+            notes=request.notes,
+            created_at=datetime.now(UTC),
+        )
         shadow_repository.save_compliance(item)
         return {"record_id": str(item.record_id), "status": "RECORDED"}
 
@@ -315,13 +550,28 @@ def create_app(
         from datetime import UTC, datetime
 
         from sector_pulse.domain.prompt_golden import PromptGoldenCase
+
         item = PromptGoldenCase(**request.model_dump(), created_at=datetime.now(UTC))
         prompt_golden_repository.save(item)
-        return PromptGoldenResponse(**request.model_dump(), case_id=str(item.case_id), created_at=item.created_at)
+        return PromptGoldenResponse(
+            **request.model_dump(), case_id=str(item.case_id), created_at=item.created_at
+        )
 
     @app.get("/api/prompt-golden", response_model=list[PromptGoldenResponse])
     async def list_prompt_golden() -> list[PromptGoldenResponse]:
-        return [PromptGoldenResponse(prompt_id=item.prompt_id, prompt_version=item.prompt_version, input_hash=item.input_hash, expected_schema=item.expected_schema, result=item.result, notes=item.notes, case_id=str(item.case_id), created_at=item.created_at) for item in prompt_golden_repository.list()]
+        return [
+            PromptGoldenResponse(
+                prompt_id=item.prompt_id,
+                prompt_version=item.prompt_version,
+                input_hash=item.input_hash,
+                expected_schema=item.expected_schema,
+                result=item.result,
+                notes=item.notes,
+                case_id=str(item.case_id),
+                created_at=item.created_at,
+            )
+            for item in prompt_golden_repository.list()
+        ]
 
     def latest_owned_draft(run_id: UUID, draft_id: UUID) -> ArticleDraft:
         try:
@@ -452,18 +702,35 @@ def create_app(
             for e in release_audit_repository.audit(draft_id)
         ]
 
-    @app.get("/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions", response_model=list[EvidenceDecisionResponse])
-    async def list_evidence_decisions(run_id: UUID, draft_id: UUID) -> list[EvidenceDecisionResponse]:
+    @app.get(
+        "/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions",
+        response_model=list[EvidenceDecisionResponse],
+    )
+    async def list_evidence_decisions(
+        run_id: UUID, draft_id: UUID
+    ) -> list[EvidenceDecisionResponse]:
         try:
             draft = draft_edit_repository.latest_version(draft_id)
         except KeyError as exc:
             raise HTTPException(404, "draft not found") from exc
         if draft.run_id != run_id:
             raise HTTPException(404, "draft not found")
-        return [EvidenceDecisionResponse.model_validate(item.model_dump()) for item in evidence_decision_repository.list_evidence_decisions(draft_id)]
+        return [
+            EvidenceDecisionResponse.model_validate(item.model_dump())
+            for item in evidence_decision_repository.list_evidence_decisions(draft_id)
+        ]
 
-    @app.post("/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions", response_model=EvidenceDecisionResponse, status_code=201)
-    async def create_evidence_decision(run_id: UUID, draft_id: UUID, request: EvidenceDecisionRequest, actor: str = Header(default="local-user", alias="X-Actor")) -> EvidenceDecisionResponse:
+    @app.post(
+        "/api/runs/{run_id}/drafts/{draft_id}/evidence-decisions",
+        response_model=EvidenceDecisionResponse,
+        status_code=201,
+    )
+    async def create_evidence_decision(
+        run_id: UUID,
+        draft_id: UUID,
+        request: EvidenceDecisionRequest,
+        actor: str = Header(default="local-user", alias="X-Actor"),
+    ) -> EvidenceDecisionResponse:
         try:
             draft = draft_edit_repository.latest_version(draft_id)
         except KeyError as exc:
@@ -471,22 +738,37 @@ def create_app(
         if draft.run_id != run_id:
             raise HTTPException(404, "draft not found")
         try:
-            evidence_decision_service.record(draft, request.source_id, request.decision, request.reason, actor=actor)
+            evidence_decision_service.record(
+                draft, request.source_id, request.decision, request.reason, actor=actor
+            )
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
         item = evidence_decision_repository.list_evidence_decisions(draft_id)[-1]
         return EvidenceDecisionResponse.model_validate(item.model_dump())
 
-    @app.post("/api/runs/{run_id}/drafts/{draft_id}/return", response_model=ReturnDraftResponse, status_code=201)
-    async def return_draft(run_id: UUID, draft_id: UUID, request: ReturnDraftRequest, actor: str = Header(default="local-user", alias="X-Actor")) -> ReturnDraftResponse:
+    @app.post(
+        "/api/runs/{run_id}/drafts/{draft_id}/return",
+        response_model=ReturnDraftResponse,
+        status_code=201,
+    )
+    async def return_draft(
+        run_id: UUID,
+        draft_id: UUID,
+        request: ReturnDraftRequest,
+        actor: str = Header(default="local-user", alias="X-Actor"),
+    ) -> ReturnDraftResponse:
         try:
             draft = draft_edit_repository.latest_version(draft_id)
         except KeyError as exc:
             raise HTTPException(404, "draft not found") from exc
         if draft.run_id != run_id:
             raise HTTPException(404, "draft not found")
-        release_audit_repository.record_event(run_id, draft_id, draft.version, "RETURNED", actor, {"reason": request.reason})
-        return ReturnDraftResponse(draft_id=draft_id, version=draft.version, status="RETURNED", actor=actor)
+        release_audit_repository.record_event(
+            run_id, draft_id, draft.version, "RETURNED", actor, {"reason": request.reason}
+        )
+        return ReturnDraftResponse(
+            draft_id=draft_id, version=draft.version, status="RETURNED", actor=actor
+        )
 
     @app.get("/api/runs/{run_id}/drafts/{draft_id}/export.json")
     async def export_approved_json(
@@ -506,8 +788,12 @@ def create_app(
         content_hash = release_audit_repository.content_hash(content)
         release_audit_repository.record_export(
             DraftExport(
-                run_id=run_id, draft_id=draft_id, version=draft.version,
-                format="json", content_hash=content_hash, actor=actor,
+                run_id=run_id,
+                draft_id=draft_id,
+                version=draft.version,
+                format="json",
+                content_hash=content_hash,
+                actor=actor,
                 created_at=datetime.now(UTC),
             )
         )
@@ -588,12 +874,71 @@ def create_app(
                 raise HTTPException(404, "run not found")
             return result
 
-        @app.get("/api/data-runs/{run_id}/candidates")
-        async def get_data_run_candidates(run_id: UUID) -> list[dict[str, object]]:
+        @app.get(
+            "/api/data-runs/{run_id}/candidates",
+            response_model=DataRunCandidatePageResponse,
+        )
+        async def get_data_run_candidates(
+            run_id: UUID,
+            query: str | None = Query(default=None, max_length=100),
+            sort: str = Query(default="rank", pattern="^(rank|score|name|pct_change|news_count)$"),
+            direction: str = Query(default="asc", pattern="^(asc|desc)$"),
+            offset: int = Query(default=0, ge=0),
+            limit: int = Query(default=20, ge=1, le=100),
+        ) -> dict[str, object]:
             try:
-                return workbench_queries.candidates(run_id)
+                return workbench_queries.candidates(
+                    run_id,
+                    query=query,
+                    sort=sort,
+                    direction=direction,
+                    offset=offset,
+                    limit=limit,
+                )
             except KeyError as exc:
                 raise HTTPException(404, "run not found") from exc
+
+        @app.get(
+            "/api/data-runs/{run_id}/summary",
+            response_model=DataRunWorkflowSummaryResponse,
+        )
+        async def get_data_run_summary(run_id: UUID) -> dict[str, object]:
+            try:
+                return workbench_queries.summary(run_id)
+            except KeyError as exc:
+                raise HTTPException(404, "run not found") from exc
+
+        @app.get(
+            "/api/data-runs/{run_id}/selection",
+            response_model=CandidateSelectionResponse,
+        )
+        async def get_data_run_selection(run_id: UUID) -> CandidateSelectionResponse:
+            try:
+                value = candidate_selection_service.view(run_id)
+            except CandidateSelectionNotFound as exc:
+                raise HTTPException(404, str(exc)) from exc
+            return CandidateSelectionResponse.model_validate(value)
+
+        @app.put(
+            "/api/data-runs/{run_id}/selection",
+            response_model=CandidateSelectionResponse,
+        )
+        async def confirm_data_run_selection(
+            run_id: UUID, req: CandidateSelectionConfirmRequest
+        ) -> CandidateSelectionResponse:
+            try:
+                value = candidate_selection_service.confirm(
+                    run_id,
+                    tuple(req.sector_ids),
+                    expected_version=req.expected_version,
+                )
+            except CandidateSelectionNotFound as exc:
+                raise HTTPException(404, str(exc)) from exc
+            except CandidateSelectionVersionConflict as exc:
+                raise HTTPException(409, str(exc)) from exc
+            except CandidateSelectionInvalid as exc:
+                raise HTTPException(422, str(exc)) from exc
+            return CandidateSelectionResponse.model_validate(value)
 
         @app.get("/api/data-runs/{run_id}/acquisition")
         async def get_data_run_acquisition(run_id: UUID) -> dict[str, object]:
@@ -621,6 +966,17 @@ def create_app(
             except KeyError as exc:
                 raise HTTPException(404, "run not found") from exc
 
+        @app.get(
+            "/api/data-runs/{run_id}/news-records/{document_id}",
+            response_model=DataRunNewsDetailResponse,
+        )
+        async def get_data_run_news_record(
+            run_id: UUID, document_id: str
+        ) -> dict[str, object]:
+            try:
+                return workbench_queries.news_record(run_id, document_id)
+            except KeyError as exc:
+                raise HTTPException(404, "news record not found") from exc
 
         @app.get("/api/data-runs/{run_id}/market")
         async def get_data_run_market(
@@ -685,19 +1041,25 @@ def create_app(
             service,
             poll_seconds=settings.scheduler_poll_seconds,
             bridge=ScheduledDataRunBridge(
-                task_repository, real_repository, data_run_service, writing_service
+                task_repository,
+                real_repository,
+                data_run_service,
+                writing_service,
+                candidate_selection_service,
             ),
         )
 
         @app.post("/api/data-runs/{run_id}/generate")
         async def generate_data_run_article(
-            run_id: UUID, req: GenerateDataRunRequest | None = None
+            run_id: UUID, _req: GenerateDataRunRequest | None = None
         ) -> dict[str, object]:
             try:
-                sector_ids = (
-                    tuple(req.sector_ids) if req and req.sector_ids is not None else None
-                )
-                generated_id = writing_service.generate(run_id, sector_ids)
+                selection = candidate_selection_service.require_confirmed(run_id)
+                generated_id = writing_service.generate(run_id, selection.selected_sector_ids)
+            except CandidateSelectionNotFound as exc:
+                raise HTTPException(404, str(exc)) from exc
+            except CandidateSelectionRequired as exc:
+                raise HTTPException(409, str(exc)) from exc
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
             return {"run_id": generated_id}

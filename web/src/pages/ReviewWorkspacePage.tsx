@@ -1,83 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchDraft, fetchEvidence, fetchRuns, type DraftVersionView, type RunSummary } from '../api'
-import DraftWorkspace from '../components/review/DraftWorkspace'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import DraftWorkspace, { type DraftFieldContext, type DraftWorkspaceState } from '../components/review/DraftWorkspace'
 import EvidenceDecisionPane from '../components/review/EvidenceDecisionPane'
+import ReviewPaneTabs, { type ReviewPane } from '../components/review/ReviewPaneTabs'
 import ReviewQueue from '../components/review/ReviewQueue'
 import EmptyState from '../components/ui/EmptyState'
 import { useFeedback } from '../components/ui/FeedbackProvider'
 import InlineAlert from '../components/ui/InlineAlert'
 import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
+import useReviewWorkspace from '../hooks/useReviewWorkspace'
 import {
-  applyDraftPatch, approveDraft, approvedExportUrl, fetchApproval,
-  fetchEvidenceDecisions, fetchGovernance, recordEvidenceDecision,
-  returnDraft, revokeDraft, type ApprovalView, type EvidenceDecisionView,
-  type GovernanceResponse,
+  applyDraftPatch, approveDraft, approvedExportUrl,
+  recordEvidenceDecision, returnDraft, ReviewApiError, revokeDraft,
 } from '../editingApi'
 
 export default function ReviewWorkspacePage() {
+  const [searchParams] = useSearchParams()
   const feedback = useFeedback()
-  const loadSequence = useRef(0)
-  const [runs, setRuns] = useState<RunSummary[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [versions, setVersions] = useState<DraftVersionView[]>([])
-  const [governance, setGovernance] = useState<GovernanceResponse | null>(null)
-  const [approval, setApproval] = useState<ApprovalView | null>(null)
-  const [decisions, setDecisions] = useState<EvidenceDecisionView[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const selectedRun = useMemo(
-    () => runs.find((run) => run.run_id === selectedId) ?? null,
-    [runs, selectedId],
-  )
-
-  useEffect(() => {
-    let active = true
-    fetchRuns().then((items) => {
-      if (!active) return
-      const reviewable = items.filter((item) => item.draft_id && item.status !== 'RUNNING')
-      setRuns(reviewable)
-      setSelectedId(
-        reviewable.find((item) => item.status === 'READY_FOR_HUMAN_REVIEW')?.run_id
-          ?? reviewable[0]?.run_id
-          ?? null,
-      )
-    }).catch(() => { if (active) setLoadError(true) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [])
-
-  const loadWorkspace = async (run: RunSummary) => {
-    if (!run.draft_id) return
-    const sequence = ++loadSequence.current
-    try {
-      const [draft, evidence, report, currentApproval, decisionItems] = await Promise.all([
-        fetchDraft(run.run_id), fetchEvidence(run.run_id), fetchGovernance(run.run_id),
-        fetchApproval(run.run_id, run.draft_id),
-        fetchEvidenceDecisions(run.run_id, run.draft_id),
-      ])
-      if (sequence !== loadSequence.current) return
-      void evidence
-      setVersions(draft.versions)
-      setGovernance(report)
-      setApproval(currentApproval)
-      setDecisions(decisionItems)
-    } catch {
-      if (sequence === loadSequence.current) feedback.error('无法加载审核材料，请稍后重试。')
-    }
-  }
-
-  useEffect(() => {
-    setVersions([])
-    if (selectedRun) void loadWorkspace(selectedRun)
-    return () => { loadSequence.current += 1 }
-  }, [selectedRun?.run_id])
+  const [activePane, setActivePane] = useState<ReviewPane>('draft')
+  const [activeField, setActiveField] = useState<DraftFieldContext | null>(null)
+  const [draftState, setDraftState] = useState<DraftWorkspaceState>({ hasPending: false, hasConflict: false, readOnly: false, version: 0 })
+  const workspace = useReviewWorkspace(searchParams.get('run'))
+  const {
+    runs, selectedId, selectedRun, versions, governance, approval, decisions,
+    initialLoading, workspaceLoading, queueError, workspaceError,
+  } = workspace
 
   const runAction = async (
-    action: () => Promise<void>, successMessage: string, errorMessage: string,
+    action: () => Promise<void>, refresh: () => Promise<void>, successMessage: string, errorMessage: string,
   ) => {
     try {
       await action()
+      await refresh()
       feedback.success(successMessage)
     } catch {
       feedback.error(errorMessage)
@@ -85,51 +40,87 @@ export default function ReviewWorkspacePage() {
   }
 
   const latest = versions[versions.length - 1]
+  const displayedVersion = versions.find((item) => item.version === draftState.version) ?? latest
+  const governancePassed = governance?.passed ?? governance?.status === 'PASS'
+  const approvalDisabledReason = draftState.readOnly
+    ? '正在查看历史版本，不能批准。'
+    : draftState.hasConflict
+      ? '草稿存在版本冲突，请先重试或处理本地修改。'
+      : draftState.hasPending
+        ? '草稿仍有未保存的修改，请等待保存完成。'
+        : !governancePassed
+          ? '治理检查未通过，不能批准。'
+          : null
+
+  useEffect(() => {
+    setActiveField(null)
+    setDraftState({ hasPending: false, hasConflict: false, readOnly: false, version: 0 })
+  }, [selectedId])
 
   return <section className="review-page">
     <PageHeader title="审核工作台" description="集中阅读、修改和核准已生成的分析草稿。" />
-    {loading && <LoadingState label="正在加载审核队列…" />}
-    {loadError && <InlineAlert tone="error" title="无法加载审核队列">请确认服务可用后刷新页面。</InlineAlert>}
-    {!loading && !loadError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
+    {initialLoading && <LoadingState label="正在加载审核队列…" />}
+    {queueError && <InlineAlert tone="error" title="无法加载审核队列">{queueError}</InlineAlert>}
+    {workspaceError && versions.length > 0 && <InlineAlert tone="warning" title="显示最近一次成功数据">{workspaceError}</InlineAlert>}
+    {!initialLoading && !queueError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
     {runs.length > 0 && <div className="review-workspace">
-      <ReviewQueue runs={runs} selectedId={selectedId} onSelect={setSelectedId} />
-      <div className="review-layout" role="region" aria-label="审核主工作区">
-      {selectedRun && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
-      {selectedRun && latest && <>
-        <DraftWorkspace versions={versions} onSave={async (input) => {
+      <ReviewPaneTabs active={activePane} onChange={setActivePane} />
+      <div className="review-workspace__grid" role="region" aria-label="审核主工作区">
+        <div id="review-pane-queue" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-queue" data-pane="queue" data-active={activePane === 'queue'}>
+          <ReviewQueue runs={runs} selectedId={selectedId} onSelect={(runId) => {
+            if (draftState.hasPending) {
+              feedback.error('当前草稿仍有未保存或冲突的修改，请处理后再切换运行。')
+              return
+            }
+            workspace.selectRun(runId)
+            setActivePane('draft')
+          }} />
+        </div>
+        <div id="review-pane-draft" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-draft" data-pane="draft" data-active={activePane === 'draft'}>
+          {selectedRun && workspaceLoading && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><LoadingState label="正在加载草稿与证据…" /></main>}
+          {selectedRun && workspaceError && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><InlineAlert tone="error" title="无法加载审核材料">{workspaceError}<div><button className="button button-secondary" type="button" onClick={() => void workspace.refreshWorkspace()}>重新加载</button></div></InlineAlert></main>}
+          {selectedRun && latest && <DraftWorkspace versions={versions} onFocusField={setActiveField} onStateChange={setDraftState} onSave={async (input) => {
           try {
-            await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
-            await loadWorkspace(selectedRun)
-            feedback.success('修改已保存为新版本。')
+            const result = await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
+            await workspace.refreshWorkspace()
+            return result
           } catch (error) {
-            feedback.error('修改保存失败，请刷新草稿后重试。')
+            if (error instanceof ReviewApiError && error.code === 'CONFLICT') {
+              await workspace.refreshWorkspace()
+              feedback.error('草稿已被其他修改更新；本地文本已保留，请重试保存。')
+            } else {
+              feedback.error('修改保存失败，本地文本已保留，请检查连接后重试。')
+            }
             throw error
           }
-        }} />
-        <EvidenceDecisionPane
-          version={latest}
+          }} />}
+        </div>
+        <div id="review-pane-evidence" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-evidence" data-pane="evidence" data-active={activePane === 'evidence'}>
+          {selectedRun && displayedVersion && <EvidenceDecisionPane
+            version={displayedVersion}
           governance={governance}
           approval={approval}
           decisions={decisions}
-          exportUrl={approval?.status === 'APPROVED_FOR_COPY'
+          activeField={activeField}
+          approvalDisabledReason={approvalDisabledReason}
+          exportUrl={approval?.status === 'APPROVED_FOR_COPY' && displayedVersion.version === latest.version
             ? approvedExportUrl(selectedRun.run_id, selectedRun.draft_id!) : undefined}
           onDecision={(sourceId, decision, reason) => runAction(async () => {
             await recordEvidenceDecision(selectedRun.run_id, selectedRun.draft_id!, {
               source_id: sourceId, decision, reason,
             })
-            await loadWorkspace(selectedRun)
-          }, '证据决定已记录。', '证据决定保存失败，请稍后重试。')}
+          }, workspace.refreshDecisions, '证据决定已记录。', '证据决定保存失败，请稍后重试。')}
           onApprove={() => runAction(async () => {
-            setApproval(await approveDraft(selectedRun.run_id, selectedRun.draft_id!))
-          }, `草稿 v${latest.version} 已批准。`, '批准失败，请刷新草稿状态后重试。')}
+            await approveDraft(selectedRun.run_id, selectedRun.draft_id!)
+          }, workspace.refreshApproval, `草稿 v${latest.version} 已批准。`, '批准失败，请刷新草稿状态后重试。')}
           onRevoke={() => runAction(async () => {
-            setApproval(await revokeDraft(selectedRun.run_id, selectedRun.draft_id!))
-          }, '批准已撤销。', '撤销批准失败，请稍后重试。')}
+            await revokeDraft(selectedRun.run_id, selectedRun.draft_id!)
+          }, workspace.refreshApproval, '批准已撤销。', '撤销批准失败，请稍后重试。')}
           onReturn={(reason) => runAction(async () => {
             await returnDraft(selectedRun.run_id, selectedRun.draft_id!, reason)
-          }, `草稿 v${latest.version} 已退回修改。`, '退回操作失败，请稍后重试。')}
-        />
-      </>}
+          }, workspace.refreshApproval, `草稿 v${latest.version} 已退回修改。`, '退回操作失败，请稍后重试。')}
+          />}
+        </div>
       </div>
     </div>}
   </section>

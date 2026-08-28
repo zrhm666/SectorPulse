@@ -5,6 +5,46 @@ export interface DraftPatchInput {
   value: string
 }
 
+export interface DraftPatchResponse {
+  draft_id: string
+  version: number
+  status: string
+  content: Record<string, unknown>
+}
+
+export class ReviewApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: 'CONFLICT' | 'INVALID' | 'NOT_FOUND' | 'UNAVAILABLE',
+  ) {
+    super(message)
+    this.name = 'ReviewApiError'
+  }
+}
+
+async function reviewRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, init)
+  if (!response.ok) {
+    let detail: string | null = null
+    try {
+      const body = await response.json() as { detail?: unknown }
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      // Proxies can return non-JSON bodies; keep the message safe and local.
+    }
+    const code = response.status === 409
+      ? 'CONFLICT'
+      : response.status === 404
+        ? 'NOT_FOUND'
+        : response.status === 400 || response.status === 422
+          ? 'INVALID'
+          : 'UNAVAILABLE'
+    throw new ReviewApiError(detail ?? '审核请求未完成，请稍后重试。', response.status, code)
+  }
+  return response.json() as Promise<T>
+}
+
 export interface GovernanceResponse {
   run_id?: string
   draft_id?: string
@@ -14,20 +54,17 @@ export interface GovernanceResponse {
   issues: Array<{ code: string; message: string; severity: string }>
 }
 
-export async function applyDraftPatch(runId: string, draftId: string, input: DraftPatchInput) {
-  const response = await fetch(`/api/runs/${runId}/drafts/${draftId}/patches`, {
+export async function applyDraftPatch(runId: string, draftId: string, input: DraftPatchInput, signal?: AbortSignal): Promise<DraftPatchResponse> {
+  return reviewRequest<DraftPatchResponse>(`/api/runs/${runId}/drafts/${draftId}/patches`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Actor': 'reviewer' },
     body: JSON.stringify({ base_version: input.base_version, operations: [{ path: input.path, old_value_hash: input.old_value_hash, value: input.value }] }),
+    ...(signal ? { signal } : {}),
   })
-  if (!response.ok) throw new Error(`patch failed: ${response.status}`)
-  return response.json()
 }
 
-export async function fetchGovernance(runId: string): Promise<GovernanceResponse> {
-  const response = await fetch(`/api/runs/${runId}/governance`)
-  if (!response.ok) throw new Error(`governance failed: ${response.status}`)
-  return response.json()
+export function fetchGovernance(runId: string, signal?: AbortSignal): Promise<GovernanceResponse> {
+  return reviewRequest(`/api/runs/${runId}/governance`, signal ? { signal } : undefined)
 }
 
 export interface ApprovalView {
@@ -55,10 +92,8 @@ export async function revokeDraft(runId: string, draftId: string): Promise<Appro
   return response.json()
 }
 
-export async function fetchApproval(runId: string, draftId: string): Promise<ApprovalView | null> {
-  const response = await fetch(`/api/runs/${runId}/drafts/${draftId}/approval`)
-  if (!response.ok) throw new Error(`approval failed: ${response.status}`)
-  return response.json()
+export function fetchApproval(runId: string, draftId: string, signal?: AbortSignal): Promise<ApprovalView | null> {
+  return reviewRequest(`/api/runs/${runId}/drafts/${draftId}/approval`, signal ? { signal } : undefined)
 }
 
 export interface EvidenceDecisionView {
@@ -71,10 +106,8 @@ export interface EvidenceDecisionView {
   created_at: string
 }
 
-export async function fetchEvidenceDecisions(runId: string, draftId: string): Promise<EvidenceDecisionView[]> {
-  const response = await fetch(`/api/runs/${runId}/drafts/${draftId}/evidence-decisions`)
-  if (!response.ok) throw new Error(`evidence decisions failed: ${response.status}`)
-  return response.json()
+export function fetchEvidenceDecisions(runId: string, draftId: string, signal?: AbortSignal): Promise<EvidenceDecisionView[]> {
+  return reviewRequest(`/api/runs/${runId}/drafts/${draftId}/evidence-decisions`, signal ? { signal } : undefined)
 }
 
 export async function recordEvidenceDecision(runId: string, draftId: string, input: { source_id: string; decision: string; reason: string }): Promise<EvidenceDecisionView> {

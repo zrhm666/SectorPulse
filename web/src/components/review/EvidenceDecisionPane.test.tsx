@@ -40,3 +40,41 @@ it('keeps long source lists compact until expanded', async () => {
   expect(within(sourceList).getByText('来源 8')).toBeVisible()
   expect(screen.getByRole('button', { name: '收起来源' })).toHaveAttribute('aria-expanded', 'true')
 })
+
+it('follows the focused section mapping and labels global fallback truthfully', () => {
+  const mappedVersion = {
+    ...version,
+    sources: [
+      { source_id: 'source-1', title: '全局来源' },
+      { source_id: 'source-2', title: '农业来源' },
+    ],
+  }
+  const props = { version: mappedVersion, governance: { status: 'PASS', issues: [] }, approval: null, decisions: [], onDecision: vi.fn(), onApprove: vi.fn(), onRevoke: vi.fn(), onReturn: vi.fn() }
+  const view = render(<EvidenceDecisionPane {...props} activeField={{ key: 'sections/agri/body', label: '农业板块', sourceIds: ['source-2'] }} />)
+
+  expect(screen.getByText('与「农业板块」相关的来源')).toBeVisible()
+  expect(within(screen.getByRole('list', { name: '审核来源' })).getByText('农业来源')).toBeVisible()
+  expect(within(screen.getByRole('list', { name: '审核来源' })).queryByText('全局来源')).not.toBeInTheDocument()
+
+  view.rerender(<EvidenceDecisionPane {...props} activeField={{ key: 'introduction', label: '导语' }} />)
+  expect(screen.getByText('当前字段没有逐段来源映射，显示全部来源。')).toBeVisible()
+  expect(within(screen.getByRole('list', { name: '审核来源' })).getByText('全局来源')).toBeVisible()
+})
+
+it('explains why approval is blocked and keeps governance and audit reachable', async () => {
+  render(<EvidenceDecisionPane
+    version={version}
+    governance={{ status: 'FAIL', issues: [{ code: 'MISSING_SOURCE', message: '缺少来源', severity: 'ERROR' }] }}
+    approval={null}
+    decisions={[{ decision_id: 'decision-1', draft_version: 2, source_id: 'source-1', decision: 'KEEP', reason: '可靠', affected_section_ids: [], created_at: '2026-08-28T01:00:00Z' }]}
+    approvalDisabledReason="治理检查未通过，不能批准。"
+    onDecision={vi.fn()} onApprove={vi.fn()} onRevoke={vi.fn()} onReturn={vi.fn()}
+  />)
+
+  expect(screen.getByRole('button', { name: '批准复制' })).toBeDisabled()
+  expect(screen.getByText('治理检查未通过，不能批准。')).toBeVisible()
+  await userEvent.click(screen.getByRole('tab', { name: '治理' }))
+  expect(screen.getByText('缺少来源')).toBeVisible()
+  await userEvent.click(screen.getByRole('tab', { name: '审计' }))
+  expect(screen.getByText('可靠')).toBeVisible()
+})

@@ -1,12 +1,34 @@
 // web/src/pages/tabs/EvidenceTab.tsx
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EvidenceView, fetchEvidence } from '../../api'
+import InlineAlert from '../../components/ui/InlineAlert'
+import LoadingState from '../../components/ui/LoadingState'
 
 export default function EvidenceTab({ runId }: { runId: string }) {
   const [data, setData] = useState<EvidenceView>({ sectors: [], events: [], invocations: [] })
-  useEffect(() => {
-    fetchEvidence(runId).then(setData).catch(console.error)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const requestId = useRef(0)
+  const load = useCallback(async () => {
+    const currentRequest = ++requestId.current
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const evidence = await fetchEvidence(runId)
+      if (currentRequest === requestId.current) setData(evidence)
+    } catch {
+      if (currentRequest === requestId.current) setLoadError(true)
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false)
+    }
   }, [runId])
+  useEffect(() => {
+    void load()
+    return () => { requestId.current += 1 }
+  }, [load])
+
+  if (loading) return <LoadingState label="正在加载证据与调用审计…" />
+  if (loadError) return <InlineAlert tone="error" title="无法加载证据与调用审计"><button className="button button-secondary" type="button" onClick={() => void load()}>重新加载</button></InlineAlert>
 
   return (
     <div>
@@ -19,9 +41,9 @@ export default function EvidenceTab({ runId }: { runId: string }) {
           </p>
           {ev.documents.map((d, i) => (
             <p key={i}>
-              <a href={d.citation_url ?? '#'} target="_blank" rel="noreferrer">
-                {d.title}
-              </a>
+              {d.citation_url
+                ? <a href={d.citation_url} target="_blank" rel="noreferrer">{d.title}</a>
+                : <span>{d.title}</span>}
               {d.publisher ? `（${d.publisher}）` : ''}
             </p>
           ))}

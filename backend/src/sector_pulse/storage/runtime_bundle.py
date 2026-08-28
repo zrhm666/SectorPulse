@@ -7,6 +7,7 @@ from typing import Any
 
 from sector_pulse.application.postgres_review_analytics import PostgresReviewAnalyticsQueries
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.candidate_selection_repository import SQLiteCandidateSelectionRepository
 from sector_pulse.storage.draft_edit_repository import SQLiteDraftEditRepository
 from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
 from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
@@ -14,11 +15,15 @@ from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshot
 from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
 from sector_pulse.storage.news_repository import SQLiteNewsRepository
 from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRepository
+from sector_pulse.storage.operations_query import SQLiteOperationsQuery
 from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_agent_invocation_repository import (
     PostgresAgentInvocationRepository,
+)
+from sector_pulse.storage.postgres_candidate_selection_repository import (
+    PostgresCandidateSelectionRepository,
 )
 from sector_pulse.storage.postgres_draft_edit_repository import PostgresDraftEditRepository
 from sector_pulse.storage.postgres_evidence_repository import PostgresEvidenceRepository
@@ -29,6 +34,7 @@ from sector_pulse.storage.postgres_market_snapshot_repository import (
 from sector_pulse.storage.postgres_news_evidence_repository import PostgresNewsEvidenceRepository
 from sector_pulse.storage.postgres_news_repository import PostgresNewsRepository
 from sector_pulse.storage.postgres_news_retrieval_repository import PostgresNewsRetrievalRepository
+from sector_pulse.storage.postgres_operations_query import PostgresOperationsQuery
 from sector_pulse.storage.postgres_phase1b_repository import PostgresPhase1BRepository
 from sector_pulse.storage.postgres_phase1b_runs_repository import PostgresPhase1BRunsRepository
 from sector_pulse.storage.postgres_prompt_golden_repository import PostgresPromptGoldenRepository
@@ -102,6 +108,8 @@ class RuntimeStorageBundle:
     release_audit: object | None = None
     shadow: object | None = None
     governance: object | None = None
+    operations: object | None = None
+    candidate_selections: object | None = None
 
 
 def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
@@ -117,6 +125,8 @@ def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
         news_evidence=SQLiteNewsEvidenceRepository(database), draft_edit=SQLiteDraftEditRepository(database),
         prompt_golden=SQLitePromptGoldenRepository(database), release_audit=SQLiteReleaseAuditRepository(database),
         shadow=SQLiteShadowAcceptanceRepository(database), governance=SQLiteGovernanceRepository(database),
+        operations=SQLiteOperationsQuery(database),
+        candidate_selections=SQLiteCandidateSelectionRepository(database),
     )
 
 
@@ -137,4 +147,8 @@ def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
         prompt_golden=BlockingAsyncRepository(PostgresPromptGoldenRepository(database)),
         release_audit=BlockingAsyncRepository(PostgresReleaseAuditRepository(database)),
         shadow=BlockingAsyncRepository(PostgresShadowAcceptanceRepository(database)), governance=BlockingAsyncRepository(PostgresGovernanceRepository(database)),
+        operations=BlockingAsyncRepository(PostgresOperationsQuery(database)),
+        candidate_selections=BlockingAsyncRepository(
+            PostgresCandidateSelectionRepository(database)
+        ),
     )

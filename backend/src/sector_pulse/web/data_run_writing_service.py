@@ -21,14 +21,12 @@ class DataRunWritingService:
         self._database = database
         self._run_service = run_service
         self._repository = (
-            storage.real_data_runs
-            if storage is not None
-            else SQLiteRealDataRunRepository(database)
+            storage.real_data_runs if storage is not None else SQLiteRealDataRunRepository(database)
         )
         self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")
 
-    def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
+    def generate(self, run_id: UUID, sector_ids: tuple[str, ...]) -> UUID:
         if not self._consent_file.is_file():
             raise ValueError("LIVE_LLM_CONSENT_REQUIRED")
         run = self._repository.get_run(run_id)

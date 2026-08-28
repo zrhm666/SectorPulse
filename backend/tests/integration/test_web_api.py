@@ -36,6 +36,17 @@ def test_live_preflight_returns_409_without_persisting_run(tmp_path, monkeypatch
     assert resp.status_code == 409
     assert client.get("/api/runs").json() == []
 
+
+def test_default_data_run_api_rejects_unsafe_fixture_alias(tmp_path) -> None:
+    with TestClient(create_app(database_path=tmp_path / "app.db", static_dir=None)) as client:
+        resp = client.post(
+            "/api/data-runs",
+            json={"mode": "post_close", "provider": "fixture"},
+        )
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "fixture data provider is not configured"
+
 def test_create_and_get_run(tmp_path) -> None:
     client = _client(tmp_path)
     resp = client.post("/api/runs", json={"input_json": _input_json(), "provider": "fixture"})

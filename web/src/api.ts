@@ -49,6 +49,7 @@ export interface DraftSectionView {
   section_id: string
   heading: string
   body: string
+  source_ids?: string[]
 }
 
 export interface DraftVersionView {
@@ -103,14 +104,16 @@ export interface ReviewView {
   issues: ReviewIssueView[]
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`)
+async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const res = signal
+    ? await fetch(`${BASE}${path}`, { signal })
+    : await fetch(`${BASE}${path}`)
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`)
   return res.json() as Promise<T>
 }
 
-export function fetchRuns(): Promise<RunSummary[]> {
-  return get<RunSummary[]>('/runs')
+export function fetchRuns(signal?: AbortSignal): Promise<RunSummary[]> {
+  return get<RunSummary[]>('/runs', signal)
 }
 
 export function fetchRun(runId: string): Promise<RunSummary> {
@@ -121,12 +124,12 @@ export function fetchRadar(runId: string): Promise<RadarView> {
   return get<RadarView>(`/runs/${runId}/radar`)
 }
 
-export function fetchDraft(runId: string): Promise<DraftView> {
-  return get<DraftView>(`/runs/${runId}/draft`)
+export function fetchDraft(runId: string, signal?: AbortSignal): Promise<DraftView> {
+  return get<DraftView>(`/runs/${runId}/draft`, signal)
 }
 
-export function fetchEvidence(runId: string): Promise<EvidenceView> {
-  return get<EvidenceView>(`/runs/${runId}/evidence`)
+export function fetchEvidence(runId: string, signal?: AbortSignal): Promise<EvidenceView> {
+  return get<EvidenceView>(`/runs/${runId}/evidence`, signal)
 }
 
 export function fetchReview(runId: string): Promise<ReviewView> {

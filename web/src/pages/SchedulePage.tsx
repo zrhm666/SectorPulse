@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/ui/EmptyState'
 import InlineAlert from '../components/ui/InlineAlert'
@@ -8,6 +8,7 @@ import Panel from '../components/ui/Panel'
 import SummaryStrip from '../components/ui/SummaryStrip'
 import { useFeedback } from '../components/ui/FeedbackProvider'
 import { createSchedule, fetchSchedules, type NewScheduleInput, type ScheduleView, triggerSchedule } from '../schedulesApi'
+import ManagementDrawer from '../components/ui/ManagementDrawer'
 
 const initialForm: NewScheduleInput = { name: '', mode: 'post_close', timezone: 'Asia/Shanghai', local_time: '16:00', trading_days: 'weekdays', enabled: true, input_template: {} }
 
@@ -22,9 +23,10 @@ export default function SchedulePage() {
   const navigate = useNavigate()
   const feedback = useFeedback()
 
-  useEffect(() => {
+  const load = useCallback(() => {
     let active = true
-
+    setLoading(true)
+    setLoadError(false)
     fetchSchedules()
       .then((result) => {
         if (active) setSchedules(result)
@@ -36,10 +38,10 @@ export default function SchedulePage() {
         if (active) setLoading(false)
       })
 
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [])
+
+  useEffect(() => load(), [load])
 
   const trigger = async (scheduleId: string) => {
     setTriggering(scheduleId)
@@ -71,13 +73,13 @@ export default function SchedulePage() {
 
   return (
     <section className="management-page">
-      <PageHeader title="定时任务" description="统一创建、查看和手动触发盘中与盘后分析计划。" actions={<button className="button button-primary" type="button" onClick={() => setCreating((value) => !value)}>{creating ? '收起表单' : '新建计划'}</button>} />
+      <PageHeader title="定时任务" description="统一创建、查看和手动触发盘中与盘后分析计划。" actions={<button className="button button-primary" type="button" onClick={() => setCreating(true)}>新建计划</button>} />
       <SummaryStrip label="调度概览" items={[{ label: '计划总数', value: schedules.length }, { label: '启用中', value: schedules.filter((item) => item.enabled).length }, { label: '默认时区', value: 'Asia/Shanghai' }]} />
-      {creating && <Panel density="compact" title="新建调度计划" description="按计划所在时区解释执行时间。"><form className="schedule-form" onSubmit={save}><label>计划名称<input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></label><label>分析模式<select value={form.mode} onChange={(event) => setForm((current) => ({ ...current, mode: event.target.value }))}><option value="post_close">盘后分析</option><option value="intraday">盘中分析</option></select></label><label>执行时区<select value={form.timezone} onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}><option value="Asia/Shanghai">Asia/Shanghai</option><option value="UTC">UTC</option></select></label><label>执行时间<input type="time" required value={form.local_time} onInput={(event) => { const localTime = event.currentTarget.value; setForm((current) => ({ ...current, local_time: localTime })) }} /></label><label>交易日<select value={form.trading_days} onChange={(event) => setForm((current) => ({ ...current, trading_days: event.target.value }))}><option value="weekdays">工作日</option><option value="daily">每天</option></select></label><label className="schedule-form__check"><input type="checkbox" checked={form.enabled} onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))} />创建后立即启用</label><div className="schedule-form__actions"><button className="button button-secondary" type="button" onClick={() => setCreating(false)}>取消</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? '正在保存…' : '保存计划'}</button></div></form></Panel>}
+      <ManagementDrawer open={creating} title="新建调度计划" description="按计划所在时区解释执行时间。" onClose={() => setCreating(false)}><form className="schedule-form" onSubmit={save}><label>计划名称<input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></label><label>分析模式<select value={form.mode} onChange={(event) => setForm((current) => ({ ...current, mode: event.target.value }))}><option value="post_close">盘后分析</option><option value="intraday">盘中分析</option></select></label><label>执行时区<select value={form.timezone} onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}><option value="Asia/Shanghai">Asia/Shanghai</option><option value="UTC">UTC</option></select></label><label>执行时间<input type="time" required value={form.local_time} onInput={(event) => { const localTime = event.currentTarget.value; setForm((current) => ({ ...current, local_time: localTime })) }} /></label><label>交易日<select value={form.trading_days} onChange={(event) => setForm((current) => ({ ...current, trading_days: event.target.value }))}><option value="weekdays">工作日</option><option value="daily">每天</option></select></label><label className="schedule-form__check"><input type="checkbox" checked={form.enabled} onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))} />创建后立即启用</label><div className="schedule-form__actions"><button className="button button-secondary" type="button" onClick={() => setCreating(false)}>取消</button><button className="button button-primary" type="submit" disabled={saving}>{saving ? '正在保存…' : '保存计划'}</button></div></form></ManagementDrawer>
       <Panel density="compact" title="调度计划" description="时间按每项计划标明的时区执行。">
         {loading && <LoadingState label="正在加载调度计划…" />}
         {!loading && loadError && (
-          <InlineAlert tone="error" title="无法加载调度计划">请稍后刷新页面重试。</InlineAlert>
+          <InlineAlert tone="error" title="无法加载调度计划"><p>请确认服务可用后重试。</p><button className="button button-secondary" type="button" onClick={load}>重新加载</button></InlineAlert>
         )}
         {!loading && !loadError && schedules.length === 0 && (
           <EmptyState title="还没有调度计划" description="当前没有可运行的定时任务。" />
