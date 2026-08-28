@@ -21,15 +21,19 @@ class DataRunService:
         bus: ProgressBus,
         dependencies_factory: Callable[[str], Phase1A2Dependencies] | None = None,
         consent_file: Path | None = None,
+        allow_fixture: bool = False,
     ) -> None:
         self.repository = repository
         self.bus = bus
         self._dependencies_factory = dependencies_factory
         self._factory = RealDataProviderFactory(consent_file)
+        self._allow_fixture = allow_fixture
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
 
     def preflight(self, provider: Literal["fixture", "live"]) -> None:
         if provider == "fixture":
+            if not self._allow_fixture:
+                raise ValueError("fixture data provider is not configured")
             return
         if provider != "live":
             raise ValueError(f"unknown provider: {provider}")

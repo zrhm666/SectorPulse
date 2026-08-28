@@ -11,6 +11,12 @@ The review covered the changed frontend and backend contracts, visible actions, 
 
 ## Closed Findings
 
+### Critical — data-run `fixture` alias bypassed consent but built Live providers
+
+The production `DataRunService` accepted `provider=fixture` without a live-data consent check, while the default dependency factory ignored that provider value and always built the real AkShare provider bundle. A direct API request could therefore start external market/news access under a Fixture label.
+
+Fixed by making data Fixture execution opt-in at service construction. The production service now returns `409 fixture data provider is not configured`; explicitly injected deterministic test services may set `allow_fixture=True`. Content Fixture (`/api/runs`) remains available and does not use real data or a real LLM. Unit and API integration tests cover both rejection and explicit opt-in.
+
 ### Important — request failures were rendered as truthful empty content
 
 The legacy radar, evidence, draft, and review tabs initialized their data to empty values and swallowed rejected requests through `console.error`. A failed request therefore rendered messages such as “暂无草案” or “无审核问题”, which incorrectly asserted that a successful empty response had been received.

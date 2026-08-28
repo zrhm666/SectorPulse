@@ -78,3 +78,18 @@ def test_retry_rejects_missing_run() -> None:
 
     with pytest.raises(KeyError):
         service.retry(uuid4())
+
+
+def test_fixture_preflight_requires_explicit_fixture_dependencies() -> None:
+    service = DataRunService(RunRepository(None), ProgressBus())  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="fixture data provider is not configured"):
+        service.preflight("fixture")
+
+
+def test_fixture_preflight_is_available_only_when_explicitly_enabled() -> None:
+    service = DataRunService(  # type: ignore[arg-type]
+        RunRepository(None), ProgressBus(), allow_fixture=True
+    )
+
+    service.preflight("fixture")
