@@ -65,4 +65,28 @@ The complete suite, dependency boundary audit, screenshot inspection, and final 
 
 ## Dependency, Performance, And Sensitive-Boundary Audit
 
-Pending Phase 6 Task 2.
+### Dependency integrity
+
+- `python -m pip check`: passed with “No broken requirements found.”
+- `npm.cmd ls --depth=0`: passed; all declared frontend dependencies resolved from `web/package-lock.json`.
+- `npm.cmd audit --offline`: completed from the local advisory cache with 0 vulnerabilities.
+
+### Production asset budget
+
+The production build transformed 108 modules and emitted no source maps:
+
+| Asset | Raw | Gzip |
+| --- | ---: | ---: |
+| JavaScript | 285.78 kB | 91.26 kB |
+| CSS | 73.81 kB | 13.21 kB |
+| HTML | 0.41 kB | 0.28 kB |
+
+The application remains a single modest JavaScript entry rather than duplicating a large chart, icon, or UI framework runtime.
+
+### Sensitive and generated files
+
+`git ls-files` returned no tracked `.env`, `.live-data-consent`, `.live-llm-consent`, database, `web/dist`, Playwright output, or TypeScript build-info file. `.gitignore` explicitly covers those paths as well as virtual environments, caches, logs, backups, and local worktrees.
+
+A credential-shaped literal scan of tracked non-Markdown source found no API key, bearer token, or credential-bearing PostgreSQL URL. The initial broad `sk-` scan matched only the CSS class fragment `task-stage-list__index`; inspection confirmed it was a false positive and contained no secret.
+
+No dependency, performance, or sensitive-boundary defect required a repository change.

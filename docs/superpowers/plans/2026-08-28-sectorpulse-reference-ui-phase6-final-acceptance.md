@@ -62,19 +62,19 @@
 - Consumes: `pyproject.toml`, `web/package.json`, lockfiles, built assets, `.gitignore`, tracked-file list.
 - Produces: dependency integrity, bundle-size, tracked-secret and generated-artifact evidence.
 
-- [ ] **Step 1: Verify dependency consistency**
+- [x] **Step 1: Verify dependency consistency**
 
   Run `.\.venv\Scripts\python.exe -m pip check`, `npm.cmd ls --depth=0` and non-mutating audit commands available from the existing lock/cache. Record unavailable network advisories as unverified rather than passing.
 
-- [ ] **Step 2: Measure production assets**
+- [x] **Step 2: Measure production assets**
 
   Run `npm.cmd run build`, record transformed module count and uncompressed/gzip asset sizes, and inspect for unexpectedly duplicated large dependencies or source maps.
 
-- [ ] **Step 3: Verify sensitive and generated files are untracked**
+- [x] **Step 3: Verify sensitive and generated files are untracked**
 
   Confirm `.env`, consent markers, database files, caches, `web/dist`, `web/test-results`, Playwright reports and `tsconfig.tsbuildinfo` are absent from `git ls-files`; scan tracked source for credential-shaped literals while returning filenames only.
 
-- [ ] **Step 4: Record accepted boundaries**
+- [x] **Step 4: Record accepted boundaries**
 
   Add dependency, performance and secret-scan evidence to the final code review. Fix only reproducible repository issues and verify after changes.
 
