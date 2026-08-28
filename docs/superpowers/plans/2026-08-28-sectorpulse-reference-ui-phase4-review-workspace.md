@@ -164,14 +164,14 @@ Autosave waits 800 ms after the last input and saves immediately on blur. `saved
 - Modify: `docs/superpowers/plans/2026-08-27-sectorpulse-reference-ui-refactor-master.md`
 - Modify: this plan
 
-- [ ] Add deterministic empty, loading, pending, approved, governance-blocked, save-failed and conflict fixtures without writing the user's database.
-- [ ] Verify 1536×1024 and 1440×900 three-column proportions and independent scrolling.
-- [ ] Verify 1024×768, 768×1024 and 390×844 pane switching, focus visibility and no root overflow.
-- [ ] Verify run switch cancellation, historical read-only view, autosave debounce/blur, queued edits and conflict recovery.
-- [ ] Verify contextual sources, evidence decision, approve, revoke and return confirmation contracts.
-- [ ] Run full Vitest, build, shell/review Playwright, backend non-live tests, Ruff and changed-source mypy.
-- [ ] Inspect the isolated built page in the in-app browser and record console/layout evidence.
-- [ ] Run `git diff --check`, write exact acceptance evidence and commit `docs: record reference ui phase 4 acceptance`.
+- [x] Add deterministic empty, loading, pending, approved, governance-blocked, save-failed and conflict fixtures without writing the user's database.
+- [x] Verify 1536×1024 and 1440×900 three-column proportions and independent scrolling.
+- [x] Verify 1024×768, 768×1024 and 390×844 pane switching, focus visibility and no root overflow.
+- [x] Verify run switch cancellation, historical read-only view, autosave debounce/blur, queued edits and conflict recovery.
+- [x] Verify contextual sources, evidence decision, approve, revoke and return confirmation contracts.
+- [x] Run full Vitest, build, shell/review Playwright, backend non-live tests, Ruff and changed-source mypy.
+- [x] Inspect the isolated built page in the in-app browser and record console/layout evidence.
+- [x] Run `git diff --check`, write exact acceptance evidence and commit `docs: record reference ui phase 4 acceptance`.
 
 ## Phase Exit Criteria
 
