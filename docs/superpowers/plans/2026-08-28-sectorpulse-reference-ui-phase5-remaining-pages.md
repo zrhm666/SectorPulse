@@ -93,13 +93,15 @@ Verification evidence (2026-08-28): focused management suites passed 15 tests; f
 
 **Files:** `web/e2e/remaining-pages.spec.ts`, acceptance report, master plan, this plan
 
-- [ ] Add isolated fixtures for all remaining pages without writing the user database.
-- [ ] Cover 1536×1024, 1440×900, 1280×800, 1024×768, 768×1024 and 390×844.
-- [ ] Verify run filtering/detail, four-step launcher, content run tabs/retry, schedule drawer/trigger, task history, system safety and shadow empty/history.
-- [ ] Assert keyboard access, focus return, no root overflow, no page errors and no unexpected console errors.
-- [ ] Run full Vitest/build, relevant Playwright, backend non-live tests, Ruff and changed-source mypy.
-- [ ] Inspect isolated production pages in the in-app browser.
-- [ ] Write exact acceptance evidence and commit `docs: record reference ui phase 5 acceptance`.
+- [x] Add isolated fixtures for all remaining pages without writing the user database.
+- [x] Cover 1536×1024, 1440×900, 1280×800, 1024×768, 768×1024 and 390×844.
+- [x] Verify run filtering/detail, four-step launcher, content run tabs/retry, schedule drawer/trigger, task history, system safety and shadow empty/history.
+- [x] Assert keyboard access, focus return, no root overflow, no page errors and no unexpected console errors.
+- [x] Run full Vitest/build, relevant Playwright, backend non-live tests, Ruff and changed-source mypy.
+- [x] Inspect isolated production pages in the in-app browser.
+- [x] Write exact acceptance evidence and commit `docs: record reference ui phase 5 acceptance`.
+
+Acceptance evidence: `docs/superpowers/acceptance/2026-08-28-sectorpulse-reference-ui-phase5.md`.
 
 ## Exit Criteria
 

@@ -180,13 +180,15 @@ Phase 4 accepted on 2026-08-28; see `docs/superpowers/acceptance/2026-08-28-sect
 - `web/src/pages/SystemStatusPage.tsx`
 - `web/src/pages/ShadowAcceptancePage.tsx`
 
-- [ ] 分析运行迁移为筛选工具条和紧凑表格。
-- [ ] 新建分析按场景、配置、确认、启动四步组织。
-- [ ] 内容运行统一展示归因、编辑、写作、审核、治理和恢复动作。
-- [ ] 定时任务采用列表和编辑抽屉，并为删除提供确认。
-- [ ] 系统状态展示安全的检查时间、耗时、错误和建议，不暴露配置内容。
-- [ ] 影子验收保留能力和历史记录，未运行时显示真实空状态。
-- [ ] 清理被新分层替代的 `legacy` 样式，确保无未使用兼容选择器。
+- [x] 分析运行迁移为筛选工具条和紧凑表格。
+- [x] 新建分析按场景、执行方式、参数确认、启动四步组织。
+- [x] 内容运行统一展示归因、编辑、写作、审核、治理和真实可用的恢复动作。
+- [x] 定时任务采用列表和创建抽屉；后端没有编辑/删除合同，因此不制造对应控件。
+- [x] 系统状态展示安全的检查时间、就绪状态和配置标签，不暴露配置内容。
+- [x] 影子验收保留只读能力和历史记录，未运行时显示真实空状态。
+- [x] 新页面样式集中在 `operations-pages.css`；`legacy` 仅保留为尚未迁移组件的兼容边界，最终清理须在 Phase 6 使用率审计后进行。
+
+Phase 5 accepted on 2026-08-28; see `docs/superpowers/acceptance/2026-08-28-sectorpulse-reference-ui-phase5.md`.
 
 ## Phase 6: Full Acceptance And Documentation
 
