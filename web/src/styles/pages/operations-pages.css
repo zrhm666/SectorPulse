@@ -1,0 +1,125 @@
+.run-registry-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.run-registry-page > .page-header,
+.run-registry-page > .panel {
+  margin: 0;
+}
+
+.registry-toolbar {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--sp-border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--sp-surface-soft);
+}
+
+.registry-toolbar__fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(8rem, 1fr));
+  gap: var(--space-3);
+}
+
+.registry-toolbar label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--sp-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.registry-toolbar select {
+  width: 100%;
+}
+
+.registry-toolbar__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--sp-text-muted);
+  font-size: 0.875rem;
+}
+
+.registry-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.registry-table tbody tr:hover {
+  background: var(--sp-surface-soft);
+}
+
+.registry-table__actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.run-error-detail {
+  position: relative;
+}
+
+.run-error-detail summary {
+  color: var(--sp-danger);
+  cursor: pointer;
+  list-style: none;
+}
+
+.run-error-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.run-error-detail__body {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  width: min(22rem, 70vw);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--sp-danger) 35%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--sp-danger-soft);
+  color: var(--sp-danger);
+  box-shadow: var(--shadow-md);
+  white-space: normal;
+}
+
+.run-error-detail__body p {
+  margin: 0;
+}
+
+.run-error-detail__body p + p {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .registry-toolbar__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .registry-table__actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .registry-toolbar__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .registry-toolbar__meta {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .run-error-detail__body {
+    right: auto;
+    left: 0;
+  }
+}

@@ -36,13 +36,15 @@ Do not invent:
 
 **Files:** `RunListPage.tsx`, tests, `styles/pages/operations-pages.css`, `styles/index.css`
 
-- [ ] Write tests for status, scene, provider, time-range filters and failure detail disclosure.
-- [ ] Add compact registry toolbar, truthful result count and reset action.
-- [ ] Keep data/content run identity and detail routes distinct.
-- [ ] Show stored safe failure summary and retryability only when returned by the API.
-- [ ] Preserve loading, request failure, empty and no-match states.
-- [ ] Verify responsive table behavior, build and detector.
-- [ ] Commit `refactor: upgrade analysis run registry`.
+- [x] Write tests for status, scene, provider, time-range filters and failure detail disclosure.
+- [x] Add compact registry toolbar, truthful result count and reset action.
+- [x] Keep data/content run identity and detail routes distinct.
+- [x] Show stored safe failure summary and retryability only when returned by the API.
+- [x] Preserve loading, request failure, empty and no-match states.
+- [x] Verify responsive table behavior, build and detector.
+- [x] Commit `refactor: upgrade analysis run registry`.
+
+Verification evidence (2026-08-28): focused Vitest passed 2 tests; production build transformed 106 modules; Impeccable detector returned `[]`; `git diff --check` reported no whitespace errors.
 
 ## Task 2: Build The Four-Step Analysis Launcher
 
