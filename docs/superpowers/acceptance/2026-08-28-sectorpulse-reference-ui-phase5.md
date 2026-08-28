@@ -1,7 +1,7 @@
 # SectorPulse Reference UI Phase 5 Acceptance
 
-**Date:** 2026-08-28  
-**Branch:** `refactoring`  
+**Date:** 2026-08-28
+**Branch:** `refactoring`
 **Scope:** 分析运行注册表、四步启动器、内容运行工作区、调度任务、系统状态、影子验收
 
 ## Acceptance Result

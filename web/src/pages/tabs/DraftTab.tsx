@@ -1,34 +1,51 @@
 // web/src/pages/tabs/DraftTab.tsx
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { draftUrl, DraftVersionView, fetchDraft, fetchRun } from '../../api'
 import { fetchGovernance, fetchReviewMetrics, GovernanceResponse, ReviewMetrics } from '../../editingApi'
 import GovernanceCard from './GovernanceCard'
 import ReviewEditor from './ReviewEditor'
 import ApprovalCard from './ApprovalCard'
 import AnalyticsCard from './AnalyticsCard'
+import { useFeedback } from '../../components/ui/FeedbackProvider'
+import InlineAlert from '../../components/ui/InlineAlert'
+import LoadingState from '../../components/ui/LoadingState'
 
 export default function DraftTab({ runId }: { runId: string }) {
+  const feedback = useFeedback()
   const [versions, setVersions] = useState<DraftVersionView[]>([])
   const [left, setLeft] = useState<number>(0)
   const [right, setRight] = useState<number>(0)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [governance, setGovernance] = useState<GovernanceResponse | null>(null)
   const [metrics, setMetrics] = useState<ReviewMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const requestId = useRef(0)
+  const loadDraft = useCallback(async () => {
+    const currentRequest = ++requestId.current
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const draft = await fetchDraft(runId)
+      if (currentRequest !== requestId.current) return
+      setVersions(draft.versions)
+      if (draft.versions.length > 0) {
+        setRight(draft.versions.length)
+        setLeft(draft.versions.length > 1 ? draft.versions.length - 1 : draft.versions.length)
+      }
+    } catch {
+      if (currentRequest === requestId.current) setLoadError(true)
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false)
+    }
+  }, [runId])
   useEffect(() => {
-    fetchDraft(runId)
-      .then((d) => {
-        setVersions(d.versions)
-        const vs = d.versions
-        if (vs.length > 0) {
-          setRight(vs.length)
-          if (vs.length > 1) setLeft(vs.length - 1)
-        }
-      })
-      .catch(console.error)
-    fetchRun(runId).then((run) => setDraftId(run.draft_id)).catch(console.error)
+    void loadDraft()
+    fetchRun(runId).then((run) => setDraftId(run.draft_id)).catch(() => setDraftId(null))
     fetchGovernance(runId).then(setGovernance).catch(() => setGovernance(null))
     fetchReviewMetrics(runId).then(setMetrics).catch(() => setMetrics(null))
-  }, [runId])
+    return () => { requestId.current += 1 }
+  }, [loadDraft, runId])
 
   const latest = versions[versions.length - 1]
   const leftV = versions.find((v) => v.version === left)
@@ -48,12 +65,19 @@ export default function DraftTab({ runId }: { runId: string }) {
   }, [leftV, rightV])
 
   async function copy(url: string) {
-    const res = await fetch(url)
-    const text = await res.text()
-    await navigator.clipboard.writeText(text)
-    alert('已复制到剪贴板')
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('download failed')
+      const text = await res.text()
+      await navigator.clipboard.writeText(text)
+      feedback.success('已复制到剪贴板。')
+    } catch {
+      feedback.error('复制失败，请检查浏览器权限或网络连接。')
+    }
   }
 
+  if (loading) return <LoadingState label="正在加载草案…" />
+  if (loadError) return <InlineAlert tone="error" title="无法加载草案"><button className="button button-secondary" type="button" onClick={() => void loadDraft()}>重新加载</button></InlineAlert>
   if (versions.length === 0) return <p>暂无草案。</p>
   return (
     <div>
@@ -141,7 +165,7 @@ export default function DraftTab({ runId }: { runId: string }) {
           sectionId={latest.sections[0].section_id}
           heading={latest.sections[0].heading}
           body={latest.sections[0].body}
-          onSaved={() => fetchDraft(runId).then((d) => setVersions(d.versions)).catch(console.error)}
+          onSaved={() => void loadDraft()}
         />
       )}
     </div>

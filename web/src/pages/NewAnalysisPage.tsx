@@ -124,7 +124,7 @@ export default function NewAnalysisPage() {
 
           {stage === 2 && (
             <dl className="summary-list">
-              <div><dt>分析场景</dt><dd>{mode === 'intraday' ? '盘中分析' : '盘后复盘'}</dd></div>
+              <div><dt>分析场景</dt><dd>{provider === 'fixture' ? '固定内容样例（不使用盘中 / 盘后参数）' : mode === 'intraday' ? '盘中分析' : '盘后复盘'}</dd></div>
               <div><dt>执行方式</dt><dd>{provider === 'fixture' ? 'Fixture 演练' : 'Live 实时运行'}</dd></div>
               <div><dt>候选范围</dt><dd>{provider === 'fixture' ? '内置可复现样例' : '预选 30 个，保留 12 个'}</dd></div>
               <div><dt>额度影响</dt><dd>{provider === 'fixture' ? '不消耗真实 LLM 额度' : `单次预算上限 ¥${summary?.llm.budget_cny_per_run ?? '待确认'}`}</dd></div>
@@ -136,7 +136,7 @@ export default function NewAnalysisPage() {
               <div className="launch-confirmation__mark"><AppIcon name="activity" /></div>
               <div>
                 <strong>{provider === 'fixture' ? 'Fixture 分析已准备好' : '实时分析已准备好'}</strong>
-                <p>{mode === 'intraday' ? '盘中分析' : '盘后复盘'} · {provider === 'fixture' ? '使用内置样例，不调用实时数据和真实 LLM' : '预选 30 个候选，最终保留 12 个'}</p>
+                <p>{provider === 'fixture' ? '固定内容样例 · 不使用盘中 / 盘后参数，也不调用实时数据和真实 LLM' : `${mode === 'intraday' ? '盘中分析' : '盘后复盘'} · 预选 30 个候选，最终保留 12 个`}</p>
               </div>
             </div>
           )}
@@ -152,7 +152,7 @@ export default function NewAnalysisPage() {
 
         <aside className="flow-note launcher-summary" aria-label="本次分析摘要">
           <span className="launcher-summary__eyebrow">本次分析</span>
-          <strong>{mode === 'intraday' ? '盘中分析' : '盘后复盘'}</strong>
+          <strong>{provider === 'fixture' ? '固定内容样例' : mode === 'intraday' ? '盘中分析' : '盘后复盘'}</strong>
           <dl>
             <div><dt>执行方式</dt><dd>{provider === 'fixture' ? 'Fixture 演练' : 'Live 实时运行'}</dd></div>
             <div><dt>候选范围</dt><dd>{provider === 'fixture' ? '内置样例' : '30 → 12'}</dd></div>

@@ -1,7 +1,7 @@
 # SectorPulse Reference UI Phase 4 Acceptance
 
-**Date:** 2026-08-28  
-**Branch:** `refactoring`  
+**Date:** 2026-08-28
+**Branch:** `refactoring`
 **Scope:** 三栏审核工作台、连续结构化编辑、自动保存、上下文证据、治理与审批门禁
 
 ## Acceptance Result

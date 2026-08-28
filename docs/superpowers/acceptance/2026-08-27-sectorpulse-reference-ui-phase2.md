@@ -1,7 +1,7 @@
 # SectorPulse Reference UI Phase 2 Acceptance
 
-**Date:** 2026-08-27  
-**Branch:** `refactoring`  
+**Date:** 2026-08-27
+**Branch:** `refactoring`
 **Scope:** 真实运营总览、统一运行聚合、趋势、就绪状态、近期运行与可靠刷新
 
 ## Acceptance Result

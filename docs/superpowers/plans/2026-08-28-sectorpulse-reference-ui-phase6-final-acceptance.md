@@ -32,23 +32,23 @@
 - Consumes: master plan exit criteria, Phase 1–5 acceptance reports, existing HTTP schemas and frontend API types.
 - Produces: severity-ranked review with concrete file/line evidence, closed findings and accepted residual risks.
 
-- [ ] **Step 1: Inventory changed contracts and high-risk surfaces**
+- [x] **Step 1: Inventory changed contracts and high-risk surfaces**
 
   Run `git diff --name-status main...refactoring`, `git diff --check main...refactoring`, route/API searches and targeted reads of operations summary, candidate selection, autosave, review workspace, run launcher and management pages.
 
-- [ ] **Step 2: Scan for fake actions and unsafe error handling**
+- [x] **Step 2: Scan for fake actions and unsafe error handling**
 
   Search changed TSX for action buttons, `console.error`, swallowed requests, direct `window.location`, raw error rendering, missing loading/error/empty states and unsupported endpoint calls. Verify each visible mutation against an API function and backend route.
 
-- [ ] **Step 3: Audit accessibility, polling and state races**
+- [x] **Step 3: Audit accessibility, polling and state races**
 
   Inspect dialogs/drawers, tab semantics, focus return, request cancellation, stale-response suppression, polling overlap, terminal stopping and duplicate-submit guards. Re-run focused tests for any uncertain contract.
 
-- [ ] **Step 4: Fix confirmed Critical/Important findings with tests first**
+- [x] **Step 4: Fix confirmed Critical/Important findings with tests first**
 
   For each confirmed defect, add a focused failing Vitest/Pytest/Playwright assertion, reproduce the failure, implement the smallest correction and verify the focused suite passes. Do not change code for speculative or style-only findings.
 
-- [ ] **Step 5: Write and commit the review record**
+- [x] **Step 5: Write and commit the review record**
 
   Record scope, findings, fixes, residual risks and exact verification in `docs/superpowers/reports/2026-08-28-reference-ui-final-code-review.md`; commit code/tests/report as `fix: close final reference ui review findings` or, when no code fix is required, `docs: record final reference ui code review`.
 

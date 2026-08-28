@@ -43,6 +43,7 @@ function renderPage() {
 
 describe('NewAnalysisPage', () => {
   beforeEach(() => {
+    vi.resetAllMocks()
     vi.mocked(fetchOperationsSummary).mockResolvedValue(readySummary)
     vi.mocked(fetchFixtureInput).mockResolvedValue({ requested_at: '2026-08-23T00:00:00Z' })
     vi.mocked(createRun).mockResolvedValue({ run_id: 'fixture-run' })
@@ -60,6 +61,7 @@ describe('NewAnalysisPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Fixture 演练/ }))
     fireEvent.click(screen.getByRole('button', { name: '下一步：确认参数' }))
     expect(screen.getByText('内置可复现样例')).toBeVisible()
+    expect(screen.getByText('固定内容样例（不使用盘中 / 盘后参数）')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: '下一步：启动' }))
     fireEvent.click(screen.getByRole('button', { name: '启动 Fixture 分析' }))
 
@@ -102,8 +104,8 @@ describe('NewAnalysisPage', () => {
     const submit = screen.getByRole('button', { name: '启动 Fixture 分析' })
     fireEvent.click(submit)
     fireEvent.click(submit)
-    expect(createRun).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: '正在启动…' })).toBeDisabled()
+    await waitFor(() => expect(createRun).toHaveBeenCalledOnce())
     await act(async () => { resolveCreate({ run_id: 'fixture-run' }) })
     expect(await screen.findByText('内容运行详情')).toBeVisible()
   })

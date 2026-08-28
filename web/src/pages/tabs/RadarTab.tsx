@@ -1,14 +1,35 @@
 // web/src/pages/tabs/RadarTab.tsx
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchRadar, RadarCardView } from '../../api'
 import Badge from '../../components/Badge'
+import InlineAlert from '../../components/ui/InlineAlert'
+import LoadingState from '../../components/ui/LoadingState'
 
 export default function RadarTab({ runId }: { runId: string }) {
   const [cards, setCards] = useState<RadarCardView[]>([])
-  useEffect(() => {
-    fetchRadar(runId).then((d) => setCards(d.cards)).catch(console.error)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const requestId = useRef(0)
+  const load = useCallback(async () => {
+    const currentRequest = ++requestId.current
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const data = await fetchRadar(runId)
+      if (currentRequest === requestId.current) setCards(data.cards)
+    } catch {
+      if (currentRequest === requestId.current) setLoadError(true)
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false)
+    }
   }, [runId])
+  useEffect(() => {
+    void load()
+    return () => { requestId.current += 1 }
+  }, [load])
 
+  if (loading) return <LoadingState label="正在加载板块雷达…" />
+  if (loadError) return <InlineAlert tone="error" title="无法加载板块雷达"><button className="button button-secondary" type="button" onClick={() => void load()}>重新加载</button></InlineAlert>
   if (cards.length === 0) return <p>暂无板块分析卡。</p>
   return (
     <div>

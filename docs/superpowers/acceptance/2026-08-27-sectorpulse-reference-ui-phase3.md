@@ -1,7 +1,7 @@
 # SectorPulse Reference UI Phase 3 Acceptance
 
-**Date:** 2026-08-28  
-**Branch:** `refactoring`  
+**Date:** 2026-08-28
+**Branch:** `refactoring`
 **Scope:** 数据运行工作台、候选确认版本、生成门禁、可靠轮询、服务端分页、行情与新闻详情抽屉
 
 ## Acceptance Result
