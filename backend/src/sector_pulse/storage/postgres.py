@@ -46,13 +46,18 @@ class PostgresDatabase:
                 version = int(path.name[:3])
                 if version in applied:
                     continue
-                statements = [
-                    part.strip()
-                    for part in path.read_text(encoding="utf-8").split(";")
-                    if part.strip()
-                ]
-                for statement in statements:
-                    await connection.exec_driver_sql(statement)
+                paths = [path]
+                dialect_path = migration_dir / "postgres" / path.name
+                if dialect_path.is_file():
+                    paths.append(dialect_path)
+                for migration_path in paths:
+                    statements = [
+                        part.strip()
+                        for part in migration_path.read_text(encoding="utf-8").split(";")
+                        if part.strip()
+                    ]
+                    for statement in statements:
+                        await connection.exec_driver_sql(statement)
                 await connection.exec_driver_sql(
                     "INSERT INTO schema_migrations (version) VALUES ($1)", (version,)
                 )

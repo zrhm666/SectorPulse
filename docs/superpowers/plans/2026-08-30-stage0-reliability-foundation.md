@@ -46,7 +46,11 @@
 **Files:**
 - Modify: `backend/src/sector_pulse/domain/task.py`
 - Modify: `backend/src/sector_pulse/domain/real_data_run.py`
+- Modify: `backend/src/sector_pulse/storage/sqlite.py`
+- Modify: `backend/src/sector_pulse/storage/postgres.py`
 - Create: `backend/src/sector_pulse/storage/migrations/016_reliable_runtime.sql`
+- Create: `backend/src/sector_pulse/storage/migrations/sqlite/016_reliable_runtime.sql`
+- Create: `backend/src/sector_pulse/storage/migrations/postgres/016_reliable_runtime.sql`
 - Modify: `backend/tests/unit/storage/test_sqlite_schema.py`
 - Modify: `backend/tests/unit/storage/test_postgres_migrations.py`
 - Create: `backend/tests/unit/domain/test_task.py`
@@ -109,6 +113,8 @@ CREATE INDEX IF NOT EXISTS idx_task_runs_retry_of ON task_runs(retry_of_run_id);
 CREATE INDEX IF NOT EXISTS idx_real_data_runs_retry_of ON real_data_runs(retry_of_run_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_due ON schedules(enabled, next_run_at);
 ```
+
+Because migration 007 constrained `task_runs.status` before `INTERRUPTED` existed, keep the additive columns in the common 016 file and apply a same-version dialect supplement before recording version 16. The SQLite supplement transactionally copies `task_runs` into a table with the expanded CHECK constraint, preserves every column/row and child foreign key, then runs `PRAGMA foreign_key_check`; the PostgreSQL supplement drops and recreates only `task_runs_status_check`. Both runners execute the common and dialect statements in one transaction so a failed supplement cannot leave version 16 half-applied.
 
 - [ ] **Step 4: Run migration/domain tests and full non-Live backend regression**
 

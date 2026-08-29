@@ -20,6 +20,7 @@ class TaskRunStatus(StrEnum):
     READY_FOR_HUMAN_REVIEW = "READY_FOR_HUMAN_REVIEW"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    INTERRUPTED = "INTERRUPTED"
 
     @property
     def is_terminal(self) -> bool:
@@ -28,6 +29,7 @@ class TaskRunStatus(StrEnum):
             self.READY_FOR_HUMAN_REVIEW,
             self.FAILED,
             self.CANCELLED,
+            self.INTERRUPTED,
         }
 
 

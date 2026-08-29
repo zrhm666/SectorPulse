@@ -33,11 +33,24 @@ class SQLiteDatabase:
                 connection.rollback()
                 raise
 
-    def initialize(self) -> None:
-        """按版本顺序执行未应用迁移；重复调用不会重复写入版本。"""
-        migration_dir = Path(__file__).parent / "migrations"
+    @staticmethod
+    def _statements(path: Path) -> tuple[str, ...]:
+        return tuple(
+            statement.strip()
+            for statement in path.read_text(encoding="utf-8").split(";")
+            if statement.strip()
+        )
+
+    def initialize(self, migration_dir: Path | None = None) -> None:
+        """在单一事务中应用公共及 SQLite 方言迁移，失败时不记录半成品版本。"""
+        migration_dir = migration_dir or Path(__file__).parent / "migrations"
         migrations = sorted(migration_dir.glob("[0-9][0-9][0-9]_*.sql"))
-        with self.transaction() as connection:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self._path, isolation_level=None)
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA foreign_keys = OFF")
+        try:
+            connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -53,7 +66,25 @@ class SQLiteDatabase:
                 version = int(migration_path.name[:3])
                 if version in applied_versions:
                     continue
-                connection.executescript(migration_path.read_text(encoding="utf-8"))
+                paths = [migration_path]
+                dialect_path = migration_dir / "sqlite" / migration_path.name
+                if dialect_path.is_file():
+                    paths.append(dialect_path)
+                for path in paths:
+                    for statement in self._statements(path):
+                        connection.execute(statement)
                 connection.execute(
                     "INSERT INTO schema_migrations (version) VALUES (?)", (version,)
                 )
+            foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+            if foreign_key_errors:
+                raise sqlite3.IntegrityError(
+                    f"migration foreign key check failed: {len(foreign_key_errors)} violation(s)"
+                )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.close()

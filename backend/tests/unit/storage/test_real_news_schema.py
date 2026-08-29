@@ -32,4 +32,4 @@ def test_initialize_is_idempotent_after_second_migration(tmp_path: Path) -> None
     database.initialize()
     with database.connection() as connection:
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_migrations")]
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    assert versions == list(range(1, 17))
