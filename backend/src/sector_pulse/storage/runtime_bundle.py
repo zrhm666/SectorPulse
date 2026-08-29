@@ -18,6 +18,26 @@ from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRe
 from sector_pulse.storage.operations_query import SQLiteOperationsQuery
 from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
+from sector_pulse.storage.ports import (
+    AgentInvocationRepositoryPort,
+    CandidateSelectionRepositoryPort,
+    DraftEditRepositoryPort,
+    EvidenceRepositoryPort,
+    GovernanceRepositoryPort,
+    MarketSnapshotRepositoryPort,
+    NewsEvidenceRepositoryPort,
+    NewsRepositoryPort,
+    NewsRetrievalRepositoryPort,
+    OperationsQueryPort,
+    Phase1BRepositoryPort,
+    Phase1BRunsRepositoryPort,
+    PromptGoldenRepositoryPort,
+    RealDataRunRepositoryPort,
+    ReleaseAuditRepositoryPort,
+    ReviewAnalyticsPort,
+    RuntimeTaskRepositoryPort,
+    ShadowAcceptanceRepositoryPort,
+)
 from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_agent_invocation_repository import (
     PostgresAgentInvocationRepository,
@@ -92,24 +112,24 @@ class BlockingAsyncRepository:
 
 @dataclass(frozen=True)
 class RuntimeStorageBundle:
-    market_snapshots: object
-    news: object
-    evidence: object
-    news_retrieval: object
-    real_data_runs: object
-    review_analytics: object | None = None
-    task: object | None = None
-    phase1b_runs: object | None = None
-    phase1b: object | None = None
-    invocations: object | None = None
-    news_evidence: object | None = None
-    draft_edit: object | None = None
-    prompt_golden: object | None = None
-    release_audit: object | None = None
-    shadow: object | None = None
-    governance: object | None = None
-    operations: object | None = None
-    candidate_selections: object | None = None
+    market_snapshots: MarketSnapshotRepositoryPort
+    news: NewsRepositoryPort
+    evidence: EvidenceRepositoryPort
+    news_retrieval: NewsRetrievalRepositoryPort
+    real_data_runs: RealDataRunRepositoryPort
+    review_analytics: ReviewAnalyticsPort | None = None
+    task: RuntimeTaskRepositoryPort | None = None
+    phase1b_runs: Phase1BRunsRepositoryPort | None = None
+    phase1b: Phase1BRepositoryPort | None = None
+    invocations: AgentInvocationRepositoryPort | None = None
+    news_evidence: NewsEvidenceRepositoryPort | None = None
+    draft_edit: DraftEditRepositoryPort | None = None
+    prompt_golden: PromptGoldenRepositoryPort | None = None
+    release_audit: ReleaseAuditRepositoryPort | None = None
+    shadow: ShadowAcceptanceRepositoryPort | None = None
+    governance: GovernanceRepositoryPort | None = None
+    operations: OperationsQueryPort | None = None
+    candidate_selections: CandidateSelectionRepositoryPort | None = None
 
 
 def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:

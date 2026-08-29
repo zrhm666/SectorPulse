@@ -59,7 +59,7 @@
 **Interfaces:**
 - Produces: `TaskRunStatus.INTERRUPTED`, persisted `retry_of_run_id`, `cancel_requested_at`, `interrupted_reason`, `heartbeat_at`, and schedule `last_triggered_at` fields.
 
-- [ ] **Step 1: Write failing migration and domain tests**
+- [x] **Step 1: Write failing migration and domain tests**
 
 ```python
 def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> None:
@@ -77,11 +77,11 @@ def test_interrupted_task_is_terminal() -> None:
     assert TaskRunStatus.INTERRUPTED.is_terminal
 ```
 
-- [ ] **Step 2: Run tests and verify they fail for missing columns/status**
+- [x] **Step 2: Run tests and verify they fail for missing columns/status**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/storage/test_sqlite_schema.py backend/tests/unit/domain/test_real_data_run.py -q`
 
-- [ ] **Step 3: Add the domain value and migration**
+- [x] **Step 3: Add the domain value and migration**
 
 ```python
 class TaskRunStatus(StrEnum):
@@ -116,11 +116,11 @@ CREATE INDEX IF NOT EXISTS idx_schedules_due ON schedules(enabled, next_run_at);
 
 Because migration 007 constrained `task_runs.status` before `INTERRUPTED` existed, keep the additive columns in the common 016 file and apply a same-version dialect supplement before recording version 16. The SQLite supplement transactionally copies `task_runs` into a table with the expanded CHECK constraint, preserves every column/row and child foreign key, then runs `PRAGMA foreign_key_check`; the PostgreSQL supplement drops and recreates only `task_runs_status_check`. Both runners execute the common and dialect statements in one transaction so a failed supplement cannot leave version 16 half-applied.
 
-- [ ] **Step 4: Run migration/domain tests and full non-Live backend regression**
+- [x] **Step 4: Run migration/domain tests and full non-Live backend regression**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/storage backend/tests/unit/domain/test_real_data_run.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/domain backend/src/sector_pulse/storage/migrations backend/tests/unit/storage backend/tests/unit/domain/test_real_data_run.py
@@ -141,7 +141,7 @@ git commit -m "feat: add reliable runtime lifecycle schema"
 - Produces: `TaskRepositoryPort`, `RealDataRunRepositoryPort`, `ScheduleRepositoryPort`, and typed aliases for every `RuntimeStorageBundle` field.
 - Consumes: lifecycle fields from Task 1.
 
-- [ ] **Step 1: Write a structural contract test**
+- [x] **Step 1: Write a structural contract test**
 
 ```python
 def test_sqlite_runtime_adapters_satisfy_ports(sqlite_database: SQLiteDatabase) -> None:
@@ -151,11 +151,11 @@ def test_sqlite_runtime_adapters_satisfy_ports(sqlite_database: SQLiteDatabase) 
     assert isinstance(runs, RealDataRunRepositoryPort)
 ```
 
-- [ ] **Step 2: Run the contract test and verify missing ports fail collection**
+- [x] **Step 2: Run the contract test and verify missing ports fail collection**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_sqlite_runtime_contract.py -q`
 
-- [ ] **Step 3: Define runtime-checkable ports with exact lifecycle methods**
+- [x] **Step 3: Define runtime-checkable ports with exact lifecycle methods**
 
 ```python
 @runtime_checkable
@@ -206,11 +206,11 @@ Define the remaining ports from the synchronous SQLite public APIs in this exact
 
 `ScheduleRepositoryPort` contains `insert_schedule/list_schedules/get_schedule/update_schedule_next_run`, and `TaskRepositoryPort` contains the remaining public methods of `SQLiteTaskRepository`: `create_or_get_run/claim_run/transition/save_checkpoint/get_latest_valid_checkpoint/list_events/count_runs/get_task_detail/recover_expired_leases/link_data_run/list_linked_runs`. The SQLite task adapter implements both protocols.
 
-- [ ] **Step 4: Type `RuntimeStorageBundle` with ports and make SQLite contract pass**
+- [x] **Step 4: Type `RuntimeStorageBundle` with ports and make SQLite contract pass**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_sqlite_runtime_contract.py backend/tests/unit/storage -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/storage backend/tests/contracts

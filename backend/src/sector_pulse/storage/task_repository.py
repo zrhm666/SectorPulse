@@ -1,8 +1,8 @@
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID, uuid4
 
 from sector_pulse.domain.task import Checkpoint, TaskRunKey, TaskRunStatus, TaskStage
@@ -30,7 +30,12 @@ class SQLiteTaskRepository:
         self._database.initialize()
 
     def create_or_get_run(
-        self, key: TaskRunKey, provider: str, input_json: dict[str, object]
+        self,
+        key: TaskRunKey,
+        provider: str,
+        input_json: dict[str, object],
+        *,
+        retry_of_run_id: UUID | None = None,
     ) -> UUID:
         run_id = uuid4()
         requested_at = datetime.now(UTC).isoformat()
@@ -47,8 +52,8 @@ class SQLiteTaskRepository:
             connection.execute(
                 """INSERT INTO task_runs
                 (run_id, schedule_id, trading_date, planned_slot, provider,
-                 input_fingerprint, status, requested_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING""",
+                 input_fingerprint, status, requested_at, retry_of_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING""",
                 (
                     str(run_id),
                     str(key.schedule_id) if key.schedule_id else None,
@@ -58,6 +63,7 @@ class SQLiteTaskRepository:
                     key.input_fingerprint,
                     TaskRunStatus.QUEUED.value,
                     requested_at,
+                    str(retry_of_run_id) if retry_of_run_id else None,
                 ),
             )
             row = connection.execute(
@@ -88,7 +94,7 @@ class SQLiteTaskRepository:
             cursor = connection.execute(
                 """UPDATE task_runs
                    SET status = ?, worker_id = ?, lease_until = ?,
-                       started_at = COALESCE(started_at, ?)
+                       started_at = COALESCE(started_at, ?), heartbeat_at = ?
                    WHERE run_id = ?
                      AND status IN (?, ?, ?)
                      AND (lease_until IS NULL OR lease_until <= ? OR worker_id = ?)""",
@@ -96,6 +102,7 @@ class SQLiteTaskRepository:
                     TaskRunStatus.RUNNING.value,
                     worker_id,
                     lease_until.isoformat(),
+                    current.isoformat(),
                     current.isoformat(),
                     str(run_id),
                     TaskRunStatus.QUEUED.value,
@@ -122,7 +129,7 @@ class SQLiteTaskRepository:
         with self._database.transaction() as connection:
             cursor = connection.execute(
                 """UPDATE task_runs SET status = ?, error_code = ?,
-                       finished_at = CASE WHEN ? IN (?, ?, ?) THEN ? ELSE finished_at END
+                       finished_at = CASE WHEN ? IN (?, ?, ?, ?, ?) THEN ? ELSE finished_at END
                    WHERE run_id = ? AND status = ?""",
                 (
                     target.value,
@@ -131,6 +138,8 @@ class SQLiteTaskRepository:
                     TaskRunStatus.DEGRADED.value,
                     TaskRunStatus.READY_FOR_HUMAN_REVIEW.value,
                     TaskRunStatus.FAILED.value,
+                    TaskRunStatus.CANCELLED.value,
+                    TaskRunStatus.INTERRUPTED.value,
                     now,
                     str(run_id),
                     expected.value,
@@ -235,13 +244,16 @@ class SQLiteTaskRepository:
 
     def count_runs(self) -> int:
         with self._database.connection() as connection:
-            return connection.execute("SELECT COUNT(*) FROM task_runs").fetchone()[0]
+            row = connection.execute("SELECT COUNT(*) FROM task_runs").fetchone()
+        return int(row[0]) if row else 0
 
-    def get_task_detail(self, run_id: UUID) -> dict[str, Any] | None:
+    def get_task_detail(self, run_id: UUID) -> dict[str, object] | None:
         with self._database.connection() as connection:
             row = connection.execute(
                 """SELECT run_id, status, provider, input_fingerprint, requested_at,
-                          started_at, finished_at, error_code, downgrade_reasons_json
+                          started_at, finished_at, error_code, downgrade_reasons_json,
+                          retry_of_run_id, cancel_requested_at, interrupted_reason,
+                          heartbeat_at
                    FROM task_runs WHERE run_id = ?""",
                 (str(run_id),),
             ).fetchone()
@@ -259,6 +271,8 @@ class SQLiteTaskRepository:
             "input_fingerprint": row[3], "requested_at": row[4],
             "started_at": row[5], "finished_at": row[6], "error_code": row[7],
             "downgrade_reasons": json.loads(row[8]),
+            "retry_of_run_id": row[9], "cancel_requested_at": row[10],
+            "interrupted_reason": row[11], "heartbeat_at": row[12],
             "stages": [
                 {
                     "stage": item[0], "attempt_no": item[1], "status": item[2],
@@ -280,6 +294,75 @@ class SQLiteTaskRepository:
             )
         return cursor.rowcount
 
+    def request_cancel(self, run_id: UUID, requested_at: datetime) -> bool:
+        terminal = tuple(status.value for status in TaskRunStatus if status.is_terminal)
+        placeholders = ",".join("?" for _ in terminal)
+        with self._database.transaction() as connection:
+            cursor = connection.execute(
+                f"""UPDATE task_runs SET cancel_requested_at = ?
+                    WHERE run_id = ? AND status NOT IN ({placeholders})""",
+                (requested_at.isoformat(), str(run_id), *terminal),
+            )
+            if cursor.rowcount != 1:
+                return False
+            connection.execute(
+                """INSERT INTO task_events
+                (event_id, run_id, source, event_type, summary, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid4()),
+                    str(run_id),
+                    "api",
+                    "CANCEL_REQUESTED",
+                    "cancel requested",
+                    requested_at.isoformat(),
+                ),
+            )
+        return True
+
+    def recover_interrupted(self, now: datetime, reason: str) -> int:
+        timestamp = now.isoformat()
+        with self._database.transaction() as connection:
+            rows = connection.execute(
+                "SELECT run_id FROM task_runs WHERE status = ?",
+                (TaskRunStatus.RUNNING.value,),
+            ).fetchall()
+            if not rows:
+                return 0
+            connection.execute(
+                """UPDATE task_runs
+                   SET status = ?, worker_id = NULL, lease_until = NULL,
+                       heartbeat_at = ?, interrupted_reason = ?, finished_at = ?
+                   WHERE status = ?""",
+                (
+                    TaskRunStatus.INTERRUPTED.value,
+                    timestamp,
+                    reason,
+                    timestamp,
+                    TaskRunStatus.RUNNING.value,
+                ),
+            )
+            connection.executemany(
+                """INSERT INTO task_events
+                (event_id, run_id, source, event_type, old_status, new_status,
+                 summary, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                [
+                    (
+                        str(uuid4()),
+                        row[0],
+                        "startup-recovery",
+                        "STATUS_TRANSITION",
+                        TaskRunStatus.RUNNING.value,
+                        TaskRunStatus.INTERRUPTED.value,
+                        reason,
+                        timestamp,
+                    )
+                    for row in rows
+                ],
+            )
+        return len(rows)
+
     def link_data_run(self, run_id: UUID, data_run_id: UUID) -> None:
         with self._database.transaction() as connection:
             connection.execute(
@@ -294,7 +377,13 @@ class SQLiteTaskRepository:
             ).fetchall()
         return [(UUID(row[0]), UUID(row[1])) for row in rows]
 
-    def insert_schedule(self, values: dict[str, Any]) -> None:
+    def insert_schedule(self, values: Mapping[str, object]) -> None:
+        enabled = values["enabled"]
+        if not isinstance(enabled, bool):
+            raise TypeError("schedule enabled must be boolean")
+        version = values.get("version", 1)
+        if not isinstance(version, int) or isinstance(version, bool):
+            raise TypeError("schedule version must be an integer")
         with self._database.transaction() as connection:
             connection.execute(
                 """INSERT INTO schedules
@@ -309,12 +398,12 @@ class SQLiteTaskRepository:
                     json.dumps(
                         values.get("input_template", {}), ensure_ascii=False, sort_keys=True
                     ),
-                    int(values["enabled"]), values.get("version", 1),
+                    int(enabled), version,
                     values.get("next_run_at"), values["created_at"], values["updated_at"],
                 ),
             )
 
-    def list_schedules(self) -> list[dict[str, Any]]:
+    def list_schedules(self) -> list[dict[str, object]]:
         with self._database.connection() as connection:
             rows = connection.execute(
                 """SELECT schedule_id, name, mode, timezone, local_time, trading_days,
@@ -333,7 +422,7 @@ class SQLiteTaskRepository:
             for row in rows
         ]
 
-    def get_schedule(self, schedule_id: UUID) -> dict[str, Any] | None:
+    def get_schedule(self, schedule_id: UUID) -> dict[str, object] | None:
         return next(
             (item for item in self.list_schedules() if item["schedule_id"] == str(schedule_id)),
             None,

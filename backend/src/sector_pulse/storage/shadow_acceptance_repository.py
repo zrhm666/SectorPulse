@@ -1,6 +1,6 @@
 # ruff: noqa: E501
 import json
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from sector_pulse.domain.shadow_acceptance import (
@@ -36,8 +36,27 @@ class SQLiteShadowAcceptanceRepository:
                 "SELECT shadow_id, run_id, trading_date, mode, status, provider_status_json, cutoff_at, metrics_json, failure_reason, created_at, finished_at FROM shadow_runs ORDER BY trading_date DESC, created_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
-        from datetime import date
-        return tuple(ShadowRun(shadow_id=UUID(r[0]), run_id=UUID(r[1]), trading_date=date.fromisoformat(r[2]), mode=r[3], status=ShadowRunStatus(r[4]), provider_status=json.loads(r[5]), cutoff_at=datetime.fromisoformat(r[6]) if r[6] else None, metrics=json.loads(r[7]), failure_reason=r[8], created_at=datetime.fromisoformat(r[9]), finished_at=datetime.fromisoformat(r[10]) if r[10] else None) for r in rows)
+        return tuple(self._row_to_model(row) for row in rows)
+
+    def get(self, shadow_id: UUID) -> ShadowRun | None:
+        with self._database.connection() as connection:
+            row = connection.execute(
+                "SELECT shadow_id, run_id, trading_date, mode, status, provider_status_json, cutoff_at, metrics_json, failure_reason, created_at, finished_at FROM shadow_runs WHERE shadow_id = ?",
+                (str(shadow_id),),
+            ).fetchone()
+        return self._row_to_model(row) if row else None
+
+    @staticmethod
+    def _row_to_model(row: tuple[object, ...]) -> ShadowRun:
+        return ShadowRun(
+            shadow_id=UUID(row[0]), run_id=UUID(row[1]),
+            trading_date=date.fromisoformat(row[2]), mode=row[3],
+            status=ShadowRunStatus(row[4]), provider_status=json.loads(row[5]),
+            cutoff_at=datetime.fromisoformat(row[6]) if row[6] else None,
+            metrics=json.loads(row[7]), failure_reason=row[8],
+            created_at=datetime.fromisoformat(row[9]),
+            finished_at=datetime.fromisoformat(row[10]) if row[10] else None,
+        )
 
     def update_run(self, shadow_id: UUID, item: ShadowRun) -> None:
         with self._database.transaction() as connection:

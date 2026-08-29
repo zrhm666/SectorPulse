@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from sector_pulse.domain.market import SectorKind
@@ -28,8 +29,8 @@ class SQLiteRealDataRunRepository:
                 (run_id, mode, status, requested_at, cutoff_at, request_json,
                  market_quality_json, news_quality_json, downgrade_reasons_json,
                  cutoff_violation_count, duplicate_document_count, error_code, finished_at,
-                 provider)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 provider, retry_of_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 self._run_values(run),
             )
 
@@ -132,21 +133,82 @@ class SQLiteRealDataRunRepository:
             quality.cutoff_violation_count, quality.duplicate_document_count,
             run.error_code, run.finished_at.isoformat() if run.finished_at else None,
             run.provider,
+            str(run.retry_of_run_id) if run.retry_of_run_id else None,
         )
 
     @staticmethod
-    def _row_to_run(row: tuple[object, ...]) -> RealDataRun:
-        request = RealDataRunRequest.model_validate(json.loads(row[5]))
-        quality = RealDataQualitySummary(
-            market_quality={key: QualityStatus(value) for key, value in json.loads(row[6]).items()},
-            news_quality={key: QualityStatus(value) for key, value in json.loads(row[7]).items()},
-            downgrade_reasons=tuple(json.loads(row[8])),
-            cutoff_violation_count=row[9], duplicate_document_count=row[10],
+    def _required_str(value: object, field: str) -> str:
+        if not isinstance(value, str):
+            raise ValueError(f"stored {field} must be a string")
+        return value
+
+    @classmethod
+    def _quality_map(cls, value: object, field: str) -> dict[str, QualityStatus]:
+        decoded = json.loads(cls._required_str(value, field))
+        if not isinstance(decoded, dict):
+            raise ValueError(f"stored {field} must be an object")
+        result: dict[str, QualityStatus] = {}
+        for key, item in decoded.items():
+            if not isinstance(key, str) or not isinstance(item, str):
+                raise ValueError(f"stored {field} entries must be strings")
+            result[key] = QualityStatus(item)
+        return result
+
+    @classmethod
+    def _reasons(cls, value: object) -> tuple[str, ...]:
+        decoded = json.loads(cls._required_str(value, "downgrade_reasons_json"))
+        if not isinstance(decoded, list) or not all(
+            isinstance(item, str) for item in decoded
+        ):
+            raise ValueError("stored downgrade reasons must be a string list")
+        return tuple(decoded)
+
+    @staticmethod
+    def _required_int(value: object, field: str) -> int:
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"stored {field} must be an integer")
+        return value
+
+    @classmethod
+    def _row_to_run(cls, row: tuple[object, ...]) -> RealDataRun:
+        request = RealDataRunRequest.model_validate(
+            json.loads(cls._required_str(row[5], "request_json"))
         )
+        quality = RealDataQualitySummary(
+            market_quality=cls._quality_map(row[6], "market_quality_json"),
+            news_quality=cls._quality_map(row[7], "news_quality_json"),
+            downgrade_reasons=cls._reasons(row[8]),
+            cutoff_violation_count=cls._required_int(row[9], "cutoff_violation_count"),
+            duplicate_document_count=cls._required_int(
+                row[10], "duplicate_document_count"
+            ),
+        )
+        provider = cls._required_str(row[13], "provider")
+        typed_provider: Literal["fixture", "live"]
+        if provider == "fixture":
+            typed_provider = "fixture"
+        elif provider == "live":
+            typed_provider = "live"
+        else:
+            raise ValueError("stored provider is invalid")
         return RealDataRun(
-            run_id=UUID(row[0]), request=request, status=RealDataRunStatus(row[2]),
-            provider=row[13],
-            cutoff_at=datetime.fromisoformat(row[4]) if row[4] else None,
-            quality=quality, error_code=row[11],
-            finished_at=datetime.fromisoformat(row[12]) if row[12] else None,
+            run_id=UUID(cls._required_str(row[0], "run_id")),
+            request=request,
+            status=RealDataRunStatus(cls._required_str(row[2], "status")),
+            provider=typed_provider,
+            retry_of_run_id=(
+                UUID(cls._required_str(row[14], "retry_of_run_id")) if row[14] else None
+            ),
+            cutoff_at=(
+                datetime.fromisoformat(cls._required_str(row[4], "cutoff_at"))
+                if row[4]
+                else None
+            ),
+            quality=quality,
+            error_code=(cls._required_str(row[11], "error_code") if row[11] else None),
+            finished_at=(
+                datetime.fromisoformat(cls._required_str(row[12], "finished_at"))
+                if row[12]
+                else None
+            ),
         )
