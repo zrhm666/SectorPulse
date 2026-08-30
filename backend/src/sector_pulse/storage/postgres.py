@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -11,6 +12,12 @@ class PostgresDatabase:
 
     url: str
     engine: Engine | None = None
+
+    def __post_init__(self) -> None:
+        scheme = urlparse(self.url).scheme
+        if scheme in {"postgres", "postgresql", "postgresql+asyncpg"}:
+            remainder = self.url.split("://", 1)[1]
+            self.url = f"postgresql+psycopg://{remainder}"
 
     def start(self) -> Engine:
         if self.engine is None:

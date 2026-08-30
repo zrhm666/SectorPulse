@@ -19,10 +19,10 @@ class PostgresCandidateSelectionRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def append(self, selection: CandidateSelection, *, expected_version: int) -> None:
+    def append(self, selection: CandidateSelection, *, expected_version: int) -> None:
         engine = self._database.start()
-        async with engine.begin() as connection:
-            result = await connection.execute(
+        with engine.begin() as connection:
+            result = connection.execute(
                 text(
                     "SELECT MAX(version) FROM data_run_candidate_selections WHERE run_id = :run_id"
                 ),
@@ -33,7 +33,7 @@ class PostgresCandidateSelectionRepository:
             SQLiteCandidateSelectionRepository._check_version(
                 selection, expected_version, actual_version
             )
-            await connection.execute(
+            connection.execute(
                 text(
                     """INSERT INTO data_run_candidate_selections
                     (run_id, version, selected_sector_ids_json, method, confirmed_at,
@@ -44,10 +44,10 @@ class PostgresCandidateSelectionRepository:
                 self._values(selection),
             )
 
-    async def latest(self, run_id: UUID) -> CandidateSelection | None:
+    def latest(self, run_id: UUID) -> CandidateSelection | None:
         engine = self._database.start()
-        async with engine.connect() as connection:
-            result = await connection.execute(
+        with engine.connect() as connection:
+            result = connection.execute(
                 text(
                     """SELECT run_id, version, selected_sector_ids_json, method,
                     confirmed_at, data_version, edit_count
@@ -59,10 +59,10 @@ class PostgresCandidateSelectionRepository:
             row = result.mappings().first()
         return self._row(row) if row else None
 
-    async def list_versions(self, run_id: UUID) -> list[CandidateSelection]:
+    def list_versions(self, run_id: UUID) -> list[CandidateSelection]:
         engine = self._database.start()
-        async with engine.connect() as connection:
-            result = await connection.execute(
+        with engine.connect() as connection:
+            result = connection.execute(
                 text(
                     """SELECT run_id, version, selected_sector_ids_json, method,
                     confirmed_at, data_version, edit_count

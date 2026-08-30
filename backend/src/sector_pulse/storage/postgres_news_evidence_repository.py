@@ -18,11 +18,11 @@ class PostgresNewsEvidenceRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def get_events(self, event_ids: tuple[str, ...]) -> tuple[PostgresNewsEvidenceItem, ...]:
+    def get_events(self, event_ids: tuple[str, ...]) -> tuple[PostgresNewsEvidenceItem, ...]:
         if not event_ids:
             return ()
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT event_id, canonical_title, first_published_at FROM news_events "
                     "WHERE event_id = ANY(:event_ids)"
@@ -32,7 +32,7 @@ class PostgresNewsEvidenceRepository:
             events = result.fetchall()
             items: dict[str, PostgresNewsEvidenceItem] = {}
             for event_id, title, published_at in events:
-                docs = await connection.execute(
+                docs = connection.execute(
                     text(
                         "SELECT nd.title, nd.citation_url, nd.publisher, nd.published_at, "
                         "nd.source_grade FROM news_documents nd "

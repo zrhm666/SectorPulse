@@ -8,16 +8,16 @@ from sector_pulse.storage.postgres import PostgresDatabase
 
 
 class PostgresNewsRepository:
-    """Async PostgreSQL news metadata and event relationship persistence."""
+    """Synchronous PostgreSQL news metadata and relationship persistence."""
 
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def save(self, documents: Sequence[NewsDocument], events: Sequence[NewsEvent]) -> None:
+    def save(self, documents: Sequence[NewsDocument], events: Sequence[NewsEvent]) -> None:
         canonical_ids: dict[str, str] = {}
-        async with self._database.engine.begin() as connection:
+        with self._database.start().begin() as connection:
             for document in documents:
-                existing = await connection.execute(
+                existing = connection.execute(
                     text("SELECT document_id FROM news_documents WHERE canonical_url = :url"),
                     {"url": document.canonical_locator},
                 )
@@ -25,7 +25,7 @@ class PostgresNewsRepository:
                 canonical_ids[document.document_id] = row[0] if row else document.document_id
                 if row:
                     continue
-                await connection.execute(
+                connection.execute(
                     text(
                         """INSERT INTO news_documents
                         (document_id, source_id, canonical_url, title, published_at, observed_at,
@@ -61,7 +61,7 @@ class PostgresNewsRepository:
                 normalized = event.model_copy(update={
                     "document_ids": document_ids,
                 })
-                await connection.execute(
+                connection.execute(
                     text("INSERT INTO news_events (event_id, canonical_title, first_published_at, "
                          "deduplication_reason, metadata_json) VALUES (:event_id, :title, :published_at, "
                          ":reason, :metadata) ON CONFLICT (event_id) DO UPDATE SET canonical_title = EXCLUDED.canonical_title, "
@@ -71,12 +71,12 @@ class PostgresNewsRepository:
                      if normalized.first_published_at else None,
                      "reason": normalized.deduplication_reason, "metadata": normalized.model_dump_json()},
                 )
-                await connection.execute(
+                connection.execute(
                     text("DELETE FROM news_event_documents WHERE event_id = :event_id"),
                     {"event_id": normalized.event_id},
                 )
                 for document_id in normalized.document_ids:
-                    await connection.execute(
+                    connection.execute(
                         text(
                             "INSERT INTO news_event_documents (event_id, document_id) "
                             "VALUES (:event_id, :document_id) "
@@ -85,26 +85,26 @@ class PostgresNewsRepository:
                         {"event_id": normalized.event_id, "document_id": document_id},
                     )
 
-    async def get_event(self, event_id: str) -> NewsEvent | None:
-        values = await self._metadata("news_events", event_id)
+    def get_event(self, event_id: str) -> NewsEvent | None:
+        values = self._metadata("news_events", event_id)
         return NewsEvent.model_validate_json(values) if values else None
 
-    async def get_events(self, event_ids: Sequence[str]) -> tuple[NewsEvent, ...]:
+    def get_events(self, event_ids: Sequence[str]) -> tuple[NewsEvent, ...]:
         if not event_ids:
             return ()
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text("SELECT metadata_json FROM news_events WHERE event_id = ANY(:ids)"),
                 {"ids": list(event_ids)},
             )
             rows = result.fetchall()
         return tuple(NewsEvent.model_validate_json(row[0]) for row in rows)
 
-    async def get_documents(self, document_ids: Sequence[str]) -> dict[str, NewsDocument]:
+    def get_documents(self, document_ids: Sequence[str]) -> dict[str, NewsDocument]:
         if not document_ids:
             return {}
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text("SELECT metadata_json FROM news_documents WHERE document_id = ANY(:ids)"),
                 {"ids": list(document_ids)},
             )
@@ -112,10 +112,10 @@ class PostgresNewsRepository:
         values = (NewsDocument.model_validate_json(row[0]) for row in rows)
         return {item.document_id: item for item in values}
 
-    async def _metadata(self, table: str, item_id: str) -> str | None:
+    def _metadata(self, table: str, item_id: str) -> str | None:
         column = "event_id" if table == "news_events" else "document_id"
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(f"SELECT metadata_json FROM {table} WHERE {column} = :item_id"),
                 {"item_id": item_id},
             )

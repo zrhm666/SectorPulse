@@ -1,8 +1,10 @@
 import json
 from datetime import datetime
+from typing import Literal, cast
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
 
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.quality import QualityStatus
@@ -22,20 +24,20 @@ class PostgresRealDataRunRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def insert(self, run: RealDataRun) -> None:
+    def insert(self, run: RealDataRun) -> None:
         quality = run.quality
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text(
                     """INSERT INTO real_data_runs
                     (run_id, mode, status, requested_at, cutoff_at, request_json,
                      market_quality_json, news_quality_json, downgrade_reasons_json,
                      cutoff_violation_count, duplicate_document_count, error_code, finished_at,
-                     provider)
+                     provider, retry_of_run_id)
                     VALUES (:run_id, :mode, :status, :requested_at, :cutoff_at, :request_json,
                      :market_quality_json, :news_quality_json, :downgrade_reasons_json,
                      :cutoff_violation_count, :duplicate_document_count, :error_code,
-                     :finished_at, :provider)"""
+                     :finished_at, :provider, :retry_of_run_id)"""
                 ),
                 {
                     "run_id": str(run.run_id),
@@ -56,21 +58,24 @@ class PostgresRealDataRunRepository:
                     "error_code": run.error_code,
                     "finished_at": run.finished_at.isoformat() if run.finished_at else None,
                     "provider": run.provider,
+                    "retry_of_run_id": (
+                        str(run.retry_of_run_id) if run.retry_of_run_id else None
+                    ),
                 },
             )
 
-    async def get_run(self, run_id: UUID) -> RealDataRun | None:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def get_run(self, run_id: UUID) -> RealDataRun | None:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text("SELECT * FROM real_data_runs WHERE run_id = :run_id"),
                 {"run_id": str(run_id)},
             )
             row = result.mappings().first()
         return self._row_to_run(row) if row else None
 
-    async def list_runs(self, limit: int = 50) -> list[RealDataRun]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def list_runs(self, limit: int = 50) -> list[RealDataRun]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT * FROM real_data_runs "
                     "ORDER BY requested_at DESC LIMIT :limit"
@@ -80,7 +85,7 @@ class PostgresRealDataRunRepository:
             rows = result.mappings().all()
         return [self._row_to_run(row) for row in rows]
 
-    async def update_status(
+    def update_status(
         self,
         run_id: UUID,
         status: RealDataRunStatus,
@@ -91,8 +96,8 @@ class PostgresRealDataRunRepository:
         finished_at: datetime | None = None,
     ) -> None:
         summary = quality or RealDataQualitySummary()
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text(
                     "UPDATE real_data_runs SET status = :status, cutoff_at = :cutoff_at, "
                     "market_quality_json = :market_quality_json, "
@@ -121,16 +126,16 @@ class PostgresRealDataRunRepository:
                 },
             )
 
-    async def save_candidates(
+    def save_candidates(
         self, run_id: UUID, candidates: tuple[RealDataCandidate, ...]
     ) -> None:
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text("DELETE FROM real_data_candidates WHERE run_id = :run_id"),
                 {"run_id": str(run_id)},
             )
             if candidates:
-                await connection.execute(
+                connection.execute(
                     text(
                         "INSERT INTO real_data_candidates "
                         "(run_id, sector_id, sector_kind, rank, score, reasons_json) "
@@ -149,9 +154,9 @@ class PostgresRealDataRunRepository:
                     ],
                 )
 
-    async def get_candidates(self, run_id: UUID) -> list[RealDataCandidate]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def get_candidates(self, run_id: UUID) -> list[RealDataCandidate]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT sector_id, sector_kind, rank, score, reasons_json "
                     "FROM real_data_candidates WHERE run_id = :run_id ORDER BY rank"
@@ -170,12 +175,12 @@ class PostgresRealDataRunRepository:
             for row in rows
         ]
 
-    async def mark_interrupted(self) -> int:
+    def mark_interrupted(self) -> int:
         terminal = tuple(status.value for status in RealDataRunStatus if status.is_terminal)
         parameters = {f"terminal_{index}": value for index, value in enumerate(terminal)}
         placeholders = ", ".join(f":terminal_{index}" for index in range(len(terminal)))
-        async with self._database.engine.begin() as connection:
-            result = await connection.execute(
+        with self._database.start().begin() as connection:
+            result = connection.execute(
                 text(
                     "UPDATE real_data_runs SET status = 'INTERRUPTED' "
                     f"WHERE status NOT IN ({placeholders})"
@@ -185,26 +190,47 @@ class PostgresRealDataRunRepository:
         return result.rowcount
 
     @staticmethod
-    def _row_to_run(row: object) -> RealDataRun:
-        request = RealDataRunRequest.model_validate(json.loads(row["request_json"]))
+    def _row_to_run(row: RowMapping) -> RealDataRun:
+        request = RealDataRunRequest.model_validate(
+            json.loads(str(row["request_json"]))
+        )
         quality = RealDataQualitySummary(
             market_quality={
-                k: QualityStatus(v) for k, v in json.loads(row["market_quality_json"]).items()
+                k: QualityStatus(v)
+                for k, v in json.loads(str(row["market_quality_json"])).items()
             },
             news_quality={
-                k: QualityStatus(v) for k, v in json.loads(row["news_quality_json"]).items()
+                k: QualityStatus(v)
+                for k, v in json.loads(str(row["news_quality_json"])).items()
             },
-            downgrade_reasons=tuple(json.loads(row["downgrade_reasons_json"])),
-            cutoff_violation_count=row["cutoff_violation_count"],
-            duplicate_document_count=row["duplicate_document_count"],
+            downgrade_reasons=tuple(
+                json.loads(str(row["downgrade_reasons_json"]))
+            ),
+            cutoff_violation_count=int(str(row["cutoff_violation_count"])),
+            duplicate_document_count=int(str(row["duplicate_document_count"])),
         )
+        provider_value = str(row["provider"])
+        if provider_value not in {"fixture", "live"}:
+            raise ValueError("stored provider is invalid")
+        provider = cast(Literal["fixture", "live"], provider_value)
         return RealDataRun(
-            run_id=UUID(row["run_id"]),
-            provider=row["provider"],
+            run_id=UUID(str(row["run_id"])),
+            provider=provider,
             request=request,
-            status=RealDataRunStatus(row["status"]),
-            cutoff_at=datetime.fromisoformat(row["cutoff_at"]) if row["cutoff_at"] else None,
+            status=RealDataRunStatus(str(row["status"])),
+            cutoff_at=(
+                datetime.fromisoformat(str(row["cutoff_at"]))
+                if row["cutoff_at"]
+                else None
+            ),
             quality=quality,
-            error_code=row["error_code"],
-            finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
+            error_code=str(row["error_code"]) if row["error_code"] else None,
+            finished_at=(
+                datetime.fromisoformat(str(row["finished_at"]))
+                if row["finished_at"]
+                else None
+            ),
+            retry_of_run_id=(
+                UUID(str(row["retry_of_run_id"])) if row["retry_of_run_id"] else None
+            ),
         )

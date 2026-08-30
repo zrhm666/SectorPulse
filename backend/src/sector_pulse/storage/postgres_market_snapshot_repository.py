@@ -14,15 +14,15 @@ class PostgresMarketSnapshotRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def save(self, run: AnalysisRun, result: ProviderResult[SectorUniverseSnapshot]) -> None:
+    def save(self, run: AnalysisRun, result: ProviderResult[SectorUniverseSnapshot]) -> None:
         if run.run_cutoff_at is None:
             raise InvalidCutoffError("market snapshot requires a locked run cutoff")
         if result.status is not DataStatus.SUCCESS or result.data is None:
             raise ValueError("only successful market snapshots can be persisted")
         if result.data.observed_at > run.run_cutoff_at:
             raise SnapshotAfterCutoffError("snapshot observed_at cannot be later than run_cutoff_at")
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text("INSERT INTO analysis_runs (run_id, mode, requested_at, requested_cutoff_at, "
                      "run_cutoff_at, cutoff_locked_at) VALUES (:run_id, :mode, :requested_at, "
                      ":requested_cutoff_at, :run_cutoff_at, :cutoff_locked_at) ON CONFLICT (run_id) DO NOTHING"),
@@ -33,7 +33,7 @@ class PostgresMarketSnapshotRepository:
                  "cutoff_locked_at": run.cutoff_locked_at.isoformat() if run.cutoff_locked_at else None},
             )
             item = result.data
-            await connection.execute(
+            connection.execute(
                 text("INSERT INTO sector_snapshots (run_id, sector_kind, provider_id, classification_version, "
                      "source_version, observed_at, collected_at, payload_json) VALUES (:run_id, :sector_kind, "
                      ":provider_id, :classification_version, :source_version, :observed_at, :collected_at, :payload) "
@@ -46,9 +46,9 @@ class PostgresMarketSnapshotRepository:
                  "payload": item.model_dump_json()},
             )
 
-    async def get(self, run_id: UUID, kind: SectorKind) -> SectorUniverseSnapshot | None:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def get(self, run_id: UUID, kind: SectorKind) -> SectorUniverseSnapshot | None:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text("SELECT payload_json FROM sector_snapshots WHERE run_id = :run_id AND sector_kind = :kind"),
                 {"run_id": str(run_id), "kind": kind.value},
             )

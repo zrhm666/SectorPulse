@@ -9,13 +9,13 @@ from sector_pulse.storage.postgres_market_snapshot_repository import (
 )
 
 
-@pytest.mark.asyncio
-async def test_postgres_market_snapshot_empty_read() -> None:
+@pytest.mark.postgres
+def test_postgres_market_snapshot_empty_read() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     repository = PostgresMarketSnapshotRepository(database)
-    assert await repository.get(uuid4(), SectorKind.INDUSTRY) is None
-    await database.engine.dispose()
+    assert repository.get(uuid4(), SectorKind.INDUSTRY) is None
+    database.close()

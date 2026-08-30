@@ -563,7 +563,7 @@ git commit -m "refactor: use synchronous postgres engine"
 **Interfaces:**
 - Produces: synchronous implementations of the data-run, market, news, evidence, and candidate ports.
 
-- [ ] **Step 1: Parameterize the existing data contract for PostgreSQL**
+- [x] **Step 1: Parameterize the existing data contract for PostgreSQL**
 
 ```python
 @pytest.mark.postgres
@@ -572,11 +572,11 @@ def test_postgres_real_data_round_trip(postgres_database: PostgresDatabase) -> N
     assert_real_data_run_contract(repository)
 ```
 
-- [ ] **Step 2: Run the contract and verify coroutine-returning methods fail**
+- [x] **Step 2: Run the contract and verify coroutine-returning methods fail**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_data_contract.py -q`
 
-- [ ] **Step 3: Convert each method to `with engine.begin()/connect()` and typed mappings**
+- [x] **Step 3: Convert each method to `with engine.begin()/connect()` and typed mappings**
 
 ```python
 def get_run(self, run_id: UUID) -> RealDataRun | None:
@@ -592,9 +592,12 @@ Use `Mapping[str, object]` row decoders with explicit coercion helpers; do not i
 
 - [ ] **Step 4: Run PostgreSQL data integration contracts**
 
+Offline synchronous contract: 6 passed. Real PostgreSQL round trips remain pending because
+`localhost:5432` timed out on 2026-08-30; they are repeated by Task 17's isolated database gate.
+
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_data_contract.py backend/tests/integration/test_postgres_real_data_run_repository.py backend/tests/integration/test_postgres_market_snapshot_repository.py backend/tests/integration/test_postgres_news_repository.py backend/tests/integration/test_postgres_news_retrieval_repository.py backend/tests/integration/test_postgres_evidence_repositories.py backend/tests/integration/test_postgres_candidate_selection_repository.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/storage/postgres_* backend/tests/contracts backend/tests/integration/test_postgres_*

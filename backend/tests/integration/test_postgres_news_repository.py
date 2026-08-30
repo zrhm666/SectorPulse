@@ -9,8 +9,8 @@ from sector_pulse.storage.postgres_news_repository import PostgresNewsRepository
 from sqlalchemy import text
 
 
-@pytest.mark.asyncio
-async def test_postgres_news_save_deduplicates_event_documents() -> None:
+@pytest.mark.postgres
+def test_postgres_news_save_deduplicates_event_documents() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
@@ -41,35 +41,35 @@ async def test_postgres_news_save_deduplicates_event_documents() -> None:
         deduplication_reason="test",
     )
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     repository = PostgresNewsRepository(database)
 
     try:
-        await repository.save((document,), (event,))
-        loaded = await repository.get_event(event_id)
+        repository.save((document,), (event,))
+        loaded = repository.get_event(event_id)
         assert loaded is not None
         assert loaded.document_ids == (document_id,)
 
-        async with database.engine.connect() as connection:
+        with database.start().connect() as connection:
             count = (
-                await connection.execute(
+                connection.execute(
                     text("SELECT count(*) FROM news_event_documents WHERE event_id = :event_id"),
                     {"event_id": event_id},
                 )
             ).scalar_one()
         assert count == 1
     finally:
-        async with database.engine.begin() as connection:
-            await connection.execute(
+        with database.start().begin() as connection:
+            connection.execute(
                 text("DELETE FROM news_event_documents WHERE event_id = :event_id"),
                 {"event_id": event_id},
             )
-            await connection.execute(
+            connection.execute(
                 text("DELETE FROM news_events WHERE event_id = :event_id"),
                 {"event_id": event_id},
             )
-            await connection.execute(
+            connection.execute(
                 text("DELETE FROM news_documents WHERE document_id = :document_id"),
                 {"document_id": document_id},
             )
-        await database.close()
+        database.close()

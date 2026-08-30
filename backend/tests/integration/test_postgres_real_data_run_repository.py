@@ -16,20 +16,20 @@ from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.postgres_real_data_run_repository import PostgresRealDataRunRepository
 
 
-@pytest.mark.asyncio
-async def test_postgres_real_data_run_round_trip() -> None:
+@pytest.mark.postgres
+def test_postgres_real_data_run_round_trip() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     run = RealDataRun(
         request=RealDataRunRequest(mode="intraday", requested_at=datetime.now(UTC)),
         provider="fixture",
     )
     repository = PostgresRealDataRunRepository(database)
-    await repository.insert(run)
-    loaded = await repository.get_run(run.run_id)
+    repository.insert(run)
+    loaded = repository.get_run(run.run_id)
     assert loaded is not None
     assert loaded.run_id == run.run_id
     assert loaded.request.mode == "intraday"
@@ -44,8 +44,8 @@ async def test_postgres_real_data_run_round_trip() -> None:
             reasons=("momentum",),
         ),
     )
-    await repository.save_candidates(run.run_id, candidates)
-    assert await repository.get_candidates(run.run_id) == list(candidates)
+    repository.save_candidates(run.run_id, candidates)
+    assert repository.get_candidates(run.run_id) == list(candidates)
 
     finished_at = datetime.now(UTC)
     quality = RealDataQualitySummary(
@@ -53,25 +53,25 @@ async def test_postgres_real_data_run_round_trip() -> None:
         news_quality={"news": QualityStatus.NORMAL},
         downgrade_reasons=("SOURCE_DELAY",),
     )
-    await repository.update_status(
+    repository.update_status(
         run.run_id,
         RealDataRunStatus.DEGRADED,
         quality=quality,
         error_code="SOURCE_DELAY",
         finished_at=finished_at,
     )
-    updated = await repository.get_run(run.run_id)
+    updated = repository.get_run(run.run_id)
     assert updated is not None
     assert updated.status is RealDataRunStatus.DEGRADED
     assert updated.quality == quality
     assert updated.error_code == "SOURCE_DELAY"
     assert updated.finished_at == finished_at
-    assert run.run_id in {item.run_id for item in await repository.list_runs()}
+    assert run.run_id in {item.run_id for item in repository.list_runs()}
 
     interrupted = RealDataRun(request=RealDataRunRequest(mode="post_close"))
-    await repository.insert(interrupted)
-    assert await repository.mark_interrupted() >= 1
-    recovered = await repository.get_run(interrupted.run_id)
+    repository.insert(interrupted)
+    assert repository.mark_interrupted() >= 1
+    recovered = repository.get_run(interrupted.run_id)
     assert recovered is not None
     assert recovered.status is RealDataRunStatus.INTERRUPTED
-    await database.engine.dispose()
+    database.close()

@@ -11,16 +11,16 @@ from sector_pulse.storage.postgres_candidate_selection_repository import (
 from sector_pulse.storage.postgres_real_data_run_repository import PostgresRealDataRunRepository
 
 
-@pytest.mark.asyncio
-async def test_postgres_candidate_selection_repository_matches_sqlite_contract() -> None:
+@pytest.mark.postgres
+def test_postgres_candidate_selection_repository_matches_sqlite_contract() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     runs = PostgresRealDataRunRepository(database)
     run = RealDataRun(request=RealDataRunRequest(mode="post_close"), provider="fixture")
-    await runs.insert(run)
+    runs.insert(run)
     repository = PostgresCandidateSelectionRepository(database)
     first = CandidateSelection(
         run_id=run.run_id,
@@ -32,8 +32,8 @@ async def test_postgres_candidate_selection_repository_matches_sqlite_contract()
         edit_count=0,
     )
 
-    await repository.append(first, expected_version=0)
+    repository.append(first, expected_version=0)
 
-    assert await repository.latest(run.run_id) == first
-    assert await repository.list_versions(run.run_id) == [first]
-    await database.close()
+    assert repository.latest(run.run_id) == first
+    assert repository.list_versions(run.run_id) == [first]
+    database.close()

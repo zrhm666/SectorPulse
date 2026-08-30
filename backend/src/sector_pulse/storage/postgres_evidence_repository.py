@@ -12,11 +12,11 @@ class PostgresEvidenceRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def save(self, packs: Sequence[EvidencePack]) -> None:
-        async with self._database.engine.begin() as connection:
+    def save(self, packs: Sequence[EvidencePack]) -> None:
+        with self._database.start().begin() as connection:
             for pack in packs:
                 payload = pack.model_dump_json()
-                await connection.execute(
+                connection.execute(
                     text(
                         """INSERT INTO evidence_packs
                         (run_id, provider_sector_id, sector_kind, quality_status,
@@ -37,9 +37,9 @@ class PostgresEvidenceRepository:
                     },
                 )
 
-    async def list_for_run(self, run_id: UUID) -> tuple[EvidencePack, ...]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def list_for_run(self, run_id: UUID) -> tuple[EvidencePack, ...]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT payload_json FROM evidence_packs WHERE run_id = :run_id "
                     "ORDER BY sector_kind, provider_sector_id"
