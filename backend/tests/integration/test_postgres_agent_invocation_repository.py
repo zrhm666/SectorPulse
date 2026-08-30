@@ -9,13 +9,12 @@ from sector_pulse.storage.postgres_agent_invocation_repository import (
 )
 
 
-@pytest.mark.asyncio
-async def test_postgres_agent_invocation_round_trip() -> None:
+def test_postgres_agent_invocation_round_trip() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     run_id = uuid4()
     item = AgentInvocation(
         invocation_id=uuid4(), run_id=run_id, stage="postgres-test",
@@ -25,8 +24,8 @@ async def test_postgres_agent_invocation_round_trip() -> None:
         estimated_cost_cny=MoneyCny(amount="0.01"),
     )
     repository = PostgresAgentInvocationRepository(database)
-    await repository.save([item])
-    loaded = await repository.list_for_run(run_id)
+    repository.save([item])
+    loaded = repository.list_for_run(run_id)
     assert len(loaded) == 1
     assert loaded[0].invocation_id == item.invocation_id
-    await database.engine.dispose()
+    database.close()

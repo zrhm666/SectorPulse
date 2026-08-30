@@ -13,13 +13,12 @@ def test_postgres_release_audit_matches_runtime_contract() -> None:
         assert callable(getattr(PostgresReleaseAuditRepository, method, None)), method
 
 
-@pytest.mark.asyncio
-async def test_postgres_release_audit_round_trip() -> None:
+def test_postgres_release_audit_round_trip() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     item = DraftApproval(
         approval_id=uuid4(), run_id=uuid4(), draft_id=uuid4(), version=1,
         governance_hash="hash", actor="postgres-test",
@@ -27,16 +26,16 @@ async def test_postgres_release_audit_round_trip() -> None:
         approved_at=datetime.now(UTC),
     )
     repository = PostgresReleaseAuditRepository(database)
-    await repository.approve(item)
-    loaded = await repository.approval(item.draft_id, 1)
+    repository.approve(item)
+    loaded = repository.approval(item.draft_id, 1)
     assert loaded is not None
     assert loaded.approval_id == item.approval_id
     revoked_at = datetime.now(UTC)
-    await repository.revoke(item.run_id, item.draft_id, 1, "postgres-test", revoked_at)
-    revoked = await repository.approval(item.draft_id, 1)
+    repository.revoke(item.run_id, item.draft_id, 1, "postgres-test", revoked_at)
+    revoked = repository.approval(item.draft_id, 1)
     assert revoked is not None
     assert revoked.status is ApprovalStatus.REVOKED
-    await repository.record_export(
+    repository.record_export(
         DraftExport(
             run_id=item.run_id,
             draft_id=item.draft_id,
@@ -47,9 +46,9 @@ async def test_postgres_release_audit_round_trip() -> None:
             created_at=datetime.now(UTC),
         )
     )
-    assert [event.event_type for event in await repository.audit(item.draft_id)] == [
+    assert [event.event_type for event in repository.audit(item.draft_id)] == [
         "APPROVED",
         "REVOKED",
         "EXPORTED",
     ]
-    await database.engine.dispose()
+    database.close()

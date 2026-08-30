@@ -631,7 +631,7 @@ git commit -m "refactor: sync postgres data repositories"
 **Interfaces:**
 - Produces: synchronous content/review implementations of the ports defined in Task 2.
 
-- [ ] **Step 1: Add one shared round-trip contract covering draft edit, decision, approval, revoke, export, and audit**
+- [x] **Step 1: Add one shared round-trip contract covering draft edit, decision, approval, revoke, export, and audit**
 
 ```python
 def assert_release_audit_contract(repository: ReleaseAuditRepositoryPort) -> None:
@@ -653,19 +653,22 @@ def assert_release_audit_contract(repository: ReleaseAuditRepositoryPort) -> Non
 
 In the same contract module, add separate fixtures for draft save/edit/version conflict, governance evidence decisions, shadow save/get/update, prompt-golden save/list, Phase 1B save/read, invocation save/list, release export/audit, and analytics `for_run/summary`. Parameterize each fixture over SQLite and PostgreSQL adapter factories so the assertions are identical.
 
-- [ ] **Step 2: Run and verify async repositories violate the synchronous contract**
+- [x] **Step 2: Run and verify async repositories violate the synchronous contract**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_content_contract.py -q`
 
-- [ ] **Step 3: Convert every public async method in the listed adapters to the matching synchronous port signature**
+- [x] **Step 3: Convert every public async method in the listed adapters to the matching synchronous port signature**
 
 Use `Engine.begin()` for every save/update operation and `Engine.connect()` for every read. Convert returned SQLAlchemy rows through `Mapping[str, object]` decoders before constructing domain values. Keep draft version read-check-write inside one `Engine.begin()` block; keep approval/revocation plus their audit event inside one block; keep shadow update and its recovery/compliance append individually atomic. Remove `async`/`await` from `PostgresReviewAnalyticsQueries.for_run/summary` and return `ReviewMetrics`/`ReviewSummary` directly.
 
 - [ ] **Step 4: Run all content/governance PostgreSQL integration tests**
 
+Offline synchronous contract: 10 adapter groups passed. Real PostgreSQL round trips remain
+pending because `localhost:5432` timed out; Task 17 repeats them in an isolated database.
+
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_postgres_phase1b_repository.py backend/tests/integration/test_postgres_phase1b_runs_repository.py backend/tests/integration/test_postgres_agent_invocation_repository.py backend/tests/integration/test_postgres_draft_edit_repository.py backend/tests/integration/test_postgres_governance_repository.py backend/tests/integration/test_postgres_release_audit_repository.py backend/tests/integration/test_postgres_prompt_golden_repository.py backend/tests/integration/test_postgres_shadow_repository.py backend/tests/integration/test_postgres_review_analytics.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/storage backend/src/sector_pulse/application/postgres_review_analytics.py backend/tests/contracts backend/tests/integration

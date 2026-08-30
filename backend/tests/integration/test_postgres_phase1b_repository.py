@@ -19,32 +19,30 @@ from sector_pulse.web.app import create_app
 from sqlalchemy import text
 
 
-@pytest.mark.asyncio
-async def test_postgres_phase1b_repository_empty_reads() -> None:
+def test_postgres_phase1b_repository_empty_reads() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     repository = PostgresPhase1BRepository(database)
     run_id = uuid4()
-    assert await repository.get_contexts(run_id) == ()
-    assert await repository.get_gates(run_id) == ()
-    assert await repository.get_cards(run_id) == ()
-    assert await repository.get_outline(run_id) is None
-    assert await repository.get_drafts(run_id) == ()
-    assert await repository.get_review(run_id) is None
-    await database.engine.dispose()
+    assert repository.get_contexts(run_id) == ()
+    assert repository.get_gates(run_id) == ()
+    assert repository.get_cards(run_id) == ()
+    assert repository.get_outline(run_id) is None
+    assert repository.get_drafts(run_id) == ()
+    assert repository.get_review(run_id) is None
+    database.close()
 
 
-@pytest.mark.asyncio
-async def test_postgres_phase1b_contexts_are_upserted_by_primary_key() -> None:
+def test_postgres_phase1b_contexts_are_upserted_by_primary_key() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
 
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     run_id = uuid4()
     context = AttributionContext(
         run_id=run_id,
@@ -61,26 +59,25 @@ async def test_postgres_phase1b_contexts_are_upserted_by_primary_key() -> None:
     )
     repository = PostgresPhase1BRepository(database)
     try:
-        await repository.save_contexts((context,))
-        await repository.save_contexts((context,))
-        assert await repository.get_contexts(run_id) == (context,)
+        repository.save_contexts((context,))
+        repository.save_contexts((context,))
+        assert repository.get_contexts(run_id) == (context,)
     finally:
-        async with database.engine.begin() as connection:
-            await connection.execute(
+        with database.start().begin() as connection:
+            connection.execute(
                 text("DELETE FROM attribution_contexts WHERE run_id = :run_id"),
                 {"run_id": str(run_id)},
             )
-        await database.close()
+        database.close()
 
 
-@pytest.mark.asyncio
-async def test_postgres_phase1b_review_is_saved_with_issues_and_can_be_replayed() -> None:
+def test_postgres_phase1b_review_is_saved_with_issues_and_can_be_replayed() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
 
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     repository = PostgresPhase1BRepository(database)
     draft = ArticleDraft(
         draft_id=uuid4(),
@@ -113,13 +110,13 @@ async def test_postgres_phase1b_review_is_saved_with_issues_and_can_be_replayed(
     )
 
     try:
-        await repository.save_draft(draft)
-        await repository.save_review(review)
-        await repository.save_review(review)
+        repository.save_draft(draft)
+        repository.save_review(review)
+        repository.save_review(review)
 
-        assert await repository.get_review(draft.run_id) == review
-        async with database.engine.connect() as connection:
-            rows = await connection.execute(
+        assert repository.get_review(draft.run_id) == review
+        with database.start().connect() as connection:
+            rows = connection.execute(
                 text(
                     "SELECT issue_id FROM review_issues "
                     "WHERE review_id = :review_id ORDER BY issue_id"
@@ -128,30 +125,29 @@ async def test_postgres_phase1b_review_is_saved_with_issues_and_can_be_replayed(
             )
             assert [row[0] for row in rows.fetchall()] == ["issue-1"]
     finally:
-        async with database.engine.begin() as connection:
-            await connection.execute(
+        with database.start().begin() as connection:
+            connection.execute(
                 text("DELETE FROM review_issues WHERE review_id = :review_id"),
                 {"review_id": review.review_id},
             )
-            await connection.execute(
+            connection.execute(
                 text("DELETE FROM review_reports WHERE review_id = :review_id"),
                 {"review_id": review.review_id},
             )
-            await connection.execute(
+            connection.execute(
                 text("DELETE FROM article_drafts WHERE draft_id = :draft_id"),
                 {"draft_id": str(draft.draft_id)},
             )
-        await database.close()
+        database.close()
 
 
-@pytest.mark.asyncio
-async def test_postgres_governance_endpoint_reads_drafts_through_runtime_storage() -> None:
+def test_postgres_governance_endpoint_reads_drafts_through_runtime_storage() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
 
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     repository = PostgresPhase1BRepository(database)
     draft = ArticleDraft(
         draft_id=uuid4(),
@@ -168,16 +164,16 @@ async def test_postgres_governance_endpoint_reads_drafts_through_runtime_storage
     )
 
     try:
-        await repository.save_draft(draft)
+        repository.save_draft(draft)
         with TestClient(create_app(static_dir=None)) as client:
             response = client.get(f"/api/runs/{draft.run_id}/governance")
 
         assert response.status_code == 200
         assert response.json()["status"] == "FAIL"
     finally:
-        async with database.engine.begin() as connection:
-            await connection.execute(
+        with database.start().begin() as connection:
+            connection.execute(
                 text("DELETE FROM article_drafts WHERE draft_id = :draft_id"),
                 {"draft_id": str(draft.draft_id)},
             )
-        await database.close()
+        database.close()

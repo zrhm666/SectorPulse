@@ -12,10 +12,10 @@ class PostgresAgentInvocationRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def save(self, invocations: Sequence[AgentInvocation]) -> None:
-        async with self._database.engine.begin() as connection:
+    def save(self, invocations: Sequence[AgentInvocation]) -> None:
+        with self._database.start().begin() as connection:
             for invocation in invocations:
-                await connection.execute(
+                connection.execute(
                     text(
                         """INSERT INTO agent_invocations
                         (invocation_id, run_id, stage, provider_id, model, prompt_id,
@@ -44,9 +44,9 @@ class PostgresAgentInvocationRepository:
                     },
                 )
 
-    async def list_for_run(self, run_id: UUID) -> list[AgentInvocation]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def list_for_run(self, run_id: UUID) -> list[AgentInvocation]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT invocation_id, run_id, stage, provider_id, model, prompt_id, "
                     "prompt_version, input_hash, output_hash, status, prompt_tokens, "

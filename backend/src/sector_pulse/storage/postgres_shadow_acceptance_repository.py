@@ -5,7 +5,12 @@ from uuid import UUID
 
 from sqlalchemy import text
 
-from sector_pulse.domain.shadow_acceptance import ShadowRun, ShadowRunStatus
+from sector_pulse.domain.shadow_acceptance import (
+    ComplianceRecord,
+    RecoveryDrill,
+    ShadowRun,
+    ShadowRunStatus,
+)
 from sector_pulse.storage.postgres import PostgresDatabase
 
 
@@ -13,10 +18,10 @@ class PostgresShadowAcceptanceRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def save_run(self, item: ShadowRun) -> None:
+    def save_run(self, item: ShadowRun) -> None:
         engine = self._database.start()
-        async with engine.begin() as connection:
-            await connection.execute(
+        with engine.begin() as connection:
+            connection.execute(
                 text("""INSERT INTO shadow_runs
                 (shadow_id, run_id, trading_date, mode, status, provider_status_json,
                  cutoff_at, metrics_json, failure_reason, created_at, finished_at)
@@ -39,10 +44,10 @@ class PostgresShadowAcceptanceRepository:
                 },
             )
 
-    async def get(self, shadow_id: UUID) -> ShadowRun | None:
+    def get(self, shadow_id: UUID) -> ShadowRun | None:
         engine = self._database.start()
-        async with engine.connect() as connection:
-            row = (await connection.execute(
+        with engine.connect() as connection:
+            row = (connection.execute(
                 text(
                     "SELECT shadow_id, run_id, trading_date, mode, status, "
                     "provider_status_json, cutoff_at, metrics_json, failure_reason, "
@@ -65,22 +70,22 @@ class PostgresShadowAcceptanceRepository:
             finished_at=row["finished_at"],
         )
 
-    async def list_runs(self, limit: int = 20) -> tuple[ShadowRun, ...]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def list_runs(self, limit: int = 20) -> tuple[ShadowRun, ...]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text("SELECT shadow_id FROM shadow_runs ORDER BY trading_date DESC, created_at DESC LIMIT :limit"),
                 {"limit": limit},
             )
             ids = [UUID(row[0]) for row in result.fetchall()]
-        values = [await self.get(item) for item in ids]
+        values = [self.get(item) for item in ids]
         return tuple(item for item in values if item is not None)
 
-    async def update_run(self, shadow_id: UUID, item: ShadowRun) -> None:
-        await self.save_run(item)
+    def update_run(self, shadow_id: UUID, item: ShadowRun) -> None:
+        self.save_run(item)
 
-    async def save_recovery(self, item) -> None:
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+    def save_recovery(self, item: RecoveryDrill) -> None:
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text("INSERT INTO recovery_drills (drill_id, shadow_id, fault_type, recovered, recovery_seconds, notes, created_at) "
                      "VALUES (:drill_id, :shadow_id, :fault_type, :recovered, :recovery_seconds, :notes, :created_at)"),
                 {"drill_id": str(item.drill_id), "shadow_id": str(item.shadow_id), "fault_type": item.fault_type,
@@ -88,9 +93,9 @@ class PostgresShadowAcceptanceRepository:
                  "notes": item.notes, "created_at": item.created_at.isoformat()},
             )
 
-    async def save_compliance(self, item) -> None:
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+    def save_compliance(self, item: ComplianceRecord) -> None:
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text("INSERT INTO compliance_records (record_id, shadow_id, rules_version, decision, reviewer, notes, created_at) "
                      "VALUES (:record_id, :shadow_id, :rules_version, :decision, :reviewer, :notes, :created_at)"),
                 {"record_id": str(item.record_id), "shadow_id": str(item.shadow_id), "rules_version": item.rules_version,

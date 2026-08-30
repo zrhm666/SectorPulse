@@ -12,8 +12,8 @@ class PostgresReviewAnalyticsQueries:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def for_run(self, run_id: UUID) -> ReviewMetrics:
-        async with self._database.engine.connect() as connection:
+    def for_run(self, run_id: UUID) -> ReviewMetrics:
+        with self._database.start().connect() as connection:
             counts = {}
             queries = {
                 "patches": "SELECT COUNT(*) FROM draft_patches WHERE run_id = :run_id",
@@ -23,8 +23,8 @@ class PostgresReviewAnalyticsQueries:
                 "cost": "SELECT COALESCE(SUM(CAST(estimated_cost_cny AS NUMERIC)), 0) FROM agent_invocations WHERE run_id = :run_id",
             }
             for key, statement in queries.items():
-                counts[key] = (await connection.execute(text(statement), {"run_id": str(run_id)})).scalar_one()
-            events = await connection.execute(
+                counts[key] = (connection.execute(text(statement), {"run_id": str(run_id)})).scalar_one()
+            events = connection.execute(
                 text("SELECT event_type, created_at FROM audit_events WHERE run_id = :run_id ORDER BY created_at"),
                 {"run_id": str(run_id)},
             )
@@ -42,9 +42,9 @@ class PostgresReviewAnalyticsQueries:
             llm_cost_cny=float(counts["cost"]),
         )
 
-    async def summary(self, from_at: datetime, to_at: datetime) -> ReviewSummary:
+    def summary(self, from_at: datetime, to_at: datetime) -> ReviewSummary:
         from_at, to_at = from_at.astimezone(UTC), to_at.astimezone(UTC)
-        async with self._database.engine.connect() as connection:
+        with self._database.start().connect() as connection:
             values = []
             for statement in (
                 "SELECT COUNT(DISTINCT run_id) FROM audit_events WHERE created_at >= :from_at AND created_at < :to_at",
@@ -53,7 +53,7 @@ class PostgresReviewAnalyticsQueries:
                 "SELECT COUNT(*) FROM governance_checks WHERE status = 'FAIL' AND created_at >= :from_at AND created_at < :to_at",
                 "SELECT COUNT(*) FROM draft_exports WHERE created_at >= :from_at AND created_at < :to_at",
             ):
-                values.append((await connection.execute(text(statement), {"from_at": from_at.isoformat(), "to_at": to_at.isoformat()})).scalar_one())
+                values.append((connection.execute(text(statement), {"from_at": from_at.isoformat(), "to_at": to_at.isoformat()})).scalar_one())
         runs, approvals, patches, failures, exports = values
         return ReviewSummary(
             from_at=from_at, to_at=to_at, runs=runs, approval_rate=approvals / runs if runs else 0,

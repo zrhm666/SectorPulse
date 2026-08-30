@@ -12,9 +12,9 @@ class PostgresPhase1BRunsRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def insert(self, run: Phase1BRunRow) -> None:
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+    def insert(self, run: Phase1BRunRow) -> None:
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text(
                     """INSERT INTO phase1b_runs
                     (run_id, requested_at, provider, status, elapsed_ms, total_cost_cny,
@@ -26,16 +26,16 @@ class PostgresPhase1BRunsRepository:
                 self._values(run),
             )
 
-    async def get_run(self, run_id: UUID) -> Phase1BRunRow | None:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def get_run(self, run_id: UUID) -> Phase1BRunRow | None:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text("SELECT * FROM phase1b_runs WHERE run_id = :run_id"),
                 {"run_id": str(run_id)},
             )
             row = result.first()
         return self._row_to_model(row) if row else None
 
-    async def update_status(
+    def update_status(
         self,
         run_id: UUID,
         status: str,
@@ -45,8 +45,8 @@ class PostgresPhase1BRunsRepository:
         error_message: str | None = None,
         finished_at: datetime | None = None,
     ) -> None:
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text(
                     "UPDATE phase1b_runs SET status = :status, elapsed_ms = :elapsed_ms, "
                     "total_cost_cny = :total_cost_cny, draft_id = :draft_id, "
@@ -64,9 +64,9 @@ class PostgresPhase1BRunsRepository:
                 },
             )
 
-    async def list_runs(self, limit: int = 50) -> list[Phase1BRunRow]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def list_runs(self, limit: int = 50) -> list[Phase1BRunRow]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT * FROM phase1b_runs ORDER BY requested_at DESC LIMIT :limit"
                 ),
@@ -90,12 +90,19 @@ class PostgresPhase1BRunsRepository:
 
     @staticmethod
     def _row_to_model(row: object) -> Phase1BRunRow:
-        values = tuple(row)  # type: ignore[arg-type]
+        values: tuple[object, ...] = tuple(row)  # type: ignore[arg-type]
         return Phase1BRunRow(
-            run_id=UUID(values[0]), requested_at=datetime.fromisoformat(values[1]),
-            provider=values[2], status=values[3], elapsed_ms=values[4],
-            total_cost_cny=values[5], input_json_hash=values[6],
-            draft_id=UUID(values[7]) if values[7] else None, error_message=values[8],
-            finished_at=datetime.fromisoformat(values[9]) if values[9] else None,
-            input_json=json.loads(values[10]) if values[10] else None,
+            run_id=UUID(str(values[0])),
+            requested_at=datetime.fromisoformat(str(values[1])),
+            provider=str(values[2]),
+            status=str(values[3]),
+            elapsed_ms=int(str(values[4])) if values[4] is not None else None,
+            total_cost_cny=str(values[5]) if values[5] is not None else None,
+            input_json_hash=str(values[6]) if values[6] is not None else None,
+            draft_id=UUID(str(values[7])) if values[7] else None,
+            error_message=str(values[8]) if values[8] is not None else None,
+            finished_at=(
+                datetime.fromisoformat(str(values[9])) if values[9] else None
+            ),
+            input_json=json.loads(str(values[10])) if values[10] else None,
         )

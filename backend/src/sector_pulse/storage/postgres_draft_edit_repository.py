@@ -23,32 +23,32 @@ class PostgresDraftEditRepository:
         self._database = database
         self._drafts = PostgresPhase1BRepository(database)
 
-    async def save_draft(self, draft: ArticleDraft) -> None:
-        await self._drafts.save_draft(draft)
+    def save_draft(self, draft: ArticleDraft) -> None:
+        self._drafts.save_draft(draft)
 
-    async def get_version(self, draft_id: UUID, version: int) -> ArticleDraft:
-        for draft in await self._drafts.list_drafts(draft_id):
+    def get_version(self, draft_id: UUID, version: int) -> ArticleDraft:
+        for draft in self._drafts.list_drafts(draft_id):
             if draft.version == version:
                 return draft
         raise KeyError(f"draft version not found: {draft_id}/{version}")
 
-    async def latest_version(self, draft_id: UUID) -> ArticleDraft:
-        versions = await self._drafts.list_drafts(draft_id)
+    def latest_version(self, draft_id: UUID) -> ArticleDraft:
+        versions = self._drafts.list_drafts(draft_id)
         if not versions:
             raise KeyError(f"draft not found: {draft_id}")
         return versions[-1]
 
-    async def latest_for_run(self, run_id: UUID) -> ArticleDraft:
-        versions = await self._drafts.get_drafts(run_id)
+    def latest_for_run(self, run_id: UUID) -> ArticleDraft:
+        versions = self._drafts.get_drafts(run_id)
         if not versions:
             raise KeyError(f"draft not found: {run_id}")
         return versions[-1]
 
-    async def apply_patch(self, draft_id: UUID, base_version: int,
+    def apply_patch(self, draft_id: UUID, base_version: int,
                           operations: tuple[DraftPatch, ...], *, actor: str) -> ArticleDraft:
         try:
-            base = await self.get_version(draft_id, base_version)
-            latest = await self.latest_version(draft_id)
+            base = self.get_version(draft_id, base_version)
+            latest = self.latest_version(draft_id)
         except KeyError as exc:
             raise PostgresDraftVersionConflict("draft base version is stale") from exc
         if latest.version != base_version:
@@ -61,11 +61,11 @@ class PostgresDraftEditRepository:
                 raise PostgresDraftVersionConflict(f"patch old value does not match: {operation.path}")
             self._write_path(values, operation.path, operation.value)
         result = ArticleDraft.model_validate({**values, "version": base.version + 1})
-        await self._drafts.save_draft(result)
-        async with self._database.engine.begin() as connection:
+        self._drafts.save_draft(result)
+        with self._database.start().begin() as connection:
             for index, operation in enumerate(operations):
                 payload = operation.model_dump(mode="json")
-                await connection.execute(
+                connection.execute(
                     text("INSERT INTO draft_patches (patch_id, draft_id, run_id, base_version, new_version, operation_index, operation_json, input_hash, output_hash, actor, created_at) "
                          "VALUES (:patch_id, :draft_id, :run_id, :base_version, :new_version, :operation_index, :operation_json, :input_hash, :output_hash, :actor, :created_at)"),
                     {"patch_id": str(operation.patch_id), "draft_id": str(result.draft_id), "run_id": str(result.run_id),

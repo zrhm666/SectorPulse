@@ -12,9 +12,9 @@ class PostgresPromptGoldenRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def save(self, item: PromptGoldenCase) -> None:
-        async with self._database.engine.begin() as connection:
-            await connection.execute(
+    def save(self, item: PromptGoldenCase) -> None:
+        with self._database.start().begin() as connection:
+            connection.execute(
                 text(
                     """INSERT INTO prompt_golden_cases
                     (case_id, prompt_id, prompt_version, input_hash, expected_schema,
@@ -32,9 +32,9 @@ class PostgresPromptGoldenRepository:
                 },
             )
 
-    async def list(self) -> tuple[PromptGoldenCase, ...]:
-        async with self._database.engine.connect() as connection:
-            result = await connection.execute(
+    def list(self) -> tuple[PromptGoldenCase, ...]:
+        with self._database.start().connect() as connection:
+            result = connection.execute(
                 text(
                     "SELECT case_id, prompt_id, prompt_version, input_hash, expected_schema, "
                     "result, notes, created_at FROM prompt_golden_cases "
