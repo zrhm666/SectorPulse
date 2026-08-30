@@ -48,20 +48,27 @@ class ApplicationSettings(BaseModel):
         def value(name: str, default: str | None = None) -> str | None:
             return os.environ.get(name, default)
 
+        def required_value(name: str, default: str) -> str:
+            raw = value(name, default)
+            if raw is None:
+                raise ValueError(f"{name} must be configured")
+            return raw
+
         def boolean(name: str, default: bool) -> bool:
             raw = value(name, str(default).lower())
             if raw is None or raw.lower() not in {"true", "false"}:
                 raise ValueError(f"{name} must be true or false")
             return raw.lower() == "true"
 
+        api_key = value("SECTOR_PULSE_LLM_API_KEY")
         return cls(
-            database_path=value("SECTOR_PULSE_DATABASE_PATH", "data/sector-pulse.db"),
+            database_path=Path(
+                required_value("SECTOR_PULSE_DATABASE_PATH", "data/sector-pulse.db")
+            ),
             database_url=value("SECTOR_PULSE_DATABASE_URL"),
-            llm_provider=value("SECTOR_PULSE_LLM_PROVIDER", "fixture"),
+            llm_provider=required_value("SECTOR_PULSE_LLM_PROVIDER", "fixture"),
             llm_base_url=value("SECTOR_PULSE_LLM_BASE_URL"),
-            llm_api_key=SecretStr(value("SECTOR_PULSE_LLM_API_KEY"))
-            if value("SECTOR_PULSE_LLM_API_KEY")
-            else None,
+            llm_api_key=SecretStr(api_key) if api_key else None,
             llm_model=value("SECTOR_PULSE_LLM_MODEL"),
             llm_timeout_seconds=float(
                 value("SECTOR_PULSE_LLM_TIMEOUT_SECONDS", "60") or "60"

@@ -95,10 +95,13 @@ it('renders one decorative outline icon for each navigation link', () => {
   }
 })
 
-it('makes the independently scrolling content region keyboard reachable', () => {
+it('keeps the modular shell structure and makes its scrolling region keyboard reachable', () => {
   renderShellAt('/')
 
-  expect(screen.getByRole('main')).toHaveAttribute('tabindex', '0')
+  const main = screen.getByRole('main')
+  expect(main).toHaveClass('app-main')
+  expect(main.parentElement).toHaveClass('app-shell__body')
+  expect(main).toHaveAttribute('tabindex', '0')
 })
 
 it('renders the approved product identity and current route context', () => {

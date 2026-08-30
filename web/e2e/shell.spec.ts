@@ -49,7 +49,7 @@ test('closed mobile navigation is removed from the tab order', async ({ page }) 
   expect(await sidebar.evaluate((element) => !element.contains(document.activeElement))).toBe(true)
 })
 
-test('legacy primary page actions keep readable text', async ({ page }) => {
+test('primary page actions keep readable text after modular style loading', async ({ page }) => {
   await page.setViewportSize({ width: 1536, height: 1024 })
   await page.goto('/')
   const action = page.getByRole('link', { name: '新建分析', exact: true }).first()

@@ -284,8 +284,5 @@
   .operations-readiness__list .status-badge { grid-column: 2; justify-self: start; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .operations-dashboard *,
-  .operations-dashboard *::before,
-  .operations-dashboard *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
-}
+.dashboard-page { display: grid; gap: var(--content-gap); }
+.dashboard-page .page-header { margin-bottom: 0; }

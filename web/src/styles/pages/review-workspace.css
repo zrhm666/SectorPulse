@@ -41,8 +41,8 @@
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--ui-border-strong) transparent;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
   border-radius: var(--radius-lg);
 }
 
@@ -70,7 +70,7 @@
   gap: 4px;
   margin-bottom: var(--space-3);
   padding: 4px;
-  background: var(--color-surface-muted);
+  background: var(--sp-surface-soft);
   border-radius: 10px;
 }
 
@@ -78,7 +78,7 @@
 .review-pane-tabs button {
   min-height: 34px;
   padding: 5px 8px;
-  color: var(--color-muted-text);
+  color: var(--sp-text-secondary);
   background: transparent;
   border: 0;
   border-radius: 7px;
@@ -88,8 +88,8 @@
 
 .review-queue__filters button[aria-pressed="true"],
 .review-pane-tabs button[aria-selected="true"] {
-  color: var(--color-primary-strong);
-  background: var(--color-surface);
+  color: var(--sp-primary-hover);
+  background: var(--sp-surface);
   box-shadow: 0 1px 3px rgb(31 64 120 / 10%);
 }
 
@@ -114,13 +114,13 @@
 .draft-workspace__header {
   align-items: flex-start;
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sp-border);
 }
 
-.draft-workspace__eyebrow {
-  margin: 0 0 5px !important;
-  color: var(--color-primary) !important;
-  font-size: .6875rem !important;
+.draft-workspace .draft-workspace__eyebrow {
+  margin: 0 0 5px;
+  color: var(--sp-primary);
+  font-size: .6875rem;
   font-weight: 780;
   letter-spacing: .08em;
 }
@@ -136,7 +136,7 @@
   align-items: center;
   min-height: 26px;
   padding: 3px 9px;
-  color: var(--color-success);
+  color: var(--sp-success);
   background: #edf9f3;
   border-radius: 999px;
   font-size: .6875rem;
@@ -145,7 +145,7 @@
 }
 
 .draft-save-summary[data-pending="true"] {
-  color: var(--color-warning);
+  color: var(--sp-warning);
   background: #fff7e6;
 }
 
@@ -158,7 +158,7 @@
   display: grid;
   gap: 8px;
   padding: 24px 4px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sp-border);
 }
 
 .draft-document__section:last-child {
@@ -173,13 +173,13 @@
 }
 
 .draft-document__section-heading label {
-  color: var(--color-text);
+  color: var(--sp-text);
   font-size: .9375rem;
   font-weight: 760;
 }
 
 .draft-field-status {
-  color: var(--color-muted-text);
+  color: var(--sp-text-secondary);
   font-size: .6875rem;
   font-weight: 700;
   white-space: nowrap;
@@ -187,23 +187,23 @@
 
 .draft-field-status[data-status="dirty"],
 .draft-field-status[data-status="saving"] {
-  color: var(--color-warning);
+  color: var(--sp-warning);
 }
 
 .draft-field-status[data-status="saved"] {
-  color: var(--color-success);
+  color: var(--sp-success);
 }
 
 .draft-field-status[data-status="failed"],
 .draft-field-status[data-status="conflict"] {
-  color: var(--color-danger);
+  color: var(--sp-danger);
 }
 
 .draft-document textarea {
   width: 100%;
   padding: 10px 12px;
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--sp-text);
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -221,7 +221,7 @@
 }
 
 .draft-document textarea:hover:not([readonly]) {
-  background: var(--color-surface-muted);
+  background: var(--sp-surface-soft);
 }
 
 .draft-document textarea:focus {
@@ -232,7 +232,7 @@
 }
 
 .draft-document textarea[readonly] {
-  color: var(--color-muted-text);
+  color: var(--sp-text-secondary);
   background: transparent;
 }
 
@@ -251,7 +251,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  color: var(--color-danger);
+  color: var(--sp-danger);
   font-size: .75rem;
 }
 
@@ -267,14 +267,14 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 4px;
-  background: var(--color-surface-muted);
+  background: var(--sp-surface-soft);
   border-radius: 10px;
 }
 
 .evidence-view-tabs button {
   min-height: 34px;
   padding: 5px 8px;
-  color: var(--color-muted-text);
+  color: var(--sp-text-secondary);
   background: transparent;
   border: 0;
   border-radius: 7px;
@@ -283,8 +283,8 @@
 }
 
 .evidence-view-tabs button[aria-selected="true"] {
-  color: var(--color-primary-strong);
-  background: var(--color-surface);
+  color: var(--sp-primary-hover);
+  background: var(--sp-surface);
   box-shadow: 0 1px 3px rgb(31 64 120 / 10%);
 }
 
@@ -295,7 +295,7 @@
 
 .evidence-context-label {
   margin: 3px 0 0;
-  color: var(--color-muted-text);
+  color: var(--sp-text-secondary);
   font-size: .75rem;
   font-weight: 500;
 }
@@ -319,7 +319,7 @@
 
 .governance-issue-list span,
 .governance-issue-list small {
-  color: var(--color-muted-text);
+  color: var(--sp-text-secondary);
   font-size: .75rem;
 }
 
@@ -337,7 +337,7 @@
 
 .approval-block-reason {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--sp-danger);
   font-size: .75rem;
   line-height: 1.5;
 }
@@ -421,3 +421,35 @@
     padding-left: var(--space-4);
   }
 }
+.review-pane__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.review-pane__header h2, .evidence-pane h3 { margin: 0; }
+.review-pane__header h2 { font-size: 1.05rem; }
+.review-pane__header p { margin: 3px 0 0; color: var(--sp-text-muted); font-size: .8125rem; }
+.review-pane__header label { color: var(--sp-text-muted); font-size: .75rem; }
+.review-pane__header select, .decision-form select { display: block; min-height: 38px; margin-top: 4px; padding: 6px 10px; color: var(--sp-text); background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: var(--sp-radius-sm); }
+.review-queue ul, .source-list, .decision-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.editor-field textarea, .decision-form textarea, .review-actions textarea { width: 100%; padding: 12px; color: var(--sp-text); background: var(--sp-surface); border: 1px solid var(--sp-border); border-radius: var(--sp-radius-sm); line-height: 1.65; resize: vertical; }
+.readonly-note { padding: 12px; color: var(--sp-warning); background: var(--sp-warning-soft); border-radius: var(--sp-radius-sm); }
+.evidence-section__heading, .review-actions__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.evidence-section__heading span, .review-actions__heading span { color: var(--sp-text-muted); font-size: .75rem; font-weight: 700; }
+.source-list li, .decision-list li { display: grid; gap: 3px; padding: 12px; background: var(--sp-surface-soft); border-radius: var(--sp-radius-sm); }
+.source-list small, .source-list span, .decision-list span { color: var(--sp-text-muted); font-size: .8125rem; }
+.source-list__toggle { width: 100%; }
+.decision-form label, .review-actions label { color: var(--sp-text-muted); font-size: .8125rem; }
+.decision-form select { width: 100%; }
+.review-queue button { display: flex; width: 100%; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 12px; color: var(--sp-text); text-align: left; background: transparent; border: 1px solid transparent; border-radius: var(--sp-radius-md); }
+.review-queue button:hover { background: var(--sp-surface-soft); }
+.review-queue button[data-selected="true"] { background: var(--sp-primary-soft); border-color: #b9cdf5; }
+.review-queue button[data-selected="true"] strong { color: var(--sp-primary-hover); }
+.review-queue strong, .review-queue small { display: block; }
+.review-queue small { margin-top: 3px; color: var(--sp-text-muted); }
+.editor-fields { display: grid; gap: 20px; }
+.editor-field { display: grid; gap: 8px; }
+.editor-field label { font-weight: 700; }
+.editor-field textarea[readonly] { color: var(--sp-text-muted); background: var(--sp-surface-soft); }
+.editor-field .button { justify-self: end; }
+.evidence-pane { display: grid; gap: 20px; }
+.evidence-pane section { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--sp-border); }
+.evidence-pane h3 { font-size: .9375rem; }
+.review-actions { padding: 16px; background: var(--sp-primary-soft); border: 1px solid #c9daf8; border-radius: var(--sp-radius-md); }
+.review-actions .button { width: 100%; }

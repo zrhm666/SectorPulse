@@ -46,15 +46,6 @@
   --ui-success: var(--sp-success);
   --ui-warning: var(--sp-warning);
   --ui-danger: var(--sp-danger);
-  --color-background: var(--sp-bg);
-  --color-surface: var(--sp-surface);
-  --color-surface-muted: var(--sp-surface-soft);
-  --color-text: var(--sp-text);
-  --color-muted-text: var(--sp-text-secondary);
-  --color-primary: var(--sp-primary);
-  --color-primary-strong: var(--sp-primary-hover);
-  --color-border: var(--sp-border);
-  --color-focus-ring: var(--sp-focus);
   --radius-sm: var(--sp-radius-sm);
   --radius-md: var(--sp-radius-md);
   --radius-lg: var(--sp-radius-lg);
@@ -63,4 +54,14 @@
   --shadow-md: var(--sp-shadow-float);
   --sidebar-width: var(--sp-sidebar-width);
   --topbar-height: var(--sp-topbar-height);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
 }
+
+.density-comfortable { --content-gap: 24px; --panel-padding: 24px; }
+.density-compact { --content-gap: 16px; --panel-padding: 18px; }

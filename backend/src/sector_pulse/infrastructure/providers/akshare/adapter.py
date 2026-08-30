@@ -99,7 +99,9 @@ class AkShareThsMarketDataAdapter(AkShareMarketDataAdapter):
     def __init__(self, client: PandasThsAkShareClient | None = None) -> None:
         self._client = client or PandasThsAkShareClient()
 
-    async def fetch_sector_universe(self, kind: SectorKind, mode: AnalysisMode):
+    async def fetch_sector_universe(
+        self, kind: SectorKind, mode: AnalysisMode
+    ) -> ProviderResult[SectorUniverseSnapshot]:
         capability = f"sector_universe.{kind.value.lower()}"
         now = datetime.now(UTC)
         if mode is AnalysisMode.AS_OF:

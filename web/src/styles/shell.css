@@ -34,3 +34,5 @@
 .top-bar__context { display: flex; align-items: center; gap: 9px; color: var(--sp-text-muted); font-size: 13px; }
 .top-bar__context strong { color: var(--sp-text); }
 .app-main { flex: 1 1 auto; width: 100%; min-height: 0; padding: 30px clamp(24px, 3vw, 40px) 48px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.skip-link { position: absolute; z-index: 40; top: 8px; left: 8px; padding: 8px 12px; color: #fff; background: var(--sp-primary-hover); border-radius: var(--sp-radius-sm); transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }
