@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from sector_pulse.application.attribution_gate import (
@@ -6,13 +7,17 @@ from sector_pulse.application.attribution_gate import (
 )
 from sector_pulse.application.phase1b_pipeline import Phase1BRequest
 from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.news_retrieval import SectorEventLink
 from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRunStatus
 from sector_pulse.domain.time import AnalysisMode, AnalysisRun
+from sector_pulse.storage.database_runtime import Database
 from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
 from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
 from sector_pulse.storage.news_repository import SQLiteNewsRepository
 from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRepository
+from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 
@@ -41,16 +46,21 @@ def select_requested_candidates(
 
 
 def build_phase1b_request(
-    database: SQLiteDatabase,
+    database: Database,
     run_id: UUID,
-    storage: object | None = None,
+    storage: RuntimeStorageBundle | None = None,
     *,
     selected_sector_ids: tuple[str, ...] | None = None,
 ) -> Phase1BRequest:
+    if isinstance(database, PostgresDatabase) and storage is None:
+        raise ValueError("PostgreSQL bridge requires configured runtime storage")
+    sqlite_database = database if isinstance(database, SQLiteDatabase) else None
+    if storage is None and sqlite_database is None:
+        raise ValueError("runtime storage is required")
     runs = (
         storage.real_data_runs
         if storage is not None
-        else SQLiteRealDataRunRepository(database)
+        else SQLiteRealDataRunRepository(cast(SQLiteDatabase, sqlite_database))
     )
     real_run = runs.get_run(run_id)
     if real_run is None:
@@ -70,7 +80,7 @@ def build_phase1b_request(
     snapshots = (
         storage.market_snapshots
         if storage is not None
-        else SQLiteMarketSnapshotRepository(database)
+        else SQLiteMarketSnapshotRepository(cast(SQLiteDatabase, sqlite_database))
     )
     industry = snapshots.get(run_id, SectorKind.INDUSTRY)
     concept = snapshots.get(run_id, SectorKind.CONCEPT)
@@ -80,7 +90,11 @@ def build_phase1b_request(
     candidates = select_requested_candidates(
         runs.get_candidates(run_id), selected_sector_ids
     )
-    evidence = storage.evidence if storage is not None else SQLiteEvidenceRepository(database)
+    evidence = (
+        storage.evidence
+        if storage is not None
+        else SQLiteEvidenceRepository(cast(SQLiteDatabase, sqlite_database))
+    )
     all_packs = evidence.list_for_run(run_id)
     pack_by_sector = {pack.sector_id: pack for pack in all_packs}
     packs = [
@@ -91,7 +105,11 @@ def build_phase1b_request(
     if len(candidates) < 3 or len(packs) < len(candidates):
         raise RealDataBridgeIncomplete("REAL_DATA_BRIDGE_INCOMPLETE")
     event_ids = tuple(dict.fromkeys(event_id for pack in packs for event_id in pack.event_ids))
-    news = storage.news if storage is not None else SQLiteNewsRepository(database)
+    news = (
+        storage.news
+        if storage is not None
+        else SQLiteNewsRepository(cast(SQLiteDatabase, sqlite_database))
+    )
     events = news.get_events(event_ids)
     documents = news.get_documents(
         tuple(dict.fromkeys(document_id for event in events for document_id in event.document_ids))
@@ -99,10 +117,10 @@ def build_phase1b_request(
     retrieval = (
         storage.news_retrieval
         if storage is not None
-        else SQLiteNewsRetrievalRepository(database)
+        else SQLiteNewsRetrievalRepository(cast(SQLiteDatabase, sqlite_database))
     )
     links = retrieval.list_links(run_id)
-    links_by_sector: dict[str, list] = {}
+    links_by_sector: dict[str, list[SectorEventLink]] = {}
     for link in links:
         links_by_sector.setdefault(link.sector_id, []).append(link)
 

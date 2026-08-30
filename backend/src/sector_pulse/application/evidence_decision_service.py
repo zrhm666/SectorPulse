@@ -2,11 +2,11 @@ from datetime import UTC, datetime
 
 from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.editing import EvidenceDecision, EvidenceDecisionKind
-from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
+from sector_pulse.storage.ports import GovernanceRepositoryPort
 
 
 class EvidenceDecisionService:
-    def __init__(self, repository: SQLiteGovernanceRepository) -> None:
+    def __init__(self, repository: GovernanceRepositoryPort) -> None:
         self._repository = repository
 
     def record(

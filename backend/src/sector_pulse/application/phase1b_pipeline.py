@@ -30,8 +30,10 @@ from sector_pulse.domain.llm import AgentInvocation, MoneyCny
 from sector_pulse.domain.review import ReviewDecision, ReviewReport
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.ports.llm import LLMPort
-from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
-from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
+from sector_pulse.storage.ports import (
+    AgentInvocationRepositoryPort,
+    Phase1BRepositoryPort,
+)
 
 
 class PipelineStatus(str):
@@ -58,8 +60,8 @@ class Phase1BRequest(BaseModel):
 class Phase1BDependencies:
     llm: LLMPort
     prompts: PromptRegistry
-    repository: SQLitePhase1BRepository
-    invocation_repository: SQLiteAgentInvocationRepository
+    repository: Phase1BRepositoryPort
+    invocation_repository: AgentInvocationRepositoryPort
     config: LLMRuntimeConfig
 
 

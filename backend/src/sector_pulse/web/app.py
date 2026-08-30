@@ -18,27 +18,21 @@ from sector_pulse.application.candidate_selection_service import (
     CandidateSelectionInvalid,
     CandidateSelectionNotFound,
     CandidateSelectionRequired,
-    CandidateSelectionService,
 )
-from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.operations_summary import (
     OperationsSummaryQueryPort,
     build_operations_snapshot,
 )
-from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_queries import RealDataRunQueries
-from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.application.run_commands import RunCommandService
 from sector_pulse.application.run_coordinator import RunCoordinator
 from sector_pulse.application.run_queries import RunQueryService
-from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
+from sector_pulse.application.schedule_service import ScheduleCreate
 from sector_pulse.application.scheduled_data_bridge import ScheduledDataRunBridge
 from sector_pulse.application.scheduler import EmbeddedScheduler
-from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.config.llm_config import load_llm_config
-from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
 from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.candidate_selection import CandidateSelectionVersionConflict
@@ -47,20 +41,13 @@ from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.real_data_run import RealDataRunRequest
 from sector_pulse.infrastructure.llm.fixture_resources import (
     load_default_fixture_input,
-    load_default_fixture_responses,
 )
-from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
-from sector_pulse.storage.database_runtime import (
-    build_database,
-    close_database,
-    initialize_database,
-)
+from sector_pulse.storage.database_runtime import close_database, initialize_database
 from sector_pulse.storage.draft_edit_repository import (
     DraftVersionConflict,
 )
 from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.runtime_bundle import build_postgres_storage, build_sqlite_storage
 from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
 from sector_pulse.web.data_run_schemas import (
     CandidateSelectionConfirmRequest,
@@ -71,8 +58,8 @@ from sector_pulse.web.data_run_schemas import (
     GenerateDataRunRequest,
     NewDataRunRequest,
 )
-from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
+from sector_pulse.web.dependencies import build_runtime_dependencies
 from sector_pulse.web.editing_schemas import (
     DraftPatchRequest,
     DraftPatchResponse,
@@ -92,7 +79,6 @@ from sector_pulse.web.operations_schemas import (
     OperationsTrend,
     OperationsTrendPoint,
 )
-from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
 from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
 from sector_pulse.web.review_schemas import (
@@ -101,7 +87,7 @@ from sector_pulse.web.review_schemas import (
     ReturnDraftRequest,
     ReturnDraftResponse,
 )
-from sector_pulse.web.run_service import ProviderUnavailable, RunService
+from sector_pulse.web.run_service import ProviderUnavailable
 from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
 from sector_pulse.web.shadow_schemas import (
     ComplianceRecordRequest,
@@ -197,49 +183,31 @@ def create_app(
     load_environment()
     yaml_config = load_llm_config(Path("config/llm.yaml"))
     settings = ApplicationSettings.from_environment(yaml_config)
-    runtime_config = settings.apply_runtime_overrides(yaml_config)
     if database_path == Path("data/sector-pulse.db"):
         database_path = settings.database_path
     else:
         settings = settings.model_copy(update={"database_url": None})
-    database = build_database(settings, database_path)
-    storage = (
-        build_postgres_storage(database)
-        if isinstance(database, PostgresDatabase)
-        else build_sqlite_storage(database)
-    )
+    dependencies = build_runtime_dependencies(settings, database_path)
+    database = dependencies.database
+    storage = dependencies.storage
     task_repository = storage.task
-    if task_repository is None:
-        raise RuntimeError("task repository is not configured")
     phase1b_repository = storage.phase1b
-    if phase1b_repository is None:
-        raise RuntimeError("phase1b repository is not configured")
-    schedule_service = ScheduleService(task_repository)
-    task_run_service = TaskRunService(task_repository)
+    schedule_service = dependencies.schedule_service
+    task_run_service = dependencies.task_run_service
     draft_edit_repository = storage.draft_edit
     governance_service = GovernanceService()
     release_audit_repository = storage.release_audit
     evidence_decision_repository = storage.governance
     evidence_decision_service = EvidenceDecisionService(evidence_decision_repository)
-    review_analytics = storage.review_analytics or ReviewAnalyticsQueries(database)
+    review_analytics = storage.review_analytics
     shadow_repository = storage.shadow
     prompt_golden_repository = storage.prompt_golden
-    scheduler: EmbeddedScheduler | None = None
-    run_coordinator: RunCoordinator | None = None
-    bus = ProgressBus()
+    scheduler: EmbeddedScheduler | None = dependencies.scheduler
+    run_coordinator: RunCoordinator | None = dependencies.coordinator
+    bus = dependencies.bus
     service = overrides.get("service") if overrides else None
     if service is None:
-        service = RunService(
-            runs_repo=storage.phase1b_runs,
-            phase1b_repo=phase1b_repository,
-            invocation_repo=storage.invocations,
-            news_evidence=storage.news_evidence,
-            prompts=PromptRegistry(Path("config/prompts")),
-            config=runtime_config,
-            bus=bus,
-            fixture_responses=load_default_fixture_responses(),
-            llm_factory={},
-        )
+        service = dependencies.run_service
 
     commands = RunCommandService(service)
     queries = RunQueryService(service)
@@ -247,43 +215,15 @@ def create_app(
     real_queries = RealDataRunQueries(real_repository)
     workbench_queries = overrides.get("workbench_queries") if overrides else None
     if workbench_queries is None:
-        workbench_queries = DataRunWorkbenchQueries(storage)
+        workbench_queries = dependencies.workbench_queries
     candidate_selection_service = (
         overrides.get("candidate_selection_service") if overrides else None
     )
     if candidate_selection_service is None:
-        if storage.candidate_selections is None:
-            raise RuntimeError("candidate selection repository is not configured")
-        candidate_selection_service = CandidateSelectionService(
-            real_repository, storage.candidate_selections
-        )
+        candidate_selection_service = dependencies.candidate_selection_service
     data_run_service = overrides.get("data_run_service") if overrides else None
     if data_run_service is None:
-        provider_factory = RealDataProviderFactory()
-        entity_config = load_entity_config(Path("config/sector_entities.yaml"))
-
-        def real_dependencies(_provider: str) -> Phase1A2Dependencies:
-            bundle = provider_factory.build()
-            return type(
-                "Phase1A2RuntimeDependencies",
-                (),
-                {
-                    "market": bundle.market,
-                    "constituents": bundle.constituents,
-                    "global_news": bundle.global_news,
-                    "keyword_news": bundle.keyword_news,
-                    "disclosure_news": bundle.disclosure_news,
-                    "database": database,
-                    "storage": storage,
-                    "entity_config": entity_config,
-                },
-            )()
-
-        data_run_service = DataRunService(
-            repository=real_repository,
-            bus=bus,
-            dependencies_factory=real_dependencies,
-        )
+        data_run_service = dependencies.data_run_service
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -842,14 +782,14 @@ def create_app(
         detail = task_repository.get_task_detail(run_id)
         if detail is None:
             raise HTTPException(404, "task run not found")
-        return detail["stages"]
+        return cast(list[dict[str, object]], detail["stages"])
 
     @app.get("/api/task-runs/{run_id}/events")
     async def get_task_run_events(run_id: UUID) -> list[dict[str, object]]:
         detail = task_repository.get_task_detail(run_id)
         if detail is None:
             raise HTTPException(404, "task run not found")
-        return detail["events"]
+        return cast(list[dict[str, object]], detail["events"])
 
     if data_run_service is not None:
 
@@ -1058,7 +998,7 @@ def create_app(
         scheduler = EmbeddedScheduler(
             task_repository,
             schedule_service,
-            service,
+            None,
             poll_seconds=settings.scheduler_poll_seconds,
             bridge=scheduled_bridge,
             coordinator=run_coordinator,

@@ -1,8 +1,11 @@
 from pathlib import Path
+from typing import cast
 from uuid import UUID
 
 from sector_pulse.application.real_data_writing_bridge import build_phase1b_request
 from sector_pulse.domain.real_data_run import RealDataRunStatus
+from sector_pulse.storage.database_runtime import Database
+from sector_pulse.storage.postgres import PostgresDatabase
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.storage.sqlite import SQLiteDatabase
@@ -14,15 +17,19 @@ class DataRunWritingService:
 
     def __init__(
         self,
-        database: SQLiteDatabase,
+        database: Database,
         run_service: RunService,
         consent_file: Path | None = None,
         storage: RuntimeStorageBundle | None = None,
     ) -> None:
         self._database = database
         self._run_service = run_service
+        if isinstance(database, PostgresDatabase) and storage is None:
+            raise ValueError("PostgreSQL writing service requires runtime storage")
         self._repository = (
-            storage.real_data_runs if storage is not None else SQLiteRealDataRunRepository(database)
+            storage.real_data_runs
+            if storage is not None
+            else SQLiteRealDataRunRepository(cast(SQLiteDatabase, database))
         )
         self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")

@@ -4,13 +4,13 @@ import builtins
 from uuid import UUID
 
 from sector_pulse.domain.real_data_run import RealDataRun
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.ports import RealDataRunRepositoryPort
 
 
 class RealDataRunQueries:
     """真实数据查询只读持久化摘要，不触发 Provider。"""
 
-    def __init__(self, repository: SQLiteRealDataRunRepository) -> None:
+    def __init__(self, repository: RealDataRunRepositoryPort) -> None:
         self._repository = repository
 
     def list(self, limit: int = 50) -> list[dict[str, object]]:

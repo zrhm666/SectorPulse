@@ -2,7 +2,7 @@ import time
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -39,11 +39,13 @@ from sector_pulse.ports.news_sources import (
     KeywordNewsSearchPort,
     SectorConstituentPort,
 )
+from sector_pulse.storage.database_runtime import Database
 from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
 from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
 from sector_pulse.storage.news_repository import SQLiteNewsRepository
 from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRepository
 from sector_pulse.storage.postgres import PostgresDatabase
+from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 
@@ -72,7 +74,7 @@ class Phase1A2Dependencies(Protocol):
     @property
     def disclosure_news(self) -> DisclosureSearchPort: ...
     @property
-    def database(self) -> SQLiteDatabase: ...
+    def database(self) -> Database: ...
     @property
     def entity_config(self) -> SectorEntityConfig: ...
     @property
@@ -171,10 +173,8 @@ async def run_phase1a2_probe(
     """执行 Phase 1A.2 的真实数据链路；Provider 由依赖注入提供，编排器不创建具体实现。"""
     started = time.perf_counter()
     database = dependencies.database
-    if isinstance(database, SQLiteDatabase):
+    if isinstance(database, (SQLiteDatabase, PostgresDatabase)):
         database.initialize()
-    elif isinstance(database, PostgresDatabase):
-        await database.initialize()
     run = AnalysisRun.create_live(request.requested_at, request.run_id)
     industry, concept = await __import__("asyncio").gather(
         dependencies.market.fetch_sector_universe(SectorKind.INDUSTRY, AnalysisMode.LIVE),
@@ -198,21 +198,24 @@ async def run_phase1a2_probe(
     cutoff = run.run_cutoff_at
     if cutoff is None:  # 防御性检查，保证后续新闻查询始终使用已锁定 cutoff。
         return _empty_report(request, run, started, market_quality, "CUTOFF_NOT_LOCKED")
-    storage = getattr(dependencies, "storage", None)
+    storage = cast(RuntimeStorageBundle | None, getattr(dependencies, "storage", None))
+    if storage is None and not isinstance(database, SQLiteDatabase):
+        raise ValueError("PostgreSQL probe requires configured runtime storage")
+    sqlite_database = cast(SQLiteDatabase, database)
     market_snapshots = (
         storage.market_snapshots if storage is not None
-        else SQLiteMarketSnapshotRepository(database)
+        else SQLiteMarketSnapshotRepository(sqlite_database)
     )
     news_repository = (
-        storage.news if storage is not None else SQLiteNewsRepository(database)
+        storage.news if storage is not None else SQLiteNewsRepository(sqlite_database)
     )
     evidence_repository = (
-        storage.evidence if storage is not None else SQLiteEvidenceRepository(database)
+        storage.evidence if storage is not None else SQLiteEvidenceRepository(sqlite_database)
     )
     retrieval_repository = (
         storage.news_retrieval
         if storage is not None
-        else SQLiteNewsRetrievalRepository(database)
+        else SQLiteNewsRetrievalRepository(sqlite_database)
     )
     market_snapshots.save(run, industry)
     market_snapshots.save(run, concept)

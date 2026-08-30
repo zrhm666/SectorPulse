@@ -331,6 +331,8 @@ class PromptGoldenRepositoryPort(Protocol):
 
 @runtime_checkable
 class ReleaseAuditRepositoryPort(Protocol):
+    def content_hash(self, content: dict[str, object]) -> str: ...
+
     def approve(self, approval: DraftApproval) -> None: ...
 
     def revoke(

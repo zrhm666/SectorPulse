@@ -33,7 +33,7 @@ class EmbeddedScheduler:
         self,
         repository: RuntimeTaskRepositoryPort,
         schedules: ScheduleService,
-        executor: Executor,
+        executor: Executor | None,
         *,
         poll_seconds: int = 10,
         bridge: ScheduledRunBridge | None = None,
@@ -91,6 +91,8 @@ class EmbeddedScheduler:
                 if self._bridge is not None:
                     self._bridge.start(run_id, schedule)
                 else:
+                    if self._executor is None:
+                        raise RuntimeError("scheduled executor is not configured")
                     await self._executor.execute(run_id, "live", "embedded-scheduler")
             except Exception:
                 self._repository.transition(

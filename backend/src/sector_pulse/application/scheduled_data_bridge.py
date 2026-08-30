@@ -1,15 +1,16 @@
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID
 
 from sector_pulse.application.schedule_service import ScheduleView
 from sector_pulse.domain.real_data_run import RealDataRunRequest, RealDataRunStatus
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.ports import RealDataRunRepositoryPort, RuntimeTaskRepositoryPort
 
 
 class DataRunStarter(Protocol):
-    def create(self, request: RealDataRunRequest, provider: str) -> UUID: ...
+    def create(
+        self, request: RealDataRunRequest, provider: Literal["fixture", "live"]
+    ) -> UUID: ...
 
 
 class WritingStarter(Protocol):
@@ -31,8 +32,8 @@ class ScheduledDataRunBridge:
 
     def __init__(
         self,
-        task_repository: SQLiteTaskRepository,
-        real_repository: SQLiteRealDataRunRepository,
+        task_repository: RuntimeTaskRepositoryPort,
+        real_repository: RealDataRunRepositoryPort,
         data_run_service: DataRunStarter,
         writing_service: WritingStarter,
         selection_service: DefaultSelectionService | None = None,

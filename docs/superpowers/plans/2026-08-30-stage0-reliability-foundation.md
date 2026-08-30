@@ -778,7 +778,7 @@ git commit -m "refactor: remove postgres async bridge"
 **Interfaces:**
 - Produces: `RuntimeDependencies` and `build_runtime_dependencies(settings, database_path)`.
 
-- [ ] **Step 1: Add dependency assembly tests for both backends**
+- [x] **Step 1: Add dependency assembly tests for both backends**
 
 ```python
 def test_sqlite_dependencies_are_fully_typed(tmp_path: Path) -> None:
@@ -791,11 +791,11 @@ def test_postgres_configuration_never_falls_back(monkeypatch: pytest.MonkeyPatch
         build_runtime_dependencies(postgres_settings(), Path("unused.db"))
 ```
 
-- [ ] **Step 2: Run dependency tests and Mypy to capture the focused error baseline**
+- [x] **Step 2: Run dependency tests and Mypy to capture the focused error baseline**
 
 Run: `\.venv\Scripts\python.exe -m mypy backend/src/sector_pulse/storage backend/src/sector_pulse/application backend/src/sector_pulse/web/dependencies.py`
 
-- [ ] **Step 3: Move assembly from `create_app` and retarget services to ports**
+- [x] **Step 3: Move assembly from `create_app` and retarget services to ports**
 
 ```python
 @dataclass(frozen=True)
@@ -821,13 +821,13 @@ def build_runtime_dependencies(settings: ApplicationSettings, database_path: Pat
     )
 ```
 
-- [ ] **Step 4: Run focused Mypy and backend regression**
+- [x] **Step 4: Run focused Mypy and backend regression**
 
 Run: `\.venv\Scripts\python.exe -m mypy backend/src/sector_pulse/storage backend/src/sector_pulse/application backend/src/sector_pulse/web`
 
 Run: `\.venv\Scripts\python.exe -m pytest -m "not live and not live_llm" --import-mode=importlib -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse backend/tests

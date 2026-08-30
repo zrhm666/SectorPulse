@@ -2,6 +2,7 @@
 import hashlib
 import json
 from datetime import datetime
+from sqlite3 import Connection
 from uuid import UUID
 
 from sector_pulse.domain.release_audit import ApprovalStatus, AuditEvent, DraftApproval, DraftExport
@@ -50,7 +51,7 @@ class SQLiteReleaseAuditRepository:
             )
             self._event(connection, run_id, draft_id, version, "REVOKED", actor, {})
 
-    def approval(self, draft_id: UUID, version: int):
+    def approval(self, draft_id: UUID, version: int) -> DraftApproval | None:
         with self._database.connection() as connection:
             row = connection.execute(
                 "SELECT approval_id, run_id, draft_id, version, governance_hash, actor, status, approved_at FROM draft_approvals WHERE draft_id = ? AND version = ?",
@@ -102,18 +103,26 @@ class SQLiteReleaseAuditRepository:
                         "EXPORTED", export.actor, {"format": export.format, "content_hash": export.content_hash})
 
     def record_event(self, run_id: UUID, draft_id: UUID, version: int,
-                     event_type: str, actor: str, payload: dict) -> None:
+                     event_type: str, actor: str, payload: dict[str, object]) -> None:
         with self._database.transaction() as connection:
             self._event(connection, run_id, draft_id, version, event_type, actor, payload)
 
     @staticmethod
-    def content_hash(content: dict) -> str:
+    def content_hash(content: dict[str, object]) -> str:
         return hashlib.sha256(
             json.dumps(content, ensure_ascii=False, sort_keys=True).encode()
         ).hexdigest()
 
     @staticmethod
-    def _event(connection, run_id, draft_id, version, event_type, actor, payload) -> None:
+    def _event(
+        connection: Connection,
+        run_id: UUID,
+        draft_id: UUID,
+        version: int,
+        event_type: str,
+        actor: str,
+        payload: dict[str, object],
+    ) -> None:
         from uuid import uuid4
 
         connection.execute(

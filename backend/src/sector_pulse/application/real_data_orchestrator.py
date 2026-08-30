@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -22,6 +22,8 @@ from sector_pulse.domain.real_data_run import (
     RealDataRunStatus,
 )
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
+from sector_pulse.storage.sqlite import SQLiteDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +48,7 @@ class RealDataRunResult(BaseModel):
 
     run: RealDataRun
     status: RealDataRunStatus
-    candidates: tuple = ()
+    candidates: tuple[RealDataCandidate, ...] = ()
     evidence: tuple[EvidencePack, ...] = ()
     quality: RealDataQualitySummary
     downgrade_reasons: tuple[str, ...] = ()
@@ -65,11 +67,14 @@ async def run_real_data_workflow(
         provider=provider,
         request=request,
     )
-    storage = getattr(dependencies, "storage", None)
+    storage = cast(RuntimeStorageBundle | None, getattr(dependencies, "storage", None))
+    database = dependencies.database
+    if storage is None and not isinstance(database, SQLiteDatabase):
+        raise ValueError("PostgreSQL workflow requires configured runtime storage")
     repository = (
         storage.real_data_runs
         if storage is not None
-        else SQLiteRealDataRunRepository(dependencies.database)
+        else SQLiteRealDataRunRepository(cast(SQLiteDatabase, database))
     )
     repository.insert(real_run)
 

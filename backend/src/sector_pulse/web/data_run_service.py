@@ -10,7 +10,7 @@ from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_orchestrator import run_real_data_workflow
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.ports import RealDataRunRepositoryPort
 from sector_pulse.web.progress_bus import ProgressBus
 
 
@@ -19,7 +19,7 @@ class DataRunService:
 
     def __init__(
         self,
-        repository: SQLiteRealDataRunRepository,
+        repository: RealDataRunRepositoryPort,
         bus: ProgressBus,
         dependencies_factory: Callable[[str], Phase1A2Dependencies] | None = None,
         consent_file: Path | None = None,

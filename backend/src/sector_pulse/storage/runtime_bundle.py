@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 
 from sector_pulse.application.postgres_review_analytics import PostgresReviewAnalyticsQueries
+from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.candidate_selection_repository import SQLiteCandidateSelectionRepository
 from sector_pulse.storage.draft_edit_repository import SQLiteDraftEditRepository
@@ -75,19 +76,19 @@ class RuntimeStorageBundle:
     evidence: EvidenceRepositoryPort
     news_retrieval: NewsRetrievalRepositoryPort
     real_data_runs: RealDataRunRepositoryPort
-    review_analytics: ReviewAnalyticsPort | None = None
-    task: RuntimeTaskRepositoryPort | None = None
-    phase1b_runs: Phase1BRunsRepositoryPort | None = None
-    phase1b: Phase1BRepositoryPort | None = None
-    invocations: AgentInvocationRepositoryPort | None = None
-    news_evidence: NewsEvidenceRepositoryPort | None = None
-    draft_edit: DraftEditRepositoryPort | None = None
-    prompt_golden: PromptGoldenRepositoryPort | None = None
-    release_audit: ReleaseAuditRepositoryPort | None = None
-    shadow: ShadowAcceptanceRepositoryPort | None = None
-    governance: GovernanceRepositoryPort | None = None
-    operations: OperationsQueryPort | None = None
-    candidate_selections: CandidateSelectionRepositoryPort | None = None
+    review_analytics: ReviewAnalyticsPort
+    task: RuntimeTaskRepositoryPort
+    phase1b_runs: Phase1BRunsRepositoryPort
+    phase1b: Phase1BRepositoryPort
+    invocations: AgentInvocationRepositoryPort
+    news_evidence: NewsEvidenceRepositoryPort
+    draft_edit: DraftEditRepositoryPort
+    prompt_golden: PromptGoldenRepositoryPort
+    release_audit: ReleaseAuditRepositoryPort
+    shadow: ShadowAcceptanceRepositoryPort
+    governance: GovernanceRepositoryPort
+    operations: OperationsQueryPort
+    candidate_selections: CandidateSelectionRepositoryPort
 
 
 def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
@@ -97,7 +98,7 @@ def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
         evidence=SQLiteEvidenceRepository(database),
         news_retrieval=SQLiteNewsRetrievalRepository(database),
         real_data_runs=SQLiteRealDataRunRepository(database),
-        review_analytics=None,
+        review_analytics=ReviewAnalyticsQueries(database),
         task=SQLiteTaskRepository(database), phase1b_runs=SQLitePhase1BRunsRepository(database),
         phase1b=SQLitePhase1BRepository(database), invocations=SQLiteAgentInvocationRepository(database),
         news_evidence=SQLiteNewsEvidenceRepository(database), draft_edit=SQLiteDraftEditRepository(database),

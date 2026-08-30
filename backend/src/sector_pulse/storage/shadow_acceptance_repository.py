@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 import json
 from datetime import date, datetime
+from typing import Any, cast
 from uuid import UUID
 
 from sector_pulse.domain.shadow_acceptance import (
@@ -48,14 +49,15 @@ class SQLiteShadowAcceptanceRepository:
 
     @staticmethod
     def _row_to_model(row: tuple[object, ...]) -> ShadowRun:
+        values = cast(tuple[Any, ...], row)
         return ShadowRun(
-            shadow_id=UUID(row[0]), run_id=UUID(row[1]),
-            trading_date=date.fromisoformat(row[2]), mode=row[3],
-            status=ShadowRunStatus(row[4]), provider_status=json.loads(row[5]),
-            cutoff_at=datetime.fromisoformat(row[6]) if row[6] else None,
-            metrics=json.loads(row[7]), failure_reason=row[8],
-            created_at=datetime.fromisoformat(row[9]),
-            finished_at=datetime.fromisoformat(row[10]) if row[10] else None,
+            shadow_id=UUID(values[0]), run_id=UUID(values[1]),
+            trading_date=date.fromisoformat(values[2]), mode=values[3],
+            status=ShadowRunStatus(values[4]), provider_status=json.loads(values[5]),
+            cutoff_at=datetime.fromisoformat(values[6]) if values[6] else None,
+            metrics=json.loads(values[7]), failure_reason=values[8],
+            created_at=datetime.fromisoformat(values[9]),
+            finished_at=datetime.fromisoformat(values[10]) if values[10] else None,
         )
 
     def update_run(self, shadow_id: UUID, item: ShadowRun) -> None:

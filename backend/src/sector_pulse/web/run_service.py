@@ -19,12 +19,14 @@ from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
-from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
-from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.phase1b_runs_repository import (
     Phase1BRunRow,
-    SQLitePhase1BRunsRepository,
+)
+from sector_pulse.storage.ports import (
+    AgentInvocationRepositoryPort,
+    NewsEvidenceRepositoryPort,
+    Phase1BRepositoryPort,
+    Phase1BRunsRepositoryPort,
 )
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.schemas import RunDetail, RunSummary
@@ -37,10 +39,10 @@ class ProviderUnavailable(ValueError):
 class RunService:
     def __init__(
         self,
-        runs_repo: SQLitePhase1BRunsRepository,
-        phase1b_repo: SQLitePhase1BRepository,
-        invocation_repo: SQLiteAgentInvocationRepository,
-        news_evidence: SQLiteNewsEvidenceRepository,
+        runs_repo: Phase1BRunsRepositoryPort,
+        phase1b_repo: Phase1BRepositoryPort,
+        invocation_repo: AgentInvocationRepositoryPort,
+        news_evidence: NewsEvidenceRepositoryPort,
         prompts: PromptRegistry,
         config: LLMRuntimeConfig,
         bus: ProgressBus,

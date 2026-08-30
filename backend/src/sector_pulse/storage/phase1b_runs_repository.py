@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sector_pulse.storage.sqlite import SQLiteDatabase
@@ -73,7 +74,7 @@ class SQLitePhase1BRunsRepository:
 
     @staticmethod
     def _row_to_model(row: object) -> Phase1BRunRow:
-        r: tuple[object, ...] = tuple(row)  # type: ignore[arg-type]
+        r: tuple[Any, ...] = tuple(row)  # type: ignore[arg-type]
         return Phase1BRunRow(
             run_id=UUID(r[0]), requested_at=datetime.fromisoformat(r[1]), provider=r[2],
             status=r[3], elapsed_ms=r[4], total_cost_cny=r[5], input_json_hash=r[6],
