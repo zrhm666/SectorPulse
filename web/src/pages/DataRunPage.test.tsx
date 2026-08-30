@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
@@ -268,7 +268,9 @@ it('retries a failed run with its original parameters', async () => {
   await userEvent.click(await screen.findByRole('button', { name: '按原参数重新采集' }))
 
   expect(api.retryDataRun).toHaveBeenCalledWith('run-1')
-  expect(screen.getByTestId('location')).toHaveTextContent('/data-runs/run-2')
+  await waitFor(() => {
+    expect(screen.getByTestId('location')).toHaveTextContent('/data-runs/run-2')
+  })
 })
 
 it('shows market, candidate, linked news, and quality data', async () => {

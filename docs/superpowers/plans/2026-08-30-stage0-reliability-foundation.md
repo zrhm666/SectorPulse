@@ -1145,11 +1145,11 @@ git commit -m "test: harden browser integration harness"
 **Interfaces:**
 - Produces: supported React Router version with unchanged public routes.
 
-- [ ] **Step 1: Preserve route behavior with existing App/router tests**
+  - [x] **Step 1: Preserve route behavior with existing App/router tests**
 
 Run: `npm.cmd test -- src/App.test.tsx src/layout/AppShell.test.tsx --run`
 
-- [ ] **Step 2: Upgrade to the chosen supported major after reading its official migration guide**
+  - [x] **Step 2: Upgrade to the chosen supported major after reading its official migration guide**
 
 Run: `npm.cmd install react-router-dom@7.18.3`
 
@@ -1157,19 +1157,19 @@ Use the current supported v7 compatibility package and keep Declarative Mode. Do
 
 Execution references: `https://www.npmjs.com/package/react-router-dom?activeTab=versions` and `https://reactrouter.com/upgrading/v7`.
 
-- [ ] **Step 3: Fix compile/test incompatibilities with the smallest API changes**
+  - [x] **Step 3: Fix compile/test incompatibilities with the smallest API changes**
 
 Run: `npm.cmd test -- --run`
 
 Run: `npm.cmd run build`
 
-- [ ] **Step 4: Verify production audit**
+  - [x] **Step 4: Verify production audit**
 
 Run: `npm.cmd audit --omit=dev`
 
 Expected: no fixable production dependency vulnerability. If an upstream advisory has no available patch and does not apply to Declarative Mode, document the exact advisory and applicability in the acceptance report rather than suppressing it.
 
-- [ ] **Step 5: Commit**
+  - [x] **Step 5: Commit**
 
 ```powershell
 git add web/package.json web/package-lock.json web/src
