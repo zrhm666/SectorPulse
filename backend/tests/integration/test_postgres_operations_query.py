@@ -12,18 +12,18 @@ from sector_pulse.storage.postgres_phase1b_runs_repository import (
 from sqlalchemy import text
 
 
-@pytest.mark.asyncio
-async def test_postgres_operations_query_returns_the_normalized_contract() -> None:
+@pytest.mark.postgres
+def test_postgres_operations_query_returns_the_normalized_contract() -> None:
     url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
     if not url:
         pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
     database = PostgresDatabase(url)
-    await database.initialize()
+    database.initialize()
     run_id = uuid4()
     requested_at = datetime.now(UTC)
     repository = PostgresPhase1BRunsRepository(database)
     try:
-        await repository.insert(
+        repository.insert(
             Phase1BRunRow(
                 run_id=run_id,
                 requested_at=requested_at,
@@ -32,7 +32,7 @@ async def test_postgres_operations_query_returns_the_normalized_contract() -> No
             )
         )
 
-        records = await PostgresOperationsQuery(database).list_records(
+        records = PostgresOperationsQuery(database).list_records(
             since=requested_at - timedelta(minutes=1), limit=1
         )
 
@@ -43,9 +43,9 @@ async def test_postgres_operations_query_returns_the_normalized_contract() -> No
         assert records[0].provider == "postgres-test"
         assert records[0].candidate_count == 0
     finally:
-        async with database.engine.begin() as connection:
-            await connection.execute(
+        with database.start().begin() as connection:
+            connection.execute(
                 text("DELETE FROM phase1b_runs WHERE run_id = :run_id"),
                 {"run_id": str(run_id)},
             )
-        await database.close()
+        database.close()

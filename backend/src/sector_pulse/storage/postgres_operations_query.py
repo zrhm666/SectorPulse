@@ -16,7 +16,7 @@ class PostgresOperationsQuery:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    async def list_records(
+    def list_records(
         self, *, since: datetime | None = None, limit: int | None = None
     ) -> list[OperationalRun]:
         if limit is not None and limit < 1:
@@ -31,7 +31,7 @@ class PostgresOperationsQuery:
             statement += " LIMIT :limit"
             parameters["limit"] = limit
         engine = self._database.start()
-        async with engine.connect() as connection:
-            result = await connection.execute(text(statement), parameters)
+        with engine.connect() as connection:
+            result = connection.execute(text(statement), parameters)
             rows = result.fetchall()
         return [_row_to_operational_run(row) for row in rows]

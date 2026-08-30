@@ -688,7 +688,7 @@ git commit -m "refactor: sync postgres review repositories"
 **Interfaces:**
 - Produces: a bundle containing direct typed repositories only.
 
-- [ ] **Step 1: Add a contract asserting bundle fields are direct ports, not bridge wrappers**
+- [x] **Step 1: Add a contract asserting bundle fields are direct ports, not bridge wrappers**
 
 ```python
 def test_postgres_bundle_uses_direct_repositories(postgres_database: PostgresDatabase) -> None:
@@ -698,11 +698,11 @@ def test_postgres_bundle_uses_direct_repositories(postgres_database: PostgresDat
     assert not hasattr(runtime_bundle, "BlockingAsyncRepository")
 ```
 
-- [ ] **Step 2: Run and verify the current wrapper fails**
+- [x] **Step 2: Run and verify the current wrapper fails**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts backend/tests/integration/test_postgres_task_repository.py backend/tests/integration/test_postgres_operations_query.py -q`
 
-- [ ] **Step 3: Convert task/operations methods and delete `_run_awaitable`/`BlockingAsyncRepository`**
+- [x] **Step 3: Convert task/operations methods and delete `_run_awaitable`/`BlockingAsyncRepository`**
 
 ```python
 def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
@@ -730,9 +730,12 @@ def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
 
 - [ ] **Step 4: Run every PostgreSQL integration and contract test**
 
+  Offline contract coverage passes. Real PostgreSQL round trips are deferred to Task 17
+  because the local server at `localhost:5432` currently times out.
+
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts backend/tests/integration/test_postgres_* -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/storage backend/tests/contracts backend/tests/integration

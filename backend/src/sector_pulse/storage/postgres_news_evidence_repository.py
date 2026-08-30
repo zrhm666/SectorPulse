@@ -1,24 +1,14 @@
-from dataclasses import dataclass
-from typing import Any
-
 from sqlalchemy import text
 
+from sector_pulse.storage.news_evidence_repository import NewsEvidenceItem
 from sector_pulse.storage.postgres import PostgresDatabase
-
-
-@dataclass(frozen=True)
-class PostgresNewsEvidenceItem:
-    event_id: str
-    canonical_title: str
-    first_published_at: str | None
-    documents: tuple[dict[str, Any], ...]
 
 
 class PostgresNewsEvidenceRepository:
     def __init__(self, database: PostgresDatabase) -> None:
         self._database = database
 
-    def get_events(self, event_ids: tuple[str, ...]) -> tuple[PostgresNewsEvidenceItem, ...]:
+    def get_events(self, event_ids: tuple[str, ...]) -> tuple[NewsEvidenceItem, ...]:
         if not event_ids:
             return ()
         with self._database.start().connect() as connection:
@@ -30,7 +20,7 @@ class PostgresNewsEvidenceRepository:
                 {"event_ids": list(event_ids)},
             )
             events = result.fetchall()
-            items: dict[str, PostgresNewsEvidenceItem] = {}
+            items: dict[str, NewsEvidenceItem] = {}
             for event_id, title, published_at in events:
                 docs = connection.execute(
                     text(
@@ -43,7 +33,7 @@ class PostgresNewsEvidenceRepository:
                     ),
                     {"event_id": event_id},
                 )
-                items[event_id] = PostgresNewsEvidenceItem(
+                items[event_id] = NewsEvidenceItem(
                     event_id=event_id, canonical_title=title,
                     first_published_at=published_at,
                     documents=tuple(

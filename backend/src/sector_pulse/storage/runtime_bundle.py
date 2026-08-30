@@ -1,9 +1,5 @@
 # ruff: noqa: E501
-import asyncio
-import inspect
 from dataclasses import dataclass
-from threading import Thread
-from typing import Any
 
 from sector_pulse.application.postgres_review_analytics import PostgresReviewAnalyticsQueries
 from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
@@ -72,44 +68,6 @@ from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
 
 
-def _run_awaitable(awaitable: Any) -> Any:
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(awaitable)
-    result: list[Any] = []
-    error: list[BaseException] = []
-
-    def execute() -> None:
-        try:
-            result.append(asyncio.run(awaitable))
-        except BaseException as exc:  # pragma: no cover - forwarded to caller
-            error.append(exc)
-
-    thread = Thread(target=execute)
-    thread.start()
-    thread.join()
-    if error:
-        raise error[0]
-    return result[0] if result else None
-
-
-class BlockingAsyncRepository:
-    """Expose async PostgreSQL repositories to legacy synchronous services."""
-
-    def __init__(self, target: object) -> None:
-        self._target = target
-
-    def __getattr__(self, name: str) -> Any:
-        method = getattr(self._target, name)
-
-        def call(*args: Any, **kwargs: Any) -> Any:
-            value = method(*args, **kwargs)
-            return _run_awaitable(value) if inspect.isawaitable(value) else value
-
-        return call
-
-
 @dataclass(frozen=True)
 class RuntimeStorageBundle:
     market_snapshots: MarketSnapshotRepositoryPort
@@ -152,23 +110,22 @@ def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
 
 def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
     return RuntimeStorageBundle(
-        market_snapshots=BlockingAsyncRepository(PostgresMarketSnapshotRepository(database)),
-        news=BlockingAsyncRepository(PostgresNewsRepository(database)),
-        evidence=BlockingAsyncRepository(PostgresEvidenceRepository(database)),
-        news_retrieval=BlockingAsyncRepository(PostgresNewsRetrievalRepository(database)),
-        real_data_runs=BlockingAsyncRepository(PostgresRealDataRunRepository(database)),
-        review_analytics=BlockingAsyncRepository(PostgresReviewAnalyticsQueries(database)),
-        task=BlockingAsyncRepository(PostgresTaskRepository(database)),
-        phase1b_runs=BlockingAsyncRepository(PostgresPhase1BRunsRepository(database)),
-        phase1b=BlockingAsyncRepository(PostgresPhase1BRepository(database)),
-        invocations=BlockingAsyncRepository(PostgresAgentInvocationRepository(database)),
-        news_evidence=BlockingAsyncRepository(PostgresNewsEvidenceRepository(database)),
-        draft_edit=BlockingAsyncRepository(PostgresDraftEditRepository(database)),
-        prompt_golden=BlockingAsyncRepository(PostgresPromptGoldenRepository(database)),
-        release_audit=BlockingAsyncRepository(PostgresReleaseAuditRepository(database)),
-        shadow=BlockingAsyncRepository(PostgresShadowAcceptanceRepository(database)), governance=BlockingAsyncRepository(PostgresGovernanceRepository(database)),
-        operations=BlockingAsyncRepository(PostgresOperationsQuery(database)),
-        candidate_selections=BlockingAsyncRepository(
-            PostgresCandidateSelectionRepository(database)
-        ),
+        market_snapshots=PostgresMarketSnapshotRepository(database),
+        news=PostgresNewsRepository(database),
+        evidence=PostgresEvidenceRepository(database),
+        news_retrieval=PostgresNewsRetrievalRepository(database),
+        real_data_runs=PostgresRealDataRunRepository(database),
+        review_analytics=PostgresReviewAnalyticsQueries(database),
+        task=PostgresTaskRepository(database),
+        phase1b_runs=PostgresPhase1BRunsRepository(database),
+        phase1b=PostgresPhase1BRepository(database),
+        invocations=PostgresAgentInvocationRepository(database),
+        news_evidence=PostgresNewsEvidenceRepository(database),
+        draft_edit=PostgresDraftEditRepository(database),
+        prompt_golden=PostgresPromptGoldenRepository(database),
+        release_audit=PostgresReleaseAuditRepository(database),
+        shadow=PostgresShadowAcceptanceRepository(database),
+        governance=PostgresGovernanceRepository(database),
+        operations=PostgresOperationsQuery(database),
+        candidate_selections=PostgresCandidateSelectionRepository(database),
     )
