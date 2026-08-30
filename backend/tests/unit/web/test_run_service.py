@@ -91,6 +91,18 @@ async def test_create_run_lifecycle(tmp_path) -> None:
     assert review.decision.value == "PASS"
 
 
+async def test_cancelled_content_run_is_persisted(tmp_path) -> None:
+    service = _service(tmp_path)
+    run_id = service.create_run(_input_json(), "fixture")
+
+    assert service.cancel_run(run_id)
+    await service.wait(run_id)
+
+    detail = service.get_run(run_id)
+    assert detail is not None
+    assert detail.status == "CANCELLED"
+
+
 async def test_consecutive_fixture_runs_receive_distinct_draft_ids(tmp_path) -> None:
     svc = _service(tmp_path)
     completed = []

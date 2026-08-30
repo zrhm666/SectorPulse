@@ -305,7 +305,15 @@ class RunService:
             raise ProviderUnavailable("run cannot be retried without a completed input snapshot")
         return self.create_run(row.input_json, row.provider)
     def cancel_run(self, run_id: UUID) -> bool:
-        return self._tasks.cancel(run_id)
+        if not self._tasks.cancel(run_id):
+            return False
+        self._runs_repo.update_status(
+            run_id, status="CANCELLED", finished_at=datetime.now(UTC)
+        )
+        return True
+
+    async def wait(self, run_id: UUID) -> None:
+        await self._tasks.wait(run_id)
 
     def list_runs(self, limit: int = 50) -> list[RunSummary]:
         return [

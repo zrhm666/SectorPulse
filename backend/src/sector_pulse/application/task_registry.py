@@ -6,6 +6,7 @@
 
 import asyncio
 from collections.abc import Coroutine
+from contextlib import suppress
 from typing import Any
 from uuid import UUID
 
@@ -31,3 +32,10 @@ class RunTaskRegistry:
 
     def contains(self, run_id: UUID) -> bool:
         return run_id in self._tasks
+
+    async def wait(self, run_id: UUID) -> None:
+        task = self._tasks.get(run_id)
+        if task is None:
+            return
+        with suppress(asyncio.CancelledError):
+            await task

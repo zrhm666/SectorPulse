@@ -289,6 +289,8 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await initialize_database(database)
         task_repository.recover_expired_leases()
+        if run_coordinator is not None:
+            run_coordinator.recover_startup(datetime.now(UTC))
         if scheduler is not None and settings.scheduler_enabled:
             scheduler.recover()
             scheduler.start()
@@ -1051,6 +1053,7 @@ def create_app(
             task_run_service,
             schedule_service,
             scheduled_bridge,
+            real_repository,
         )
         scheduler = EmbeddedScheduler(
             task_repository,

@@ -7,6 +7,7 @@ from sector_pulse.application.run_coordinator import RunCoordinator
 from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
 from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
 
 
@@ -40,6 +41,7 @@ def coordinator(tmp_path: Path):
         TaskRunService(repository),
         schedules,
         bridge,
+        SQLiteRealDataRunRepository(database),
     )
     return service, repository, schedule, bridge
 

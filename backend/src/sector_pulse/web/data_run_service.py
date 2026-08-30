@@ -1,12 +1,14 @@
 import asyncio
 from collections.abc import Callable
+from contextlib import suppress
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 from uuid import UUID, uuid4
 
 from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_orchestrator import run_real_data_workflow
-from sector_pulse.domain.real_data_run import RealDataRunRequest, RealDataRunStatus
+from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.web.progress_bus import ProgressBus
@@ -29,6 +31,9 @@ class DataRunService:
         self._factory = RealDataProviderFactory(consent_file)
         self._allow_fixture = allow_fixture
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
+        self._run_inputs: dict[
+            UUID, tuple[RealDataRunRequest, Literal["fixture", "live"]]
+        ] = {}
 
     def preflight(self, provider: Literal["fixture", "live"]) -> None:
         if provider == "fixture":
@@ -53,24 +58,39 @@ class DataRunService:
         run_id = uuid4()
 
         async def execute() -> None:
-            result = await run_real_data_workflow(
-                dependencies_factory(provider),
-                request,
-                run_id=run_id,
-                provider=provider,
-                progress_sink=lambda status: self.bus.emit(
-                    run_id,
-                    {"type": "progress", "status": status.value},
-                ),
-            )
-            self.bus.finish(result.run.run_id, {"type": "done", "status": result.status.value})
+            try:
+                result = await run_real_data_workflow(
+                    dependencies_factory(provider),
+                    request,
+                    run_id=run_id,
+                    provider=provider,
+                    progress_sink=lambda status: self.bus.emit(
+                        run_id,
+                        {"type": "progress", "status": status.value},
+                    ),
+                )
+                self.bus.finish(
+                    result.run.run_id, {"type": "done", "status": result.status.value}
+                )
+            except asyncio.CancelledError:
+                self._persist_cancelled(run_id, request, provider)
+                self.bus.finish(
+                    run_id, {"type": "cancelled", "status": "CANCELLED"}
+                )
+                raise
 
         async def create_and_run() -> None:
             await execute()
 
         task = asyncio.create_task(create_and_run())
         self._tasks[run_id] = task
-        task.add_done_callback(lambda _: self._tasks.pop(run_id, None))
+        self._run_inputs[run_id] = (request, provider)
+
+        def forget(_task: asyncio.Task[None]) -> None:
+            self._tasks.pop(run_id, None)
+            self._run_inputs.pop(run_id, None)
+
+        task.add_done_callback(forget)
         return run_id
 
     def cancel(self, run_id: UUID) -> bool:
@@ -78,7 +98,40 @@ class DataRunService:
         if task is None or task.done():
             return False
         task.cancel()
+        request, provider = self._run_inputs[run_id]
+        self._persist_cancelled(run_id, request, provider)
         return True
+
+    def _persist_cancelled(
+        self,
+        run_id: UUID,
+        request: RealDataRunRequest,
+        provider: Literal["fixture", "live"],
+    ) -> None:
+        finished_at = datetime.now(UTC)
+        if self.repository.get_run(run_id) is None:
+            self.repository.insert(
+                RealDataRun(
+                    run_id=run_id,
+                    request=request,
+                    provider=provider,
+                    status=RealDataRunStatus.CANCELLED,
+                    finished_at=finished_at,
+                )
+            )
+        else:
+            self.repository.update_status(
+                run_id,
+                RealDataRunStatus.CANCELLED,
+                finished_at=finished_at,
+            )
+
+    async def wait(self, run_id: UUID) -> None:
+        task = self._tasks.get(run_id)
+        if task is None:
+            return
+        with suppress(asyncio.CancelledError):
+            await task
 
     def retry(self, run_id: UUID) -> UUID:
         source = self.repository.get_run(run_id)

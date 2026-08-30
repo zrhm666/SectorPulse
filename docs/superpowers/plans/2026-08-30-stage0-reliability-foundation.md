@@ -341,7 +341,7 @@ git commit -m "fix: unify manual and scheduled run execution"
 **Interfaces:**
 - Produces: persisted cancel request/terminal state and `RunCoordinator.recover_startup(now)`.
 
-- [ ] **Step 1: Write cancellation and startup recovery failures**
+- [x] **Step 1: Write cancellation and startup recovery failures**
 
 ```python
 @pytest.mark.asyncio
@@ -367,11 +367,11 @@ def test_startup_marks_running_task_interrupted(coordinator, task_repository) ->
     assert task_repository.get_task_detail(run_id)["status"] == "INTERRUPTED"
 ```
 
-- [ ] **Step 2: Run and verify cancellation/recovery fail with stale active state**
+- [x] **Step 2: Run and verify cancellation/recovery fail with stale active state**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/web/test_data_run_service.py backend/tests/integration/test_phase2a_recovery.py -q`
 
-- [ ] **Step 3: Persist cancellation in the executor and invoke recovery from lifespan**
+- [x] **Step 3: Persist cancellation in the executor and invoke recovery from lifespan**
 
 ```python
 async def execute() -> None:
@@ -397,11 +397,11 @@ async def execute() -> None:
 
 Call `coordinator.recover_startup(datetime.now(UTC))` after database initialization and before scheduler startup. Add `wait(run_id)` for tests and controlled shutdown only; do not expose it as a blocking API.
 
-- [ ] **Step 4: Run lifecycle and API tests**
+- [x] **Step 4: Run lifecycle and API tests**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/web backend/tests/integration/test_phase2a_recovery.py backend/tests/integration/test_web_api.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/web backend/src/sector_pulse/application/run_coordinator.py backend/tests/unit/web backend/tests/integration

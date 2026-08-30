@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from sector_pulse.application.schedule_service import ScheduleService, ScheduleView
 from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.domain.task import TaskRunStatus
-from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+from sector_pulse.storage.ports import RealDataRunRepositoryPort, RuntimeTaskRepositoryPort
 
 
 class ScheduleDataRunBridge(Protocol):
@@ -22,11 +22,20 @@ class RunCoordinator:
         task_runs: TaskRunService,
         schedules: ScheduleService,
         bridge: ScheduleDataRunBridge,
+        real_runs: RealDataRunRepositoryPort,
     ) -> None:
         self._repository = repository
         self._task_runs = task_runs
         self._schedules = schedules
         self._bridge = bridge
+        self._real_runs = real_runs
+
+    def recover_startup(self, now: datetime) -> int:
+        real_runs = self._real_runs.mark_interrupted()
+        task_runs = self._repository.recover_interrupted(
+            now, "process restarted before run completion"
+        )
+        return real_runs + task_runs
 
     def start_schedule_now(
         self, schedule_id: UUID, idempotency_key: str | None = None
