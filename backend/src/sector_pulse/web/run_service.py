@@ -76,9 +76,7 @@ class RunService:
         request = Phase1BRequest.model_validate({"run_id": str(run_id), **input_json})
         if provider == "live":
             request = request.model_copy(
-                update={
-                    "verified_sources_by_sector": self._load_verified_sources(request)
-                }
+                update={"verified_sources_by_sector": self._load_verified_sources(request)}
             )
         # 输入里的 contexts/gates 可能携带其它 run_id，统一归一到本次生成的 run_id，
         # 保证 attribution 落库与后续按 run_id 读取（雷达/证据）保持一致。
@@ -86,8 +84,7 @@ class RunService:
             update={
                 "run_id": run_id,
                 "contexts": tuple(
-                    context.model_copy(update={"run_id": run_id})
-                    for context in request.contexts
+                    context.model_copy(update={"run_id": run_id}) for context in request.contexts
                 ),
                 "gates": {
                     sector_id: gate.model_copy(update={"run_id": run_id})
@@ -115,9 +112,7 @@ class RunService:
                 self.rid = rid
 
             def emit(self, stage: str, detail: dict[str, Any]) -> None:
-                self.bus.emit(
-                    self.rid, {"type": "progress", "stage": stage, "detail": detail}
-                )
+                self.bus.emit(self.rid, {"type": "progress", "stage": stage, "detail": detail})
 
         bridge = BridgeSink(self._bus, run_id)
         self._tasks.start(run_id, self._execute(run_id, request, provider, bridge))
@@ -131,20 +126,14 @@ class RunService:
         for context in request.contexts:
             event_ids = tuple(
                 dict.fromkeys(
-                    context.eligible_event_ids
-                    + context.background_event_ids
-                    + context.event_ids
+                    context.eligible_event_ids + context.background_event_ids + context.event_ids
                 )
             )
             events = self._news_evidence.get_events(event_ids)
             sources: list[ArticleSource] = []
             for event in events[:5]:
                 document = next(
-                    (
-                        item
-                        for item in event.documents
-                        if item.get("citation_url")
-                    ),
+                    (item for item in event.documents if item.get("citation_url")),
                     None,
                 )
                 if document is None:
@@ -198,9 +187,7 @@ class RunService:
             )
             self._bus.emit(run_id, {"type": "done", "status": result.status})
         except asyncio.CancelledError:
-            self._runs_repo.update_status(
-                run_id, status="CANCELLED", finished_at=datetime.now(UTC)
-            )
+            self._runs_repo.update_status(run_id, status="CANCELLED", finished_at=datetime.now(UTC))
             self._bus.emit(run_id, {"type": "cancelled"})
         except ProviderUnavailable as exc:
             self._runs_repo.update_status(
@@ -268,6 +255,7 @@ class RunService:
             for stage, route in self._config.routes.items()
         }
         return self._config.model_copy(update={"routes": routes})
+
     def _build_llm(self, provider: str, run_id: UUID) -> Any:
         if provider == "fixture":
             from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
@@ -306,12 +294,11 @@ class RunService:
         if row is None or row.status in {"RUNNING"} or row.input_json is None:
             raise ProviderUnavailable("run cannot be retried without a completed input snapshot")
         return self.create_run(row.input_json, row.provider)
+
     def cancel_run(self, run_id: UUID) -> bool:
         if not self._tasks.cancel(run_id):
             return False
-        self._runs_repo.update_status(
-            run_id, status="CANCELLED", finished_at=datetime.now(UTC)
-        )
+        self._runs_repo.update_status(run_id, status="CANCELLED", finished_at=datetime.now(UTC))
         return True
 
     async def wait(self, run_id: UUID) -> None:

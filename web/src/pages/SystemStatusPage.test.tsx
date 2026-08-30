@@ -32,7 +32,7 @@ describe('SystemStatusPage', () => {
     render(<SystemStatusPage />)
 
     expect(await screen.findByRole('heading', { level: 1, name: '系统状态' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: '系统连接状态' })).toBeVisible()
+    expect(await screen.findByRole('region', { name: '系统连接状态' })).toBeVisible()
     expect(screen.getByText('缺少 live-data-consent')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '调度器' })).toBeVisible()
     expect(screen.getByText(/检查时间/)).toHaveTextContent('2026')

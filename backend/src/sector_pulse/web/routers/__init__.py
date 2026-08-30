@@ -1,0 +1,1 @@
+"""Capability-scoped FastAPI routers."""

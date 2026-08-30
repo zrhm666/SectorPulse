@@ -978,7 +978,7 @@ Run: `npm.cmd test -- --run`
 
 Run: `npm.cmd run test:e2e -- shell.spec.ts`
 
-- [ ] **Step 5: Commit**
+  - [x] **Step 5: Commit**
 
 ```powershell
 git add web/src web/e2e/shell.spec.ts
@@ -1010,7 +1010,7 @@ git commit -m "fix: align run status and mobile focus"
 **Interfaces:**
 - Produces: `build_*_router(dependencies) -> APIRouter`; public paths and response models remain unchanged.
 
-- [ ] **Step 1: Add a route manifest test before moving handlers**
+  - [x] **Step 1: Add a route manifest test before moving handlers**
 
 ```python
 EXPECTED_ROUTES = {
@@ -1039,11 +1039,11 @@ def test_internal_error_response_is_sanitized(app: FastAPI) -> None:
     assert "secret-token" not in response.text
 ```
 
-- [ ] **Step 2: Run API tests for the baseline**
+  - [x] **Step 2: Run API tests for the baseline**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_web_api.py backend/tests/integration/test_phase2a_api.py backend/tests/integration/test_phase2b_api.py backend/tests/integration/test_phase4_review_api.py -q`
 
-- [ ] **Step 3: Move handlers without changing signatures or behavior**
+  - [x] **Step 3: Move handlers without changing signatures or behavior**
 
 ```python
 def build_data_runs_router(dependencies: RuntimeDependencies) -> APIRouter:
@@ -1069,13 +1069,13 @@ def build_data_runs_router(dependencies: RuntimeDependencies) -> APIRouter:
 
 Register exception handlers from `errors.py` for domain conflicts, missing resources, unavailable dependencies, and unexpected failures. Every response uses `{"error": {"code": str, "message": str, "retryable": bool}}`; unexpected exception details go only to timestamped server logs, after redacting URL credentials and configured API-key values.
 
-- [ ] **Step 4: Run all backend web/API tests and Mypy for web routers**
+  - [x] **Step 4: Run all backend web/API tests and Mypy for web routers**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/web backend/tests/integration/test_*api.py backend/tests/integration/test_web_api.py -q`
 
 Run: `\.venv\Scripts\python.exe -m mypy backend/src/sector_pulse/web`
 
-- [ ] **Step 5: Commit**
+  - [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/web backend/tests

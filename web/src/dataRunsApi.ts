@@ -245,8 +245,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     let detail: string | undefined
     try {
-      const body = await response.json() as { detail?: unknown }
-      if (typeof body.detail === 'string') detail = body.detail
+      const body = await response.json() as {
+        detail?: unknown
+        error?: { message?: unknown }
+      }
+      if (typeof body.error?.message === 'string') detail = body.error.message
+      else if (typeof body.detail === 'string') detail = body.detail
     } catch {
       // Preserve a useful status fallback when an upstream proxy returns non-JSON.
     }

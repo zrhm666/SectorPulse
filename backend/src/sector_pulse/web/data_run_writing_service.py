@@ -34,9 +34,7 @@ class DataRunWritingService:
         self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")
 
-    def generate(
-        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None
-    ) -> UUID:
+    def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
         if not self._consent_file.is_file():
             raise ValueError("LIVE_LLM_CONSENT_REQUIRED")
         run = self._repository.get_run(run_id)

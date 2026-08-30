@@ -45,7 +45,11 @@ def test_default_data_run_api_rejects_unsafe_fixture_alias(tmp_path) -> None:
         )
 
     assert resp.status_code == 409
-    assert resp.json()["detail"] == "fixture data provider is not configured"
+    assert resp.json()["error"] == {
+        "code": "CONFLICT",
+        "message": "fixture data provider is not configured",
+        "retryable": False,
+    }
 
 def test_create_and_get_run(tmp_path) -> None:
     client = _client(tmp_path)

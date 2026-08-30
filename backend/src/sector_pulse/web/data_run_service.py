@@ -31,9 +31,7 @@ class DataRunService:
         self._factory = RealDataProviderFactory(consent_file)
         self._allow_fixture = allow_fixture
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
-        self._run_inputs: dict[
-            UUID, tuple[RealDataRunRequest, Literal["fixture", "live"]]
-        ] = {}
+        self._run_inputs: dict[UUID, tuple[RealDataRunRequest, Literal["fixture", "live"]]] = {}
 
     def preflight(self, provider: Literal["fixture", "live"]) -> None:
         if provider == "fixture":
@@ -69,14 +67,10 @@ class DataRunService:
                         {"type": "progress", "status": status.value},
                     ),
                 )
-                self.bus.finish(
-                    result.run.run_id, {"type": "done", "status": result.status.value}
-                )
+                self.bus.finish(result.run.run_id, {"type": "done", "status": result.status.value})
             except asyncio.CancelledError:
                 self._persist_cancelled(run_id, request, provider)
-                self.bus.finish(
-                    run_id, {"type": "cancelled", "status": "CANCELLED"}
-                )
+                self.bus.finish(run_id, {"type": "cancelled", "status": "CANCELLED"})
                 raise
 
         async def create_and_run() -> None:

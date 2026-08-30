@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from sector_pulse.application.candidate_selection_service import CandidateSelectionService
 from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
+from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
+from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
+from sector_pulse.application.real_data_queries import RealDataRunQueries
+from sector_pulse.application.run_commands import RunCommandService
 from sector_pulse.application.run_coordinator import RunCoordinator
+from sector_pulse.application.run_queries import RunQueryService
 from sector_pulse.application.schedule_service import ScheduleService
 from sector_pulse.application.scheduled_data_bridge import ScheduledDataRunBridge
 from sector_pulse.application.scheduler import EmbeddedScheduler
@@ -36,6 +42,7 @@ from sector_pulse.storage.runtime_bundle import (
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.data_run_writing_service import DataRunWritingService
 from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.routers.runs_review import ReviewRouterDependencies
 from sector_pulse.web.run_service import RunService
 
 
@@ -53,6 +60,20 @@ class RuntimeDependencies:
     candidate_selection_service: CandidateSelectionService
     workbench_queries: DataRunWorkbenchQueries
     bus: ProgressBus
+
+
+@dataclass(frozen=True)
+class WebRouterDependencies:
+    commands: RunCommandService
+    queries: RunQueryService
+    real_queries: RealDataRunQueries
+    workbench_queries: DataRunWorkbenchQueries
+    candidate_selection_service: CandidateSelectionService
+    data_run_service: DataRunService
+    writing_service: DataRunWritingService
+    coordinator: RunCoordinator
+    scheduler: EmbeddedScheduler
+    review: ReviewRouterDependencies
 
 
 @dataclass(frozen=True)
@@ -91,9 +112,7 @@ def build_runtime_dependencies(
         raise RuntimeError("candidate selection repository is not configured")
 
     bus = ProgressBus()
-    runtime_config = settings.apply_runtime_overrides(
-        load_llm_config(Path("config/llm.yaml"))
-    )
+    runtime_config = settings.apply_runtime_overrides(load_llm_config(Path("config/llm.yaml")))
     run_service = RunService(
         runs_repo=storage.phase1b_runs,
         phase1b_repo=phase1b_repository,
@@ -167,4 +186,72 @@ def build_runtime_dependencies(
         candidate_selection_service=candidate_selection_service,
         workbench_queries=DataRunWorkbenchQueries(storage),
         bus=bus,
+    )
+
+
+def build_web_router_dependencies(
+    runtime: RuntimeDependencies,
+    settings: ApplicationSettings,
+    overrides: dict[str, Any] | None = None,
+) -> WebRouterDependencies:
+    service = overrides.get("service") if overrides else None
+    if service is None:
+        service = runtime.run_service
+    workbench_queries = overrides.get("workbench_queries") if overrides else None
+    if workbench_queries is None:
+        workbench_queries = runtime.workbench_queries
+    candidate_selection_service = (
+        overrides.get("candidate_selection_service") if overrides else None
+    )
+    if candidate_selection_service is None:
+        candidate_selection_service = runtime.candidate_selection_service
+    data_run_service = overrides.get("data_run_service") if overrides else None
+    if data_run_service is None:
+        data_run_service = runtime.data_run_service
+    writing_service = overrides.get("writing_service") if overrides else None
+    if writing_service is None:
+        writing_service = runtime.writing_service
+
+    scheduled_bridge = ScheduledDataRunBridge(
+        runtime.storage.task,
+        runtime.storage.real_data_runs,
+        data_run_service,
+        writing_service,
+        candidate_selection_service,
+    )
+    coordinator = RunCoordinator(
+        runtime.storage.task,
+        runtime.task_run_service,
+        runtime.schedule_service,
+        scheduled_bridge,
+        runtime.storage.real_data_runs,
+    )
+    scheduler = EmbeddedScheduler(
+        runtime.storage.task,
+        runtime.schedule_service,
+        None,
+        poll_seconds=settings.scheduler_poll_seconds,
+        bridge=scheduled_bridge,
+        coordinator=coordinator,
+    )
+    evidence_service = EvidenceDecisionService(runtime.storage.governance)
+    return WebRouterDependencies(
+        commands=RunCommandService(service),
+        queries=RunQueryService(service),
+        real_queries=RealDataRunQueries(runtime.storage.real_data_runs),
+        workbench_queries=workbench_queries,
+        candidate_selection_service=candidate_selection_service,
+        data_run_service=data_run_service,
+        writing_service=writing_service,
+        coordinator=coordinator,
+        scheduler=scheduler,
+        review=ReviewRouterDependencies(
+            review_analytics=runtime.storage.review_analytics,
+            draft_edits=runtime.storage.draft_edit,
+            phase1b=runtime.storage.phase1b,
+            governance_service=GovernanceService(),
+            release_audit=runtime.storage.release_audit,
+            evidence_repository=runtime.storage.governance,
+            evidence_service=evidence_service,
+        ),
     )

@@ -28,8 +28,12 @@ async function reviewRequest<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     let detail: string | null = null
     try {
-      const body = await response.json() as { detail?: unknown }
-      if (typeof body.detail === 'string') detail = body.detail
+      const body = await response.json() as {
+        detail?: unknown
+        error?: { message?: unknown }
+      }
+      if (typeof body.error?.message === 'string') detail = body.error.message
+      else if (typeof body.detail === 'string') detail = body.detail
     } catch {
       // Proxies can return non-JSON bodies; keep the message safe and local.
     }

@@ -182,7 +182,9 @@ def test_static_spa_fallback_keeps_unknown_api_routes_as_404(tmp_path) -> None:
     assert client.get("/review").status_code == 200
     response = client.get("/api/does-not-exist")
     assert response.status_code == 404
-    assert response.json() == {"detail": "not found"}
+    assert response.json() == {
+        "error": {"code": "NOT_FOUND", "message": "not found", "retryable": False}
+    }
 
 
 def test_data_run_workbench_endpoints_return_independent_payloads(tmp_path) -> None:
@@ -363,5 +365,11 @@ def test_generate_without_a_confirmed_selection_is_rejected(tmp_path) -> None:
     response = client.post(f"/api/data-runs/{run_id}/generate")
 
     assert response.status_code == 409
-    assert response.json() == {"detail": "CANDIDATE_SELECTION_REQUIRED"}
+    assert response.json() == {
+        "error": {
+            "code": "CANDIDATE_SELECTION_REQUIRED",
+            "message": "CANDIDATE_SELECTION_REQUIRED",
+            "retryable": False,
+        }
+    }
     assert writing.generate_call is None
