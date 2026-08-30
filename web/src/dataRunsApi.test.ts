@@ -12,6 +12,7 @@ import {
   fetchDataRunNewsRecords,
   generateDataRunArticle,
   retryDataRun,
+  cancelDataRun,
 } from './dataRunsApi'
 
 
@@ -129,6 +130,14 @@ describe('data run workbench api', () => {
     expect(fetch).toHaveBeenCalledWith('/api/data-runs/run-1/retry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  it('requests cancellation without treating the response as persisted state', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ run_id: 'run-1', status: 'CANCELLED' }), { status: 200 }))
+    await expect(cancelDataRun('run-1')).resolves.toEqual({ run_id: 'run-1', status: 'CANCELLED' })
+    expect(fetch).toHaveBeenCalledWith('/api/data-runs/run-1/cancel', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
     })
   })
 

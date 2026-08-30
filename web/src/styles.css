@@ -553,7 +553,7 @@ a { color: var(--color-primary); }
   .run-table td::before { color: var(--color-muted-text); content: attr(data-label); font-size: .75rem; font-weight: 650; }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .sidebar-nav {
     position: fixed;
     z-index: 20;

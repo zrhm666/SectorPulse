@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import type { NavigationItem } from './navigation'
 import AppIcon from '../components/ui/AppIcon'
@@ -7,11 +7,17 @@ import Button from '../components/ui/Button'
 export type SidebarNavProps = {
   items: NavigationItem[]
   open: boolean
+  isNarrow: boolean
   onClose: () => void
 }
 
-export default function SidebarNav({ items, open, onClose }: SidebarNavProps) {
+export default function SidebarNav({ items, open, isNarrow, onClose }: SidebarNavProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    if (sidebarRef.current) sidebarRef.current.inert = isNarrow && !open
+  }, [isNarrow, open])
 
   useEffect(() => {
     if (open) closeButtonRef.current?.focus()
@@ -19,7 +25,7 @@ export default function SidebarNav({ items, open, onClose }: SidebarNavProps) {
 
   return (
     <>
-      <aside className="sidebar-nav" data-open={open}>
+      <aside ref={sidebarRef} className="sidebar-nav" data-open={open} aria-hidden={isNarrow && !open ? true : undefined}>
         <nav aria-label="主导航" data-open={open} id="primary-navigation">
           <div className="sidebar-nav__header">
             <div className="sidebar-nav__brand">

@@ -28,6 +28,7 @@ import {
   fetchDataRunQuality,
   generateDataRunArticle,
   retryDataRun,
+  cancelDataRun,
 } from '../dataRunsApi'
 import useDataRunWorkbench from '../hooks/useDataRunWorkbench'
 import InlineAlert from '../components/ui/InlineAlert'
@@ -96,6 +97,7 @@ export default function DataRunPage() {
   const [qualityError, setQualityError] = useState<string | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const [marketDetail, setMarketDetail] = useState<MarketSectorView | null>(null)
   const [newsDetailOpen, setNewsDetailOpen] = useState(false)
   const [newsDetail, setNewsDetail] = useState<DataRunNewsDetailView | null>(null)
@@ -329,6 +331,25 @@ export default function DataRunPage() {
     }
   }
 
+  const cancel = async () => {
+    setActionBusy(true)
+    setActionError(null)
+    setCancelling(true)
+    try {
+      await cancelDataRun(runId)
+      await workbench.refresh()
+    } catch (reason) {
+      setActionError(message(reason, '取消请求失败，请重试。'))
+      setCancelling(false)
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    if (workbench.summary?.terminal) setCancelling(false)
+  }, [workbench.summary?.terminal])
+
   if (workbench.initialLoading) return <LoadingState label="正在加载数据运行…" />
   if (workbench.error && !run) return <InlineAlert tone="error" title="无法加载数据运行">{workbench.error}<div><button className="button button-secondary" type="button" onClick={() => void workbench.refresh()}>重新加载</button></div></InlineAlert>
   if (!run) return null
@@ -351,11 +372,11 @@ export default function DataRunPage() {
       { label: '候选板块', value: candidatesLoading ? '加载中' : candidatePage?.total || '尚未产生' },
       { label: '完成时间', value: run.finished_at ? formatDate(run.finished_at) : '尚未完成' },
     ]} />
-    {workbench.stale && <InlineAlert tone="warning" title="显示最近一次成功数据">{workbench.error}</InlineAlert>}
+    {workbench.stale && <InlineAlert tone="warning" title="显示最近一次成功数据">{cancelling ? '取消请求已接收，但状态刷新暂时失败；系统会自动重试。' : workbench.error}</InlineAlert>}
     {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
     <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
     <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={acquisitionError} />
-    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} selectionConfirmed={Boolean(selection?.confirmed)} selectionDirty={selectionDirty} onGenerate={() => void generate()} onRetry={() => void retry()} />
+    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} selectionConfirmed={Boolean(selection?.confirmed)} selectionDirty={selectionDirty} onGenerate={() => void generate()} onRetry={() => void retry()} onCancel={() => void cancel()} cancelling={cancelling} />
     <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
     <Panel className="data-workbench-panel" density="compact"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
       {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} onOpenDetail={setMarketDetail} />}

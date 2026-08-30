@@ -29,6 +29,7 @@ export default function TaskRunPage() {
     <section className="management-page task-run-page">
       <PageHeader title={`任务 ${run.run_id.slice(0, 8)}`} description="查看调度任务状态、阶段尝试与降级信息。" />
       <SummaryStrip label="任务摘要" items={[{ label: '状态', value: <StatusBadge status={run.status} /> }, { label: 'Provider', value: run.provider }, { label: '输入指纹', value: <code>{run.input_fingerprint.slice(0, 12)}</code> }, { label: '阶段记录', value: run.stages.length }]} />
+      {run.status === 'INTERRUPTED' && <InlineAlert tone="warning" title="任务在服务重启时中断">状态已经持久化，不会被误报为仍在运行；如有需要，可以从对应计划重新发起。</InlineAlert>}
       {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="任务发生降级">{run.downgrade_reasons.join('、')}</InlineAlert>}
       <section aria-label="任务阶段">
         <Panel density="compact" title="阶段历史" description="每次尝试按执行顺序保留，便于定位失败与恢复位置。">

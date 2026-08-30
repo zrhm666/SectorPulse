@@ -1,8 +1,23 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import AppShell from './AppShell'
+
+function setNarrow(matches: boolean) {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches,
+    media: '(max-width: 900px)',
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })))
+}
+
+afterEach(() => vi.unstubAllGlobals())
 
 function renderShellAt(path: string) {
   return render(
@@ -35,6 +50,7 @@ it('renders available navigation and marks the current route', () => {
 })
 
 it('opens and closes navigation on narrow layouts', async () => {
+  setNarrow(true)
   const user = userEvent.setup()
   renderShellAt('/runs')
 
@@ -46,7 +62,30 @@ it('opens and closes navigation on narrow layouts', async () => {
 
   await user.click(screen.getByRole('button', { name: '关闭导航' }))
   expect(menuButton).toHaveAttribute('aria-expanded', 'false')
-  expect(screen.getByRole('navigation', { name: '主导航' })).toHaveAttribute('data-open', 'false')
+  expect(screen.getByRole('navigation', { name: '主导航', hidden: true })).toHaveAttribute('data-open', 'false')
+})
+
+it('removes only a closed narrow navigation from accessibility and focus order', async () => {
+  setNarrow(true)
+  const user = userEvent.setup()
+  renderShellAt('/runs')
+
+  const sidebar = document.querySelector('aside.sidebar-nav') as HTMLElement
+  expect(sidebar).toHaveAttribute('aria-hidden', 'true')
+  expect(sidebar.inert).toBe(true)
+
+  await user.click(screen.getByRole('button', { name: '打开导航' }))
+  expect(sidebar).not.toHaveAttribute('aria-hidden')
+  expect(sidebar.inert).toBe(false)
+})
+
+it('never hides the desktop sidebar', () => {
+  setNarrow(false)
+  renderShellAt('/runs')
+
+  const sidebar = document.querySelector('aside.sidebar-nav') as HTMLElement
+  expect(sidebar).not.toHaveAttribute('aria-hidden')
+  expect(sidebar.inert).toBe(false)
 })
 
 it('renders one decorative outline icon for each navigation link', () => {
@@ -77,6 +116,7 @@ it('maps detail routes without adding them to primary navigation', () => {
 })
 
 it('moves focus into the opened navigation and closes it with Escape', async () => {
+  setNarrow(true)
   const user = userEvent.setup()
   renderShellAt('/runs')
 

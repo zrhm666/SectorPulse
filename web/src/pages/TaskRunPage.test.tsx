@@ -36,4 +36,15 @@ describe('TaskRunPage', () => {
     expect(await screen.findByText('阶段历史')).toBeVisible()
     expect(api.fetchTaskRun).toHaveBeenCalledTimes(2)
   })
+
+  it('explains that an interrupted task can be safely started again', async () => {
+    vi.mocked(api.fetchTaskRun).mockResolvedValue({
+      run_id: 'run-1', status: 'INTERRUPTED', provider: 'fixture', input_fingerprint: 'hash',
+      stages: [], events: [], downgrade_reasons: [],
+    })
+    render(<MemoryRouter initialEntries={['/task-runs/run-1']}><Routes><Route path="/task-runs/:runId" element={<TaskRunPage />} /></Routes></MemoryRouter>)
+
+    expect(await screen.findByText('任务在服务重启时中断')).toBeVisible()
+    expect(screen.getByText(/状态已经持久化/)).toBeVisible()
+  })
 })

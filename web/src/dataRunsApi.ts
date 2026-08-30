@@ -381,6 +381,12 @@ export function retryDataRun(runId: string): Promise<{ run_id: string }> {
   })
 }
 
+export function cancelDataRun(runId: string): Promise<{ run_id: string; status: string }> {
+  return request(`${dataRunPath(runId)}/cancel`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 export function createDataRun(input: NewDataRunRequest): Promise<{ run_id: string }> {
   return request('/data-runs', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),

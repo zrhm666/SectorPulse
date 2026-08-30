@@ -15,9 +15,11 @@ type Props = {
   selectionDirty?: boolean
   onGenerate: () => void
   onRetry: () => void
+  onCancel: () => void
+  cancelling: boolean
 }
 
-export default function DataRunActionPanel({ run, contentRun, busy, error, candidateCount, candidatesLoading, selectionConfirmed = true, selectionDirty = false, onGenerate, onRetry }: Props) {
+export default function DataRunActionPanel({ run, contentRun, busy, error, candidateCount, candidatesLoading, selectionConfirmed = true, selectionDirty = false, onGenerate, onRetry, onCancel, cancelling }: Props) {
   let action
   let description = '数据采集完成后，可从这里继续生成分析稿。'
   if (contentRun) {
@@ -40,7 +42,8 @@ export default function DataRunActionPanel({ run, contentRun, busy, error, candi
     description = run.error_code ? `本次运行未能继续：${run.error_code}` : '本次运行未能继续，可按原参数重新采集。'
     action = <button className="button button-primary" type="button" disabled={busy} onClick={onRetry}>{busy ? '正在创建新运行…' : '按原参数重新采集'}</button>
   } else {
-    action = <button className="button button-secondary" type="button" disabled>等待数据就绪</button>
+    description = cancelling ? '取消请求已发送，正在等待后端持久化最终状态。' : '数据运行仍在处理，可以安全地请求取消。'
+    action = <button className="button button-secondary" type="button" disabled={busy || cancelling} onClick={onCancel}>{cancelling ? '正在取消' : '取消运行'}</button>
   }
   return (
     <section className="data-run-action" aria-label="下一步操作">

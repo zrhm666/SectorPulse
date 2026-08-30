@@ -932,7 +932,7 @@ git commit -m "fix: make draft autosave deterministic"
 **Interfaces:**
 - Consumes: cancellation and `INTERRUPTED` API states from Task 5.
 
-- [ ] **Step 1: Add failing status and keyboard tests**
+  - [x] **Step 1: Add failing status and keyboard tests**
 
 ```typescript
 it('keeps cancelling state until persisted CANCELLED arrives', async () => {
@@ -948,11 +948,11 @@ it('removes the closed mobile navigation from the tab order', async ({ page }) =
 })
 ```
 
-- [ ] **Step 2: Run focused component and shell E2E tests and verify failure**
+  - [x] **Step 2: Run focused component and shell E2E tests and verify failure**
 
 Run: `npm.cmd test -- src/layout/AppShell.test.tsx src/pages/DataRunPage.test.tsx src/pages/TaskRunPage.test.tsx --run`
 
-- [ ] **Step 3: Add `inert`, focus restoration, and persisted status copy**
+  - [x] **Step 3: Add `inert`, focus restoration, and persisted status copy**
 
 ```tsx
 const isNarrow = useMediaQuery('(max-width: 1024px)')
@@ -972,7 +972,7 @@ useEffect(() => {
 
 `useMediaQuery` must subscribe with `MediaQueryList.addEventListener('change', listener)`, remove that exact listener on cleanup, and initialize from `window.matchMedia(query).matches`. When the drawer closes, return focus to the menu trigger; when Escape is pressed inside an open drawer, close it. Do not hide the desktop sidebar. After `POST /cancel` succeeds, keep polling the run resource every two seconds until `CANCELLED`, `FAILED`, `INTERRUPTED`, or another terminal status is persisted; render retryable request-error copy if polling fails.
 
-- [ ] **Step 4: Run component, E2E shell, and full frontend tests**
+  - [x] **Step 4: Run component, E2E shell, and full frontend tests**
 
 Run: `npm.cmd test -- --run`
 

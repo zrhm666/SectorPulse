@@ -134,6 +134,24 @@ beforeEach(() => {
     }),
   )
   vi.mocked(api.retryDataRun).mockResolvedValue({ run_id: 'run-2' })
+  vi.mocked(api.cancelDataRun).mockResolvedValue({ run_id: 'run-1', status: 'CANCELLED' })
+})
+
+it('keeps cancelling state until persisted CANCELLED arrives', async () => {
+  vi.mocked(api.fetchDataRun).mockResolvedValue({
+    ...READY_RUN, status: 'FETCHING_NEWS', cutoff_at: null, finished_at: null,
+  })
+  vi.mocked(api.fetchDataRunSummary).mockResolvedValue({
+    run_id: 'run-1', status: 'FETCHING_NEWS', terminal: false,
+    workflow_stage: 'NEWS_COLLECTION', workflow_stage_index: 3,
+    requested_at: READY_RUN.requested_at, cutoff_at: null, finished_at: null, candidate_count: 0,
+  })
+  renderPage()
+
+  await userEvent.click(await screen.findByRole('button', { name: '取消运行' }))
+  expect(await screen.findByText('正在取消')).toBeVisible()
+  expect(screen.queryByText('已取消')).not.toBeInTheDocument()
+  expect(api.cancelDataRun).toHaveBeenCalledWith('run-1')
 })
 
 it('renders metadata and workbench tabs as named regions', async () => {
@@ -155,7 +173,7 @@ it('shows only the current collection stage as running', async () => {
 
   renderPage()
 
-  expect(await screen.findByText('等待数据就绪')).toBeDisabled()
+  expect(await screen.findByRole('button', { name: '取消运行' })).toBeEnabled()
   expect(screen.getAllByTestId('data-run-stage-state').map((node) => node.textContent)).toEqual([
     '进行中', '等待中', '等待中', '等待中', '等待中',
   ])
