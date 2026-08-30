@@ -22,6 +22,10 @@ class ScheduledRunBridge(Protocol):
     def advance(self) -> int: ...
 
 
+class ScheduledRunCoordinator(Protocol):
+    def start_scheduled(self, schedule: ScheduleView, now: datetime) -> UUID: ...
+
+
 class EmbeddedScheduler:
     """单进程调度循环；到期计算与任务幂等创建均落在数据库边界内。"""
 
@@ -33,12 +37,14 @@ class EmbeddedScheduler:
         *,
         poll_seconds: int = 10,
         bridge: ScheduledRunBridge | None = None,
+        coordinator: ScheduledRunCoordinator | None = None,
     ) -> None:
         self._repository = repository
         self._schedules = schedules
         self._executor = executor
         self._poll_seconds = poll_seconds
         self._bridge = bridge
+        self._coordinator = coordinator
         self._task: asyncio.Task[None] | None = None
 
     async def poll_once(self, now: datetime | None = None) -> None:
@@ -49,26 +55,32 @@ class EmbeddedScheduler:
             if due is None:
                 continue
             trading_date = due.astimezone(ZoneInfo(schedule.timezone)).date().isoformat()
-            fingerprint = hashlib.sha256(
-                json.dumps(
-                    schedule.input_template, ensure_ascii=False, sort_keys=True
-                ).encode("utf-8")
-            ).hexdigest()
-            run_id = self._repository.create_or_get_run(
-                TaskRunKey(
-                    schedule_id=schedule.schedule_id,
-                    trading_date=trading_date,
-                    planned_slot=schedule.local_time,
-                    input_fingerprint=fingerprint,
-                ),
-                "live",
-                schedule.input_template,
-            )
+            if self._coordinator is not None:
+                self._coordinator.start_scheduled(schedule, current)
+                run_id = None
+            else:
+                fingerprint = hashlib.sha256(
+                    json.dumps(
+                        schedule.input_template, ensure_ascii=False, sort_keys=True
+                    ).encode("utf-8")
+                ).hexdigest()
+                run_id = self._repository.create_or_get_run(
+                    TaskRunKey(
+                        schedule_id=schedule.schedule_id,
+                        trading_date=trading_date,
+                        planned_slot=schedule.local_time,
+                        input_fingerprint=fingerprint,
+                    ),
+                    "live",
+                    schedule.input_template,
+                )
             self._repository.record_schedule_trigger(
                 schedule.schedule_id,
                 current,
                 self._schedules.next_after(schedule, current),
             )
+            if run_id is None:
+                continue
             if self._bridge is not None:
                 self._bridge.start(run_id, schedule)
             else:

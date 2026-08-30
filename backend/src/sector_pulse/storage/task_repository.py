@@ -242,6 +242,27 @@ class SQLiteTaskRepository:
             for row in rows
         ]
 
+    def record_task_event(
+        self,
+        run_id: UUID,
+        *,
+        source: str,
+        event_type: str,
+        summary: str,
+        idempotency_key: str | None,
+        created_at: datetime,
+    ) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                """INSERT INTO task_events
+                (event_id, run_id, source, event_type, idempotency_key, summary, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid4()), str(run_id), source, event_type,
+                    idempotency_key, summary, created_at.isoformat(),
+                ),
+            )
+
     def count_runs(self) -> int:
         with self._database.connection() as connection:
             row = connection.execute("SELECT COUNT(*) FROM task_runs").fetchone()
@@ -253,7 +274,7 @@ class SQLiteTaskRepository:
                 """SELECT run_id, status, provider, input_fingerprint, requested_at,
                           started_at, finished_at, error_code, downgrade_reasons_json,
                           retry_of_run_id, cancel_requested_at, interrupted_reason,
-                          heartbeat_at
+                          heartbeat_at, data_run_id
                    FROM task_runs WHERE run_id = ?""",
                 (str(run_id),),
             ).fetchone()
@@ -273,6 +294,7 @@ class SQLiteTaskRepository:
             "downgrade_reasons": json.loads(row[8]),
             "retry_of_run_id": row[9], "cancel_requested_at": row[10],
             "interrupted_reason": row[11], "heartbeat_at": row[12],
+            "data_run_id": row[13],
             "stages": [
                 {
                     "stage": item[0], "attempt_no": item[1], "status": item[2],

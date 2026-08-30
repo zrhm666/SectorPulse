@@ -286,7 +286,7 @@ git commit -m "fix: consume persisted schedule due windows"
 - Produces: `RunCoordinator.start_scheduled(schedule, now)`, `start_schedule_now(schedule_id, idempotency_key)`, `request_cancel(run_id)`, and `retry(run_id)`.
 - Consumes: typed task/data repositories and schedule behavior from Tasks 2–3.
 
-- [ ] **Step 1: Write a failing API integration test proving “立即运行” starts data work**
+- [x] **Step 1: Write a failing API integration test proving “立即运行” starts data work**
 
 ```python
 def test_trigger_schedule_creates_and_starts_linked_data_run(client, schedule_id, fake_data_runs) -> None:
@@ -297,11 +297,11 @@ def test_trigger_schedule_creates_and_starts_linked_data_run(client, schedule_id
     assert fake_data_runs.started == 1
 ```
 
-- [ ] **Step 2: Run and confirm the current orphan queue record fails**
+- [x] **Step 2: Run and confirm the current orphan queue record fails**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_phase2a_api.py -q`
 
-- [ ] **Step 3: Implement the coordinator command boundary**
+- [x] **Step 3: Implement the coordinator command boundary**
 
 ```python
 class RunCoordinator:
@@ -316,11 +316,11 @@ class RunCoordinator:
 
 Both manual and timed methods must call one private `_start_schedule()` transaction boundary. If data-run creation fails, transition the task to `FAILED` with a safe code before returning/raising.
 
-- [ ] **Step 4: Replace the API and scheduler bridge callers, then run focused tests**
+- [x] **Step 4: Replace the API and scheduler bridge callers, then run focused tests**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_run_coordinator.py backend/tests/unit/application/test_scheduled_data_bridge.py backend/tests/integration/test_phase2a_api.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/application backend/src/sector_pulse/web/app.py backend/tests/unit/application backend/tests/integration/test_phase2a_api.py

@@ -4,6 +4,7 @@ from uuid import UUID
 from sector_pulse.application.real_data_writing_bridge import build_phase1b_request
 from sector_pulse.domain.real_data_run import RealDataRunStatus
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.web.run_service import RunService
 
@@ -16,7 +17,7 @@ class DataRunWritingService:
         database: SQLiteDatabase,
         run_service: RunService,
         consent_file: Path | None = None,
-        storage: object | None = None,
+        storage: RuntimeStorageBundle | None = None,
     ) -> None:
         self._database = database
         self._run_service = run_service
@@ -26,7 +27,9 @@ class DataRunWritingService:
         self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")
 
-    def generate(self, run_id: UUID, sector_ids: tuple[str, ...]) -> UUID:
+    def generate(
+        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None
+    ) -> UUID:
         if not self._consent_file.is_file():
             raise ValueError("LIVE_LLM_CONSENT_REQUIRED")
         run = self._repository.get_run(run_id)

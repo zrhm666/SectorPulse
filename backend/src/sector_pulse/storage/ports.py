@@ -175,6 +175,17 @@ class TaskRepositoryPort(Protocol):
 
     def list_events(self, run_id: UUID) -> list[TaskEvent]: ...
 
+    def record_task_event(
+        self,
+        run_id: UUID,
+        *,
+        source: str,
+        event_type: str,
+        summary: str,
+        idempotency_key: str | None,
+        created_at: datetime,
+    ) -> None: ...
+
     def count_runs(self) -> int: ...
 
     def get_task_detail(self, run_id: UUID) -> dict[str, object] | None: ...

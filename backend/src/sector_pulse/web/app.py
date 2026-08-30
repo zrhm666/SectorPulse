@@ -31,6 +31,7 @@ from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.review_analytics import ReviewAnalyticsQueries
 from sector_pulse.application.run_commands import RunCommandService
+from sector_pulse.application.run_coordinator import RunCoordinator
 from sector_pulse.application.run_queries import RunQueryService
 from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
 from sector_pulse.application.scheduled_data_bridge import ScheduledDataRunBridge
@@ -224,6 +225,7 @@ def create_app(
     shadow_repository = storage.shadow
     prompt_golden_repository = storage.prompt_golden
     scheduler: EmbeddedScheduler | None = None
+    run_coordinator: RunCoordinator | None = None
     bus = ProgressBus()
     service = overrides.get("service") if overrides else None
     if service is None:
@@ -818,8 +820,10 @@ def create_app(
         schedule_id: UUID,
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     ) -> dict[str, UUID]:
+        if run_coordinator is None:
+            raise HTTPException(503, "run coordinator is not configured")
         try:
-            run_id = task_run_service.trigger_schedule(schedule_id, idempotency_key)
+            run_id = run_coordinator.start_schedule_now(schedule_id, idempotency_key)
         except ValueError as exc:
             raise HTTPException(404, str(exc)) from exc
         return {"run_id": run_id}
@@ -1035,18 +1039,26 @@ def create_app(
         writing_service = overrides.get("writing_service") if overrides else None
         if writing_service is None:
             writing_service = DataRunWritingService(database, service, storage=storage)
+        scheduled_bridge = ScheduledDataRunBridge(
+            task_repository,
+            real_repository,
+            data_run_service,
+            writing_service,
+            candidate_selection_service,
+        )
+        run_coordinator = RunCoordinator(
+            task_repository,
+            task_run_service,
+            schedule_service,
+            scheduled_bridge,
+        )
         scheduler = EmbeddedScheduler(
             task_repository,
             schedule_service,
             service,
             poll_seconds=settings.scheduler_poll_seconds,
-            bridge=ScheduledDataRunBridge(
-                task_repository,
-                real_repository,
-                data_run_service,
-                writing_service,
-                candidate_selection_service,
-            ),
+            bridge=scheduled_bridge,
+            coordinator=run_coordinator,
         )
 
         @app.post("/api/data-runs/{run_id}/generate")

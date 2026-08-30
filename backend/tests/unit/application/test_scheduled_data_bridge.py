@@ -38,7 +38,7 @@ class FakeSelections:
         return type("Selection", (), {"selected_sector_ids": ("a", "b", "c")})()
 
 
-def test_scheduled_bridge_creates_and_links_real_data_run(tmp_path: Path):
+def test_scheduled_bridge_creates_real_data_run_for_coordinator(tmp_path: Path):
     database = SQLiteDatabase(tmp_path / "bridge.db")
     tasks = SQLiteTaskRepository(database)
     real_runs = SQLiteRealDataRunRepository(database)
@@ -59,7 +59,7 @@ def test_scheduled_bridge_creates_and_links_real_data_run(tmp_path: Path):
     result = bridge.start(task_run_id, schedule)
 
     assert result == data_runs.run_id
-    assert tasks.list_linked_runs() == [(task_run_id, data_runs.run_id)]
+    assert tasks.list_linked_runs() == []
 
 
 def test_scheduled_bridge_confirms_default_selection_before_writing(tmp_path: Path):

@@ -3,14 +3,15 @@ import json
 from typing import Any
 from uuid import UUID
 
+from sector_pulse.application.schedule_service import ScheduleView
 from sector_pulse.domain.task import TaskRunKey
-from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
 
 
 class TaskRunService:
     """任务命令入口；调度器和 Web handler 不直接拼接任务存储 SQL。"""
 
-    def __init__(self, repository: SQLiteTaskRepository) -> None:
+    def __init__(self, repository: RuntimeTaskRepositoryPort) -> None:
         self._repository = repository
 
     def create_manual(
@@ -32,20 +33,34 @@ class TaskRunService:
             TaskRunKey(input_fingerprint=fingerprint), provider, input_json
         )
 
-    def trigger_schedule(
-        self, schedule_id: UUID, idempotency_key: str | None = None
+    def create_scheduled(
+        self,
+        schedule: ScheduleView,
+        *,
+        trading_date: str | None,
+        idempotency_key: str | None = None,
     ) -> UUID:
-        schedule = self._repository.get_schedule(schedule_id)
-        if schedule is None:
-            raise ValueError("schedule not found")
-        request = {
-            "schedule_id": str(schedule_id),
-            "idempotency_key": idempotency_key,
-            "input_template": schedule["input_template"],
-        }
+        input_template = dict(schedule.input_template)
         fingerprint = hashlib.sha256(
-            json.dumps(request, ensure_ascii=False, sort_keys=True).encode("utf-8")
+            json.dumps(
+                {
+                    "idempotency_key": idempotency_key,
+                    "input": input_template,
+                    "schedule_id": str(schedule.schedule_id),
+                    "trading_date": trading_date,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
         ).hexdigest()
         return self._repository.create_or_get_run(
-            TaskRunKey(input_fingerprint=fingerprint), "live", schedule["input_template"]
+            TaskRunKey(
+                schedule_id=schedule.schedule_id,
+                trading_date=trading_date,
+                planned_slot=schedule.local_time,
+                input_fingerprint=fingerprint,
+            ),
+            "live",
+            input_template,
         )

@@ -1,9 +1,28 @@
+from typing import Protocol
 from uuid import UUID
 
 from sector_pulse.application.schedule_service import ScheduleView
 from sector_pulse.domain.real_data_run import RealDataRunRequest, RealDataRunStatus
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
+
+
+class DataRunStarter(Protocol):
+    def create(self, request: RealDataRunRequest, provider: str) -> UUID: ...
+
+
+class WritingStarter(Protocol):
+    def generate(
+        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None
+    ) -> UUID: ...
+
+
+class SelectionResult(Protocol):
+    selected_sector_ids: tuple[str, ...]
+
+
+class DefaultSelectionService(Protocol):
+    def confirm_default(self, run_id: UUID) -> SelectionResult: ...
 
 
 class ScheduledDataRunBridge:
@@ -13,9 +32,9 @@ class ScheduledDataRunBridge:
         self,
         task_repository: SQLiteTaskRepository,
         real_repository: SQLiteRealDataRunRepository,
-        data_run_service: object,
-        writing_service: object,
-        selection_service: object | None = None,
+        data_run_service: DataRunStarter,
+        writing_service: WritingStarter,
+        selection_service: DefaultSelectionService | None = None,
     ) -> None:
         self._tasks = task_repository
         self._real_runs = real_repository
@@ -25,15 +44,19 @@ class ScheduledDataRunBridge:
 
     def start(self, task_run_id: UUID, schedule: ScheduleView) -> UUID:
         values = schedule.input_template
-        request = RealDataRunRequest(
-            mode=schedule.mode if schedule.mode in {"intraday", "post_close"} else "intraday",
-            lookback_hours=values.get("lookback_hours"),
-            precandidate_limit=values.get("precandidate_limit", 30),
-            final_candidate_limit=values.get("final_candidate_limit", 12),
+        request = RealDataRunRequest.model_validate(
+            {
+                "mode": (
+                    schedule.mode
+                    if schedule.mode in {"intraday", "post_close"}
+                    else "intraday"
+                ),
+                "lookback_hours": values.get("lookback_hours"),
+                "precandidate_limit": values.get("precandidate_limit", 30),
+                "final_candidate_limit": values.get("final_candidate_limit", 12),
+            }
         )
-        data_run_id = self._data_runs.create(request, "live")
-        self._tasks.link_data_run(task_run_id, data_run_id)
-        return data_run_id
+        return self._data_runs.create(request, "live")
 
     def advance(self) -> int:
         started = 0
