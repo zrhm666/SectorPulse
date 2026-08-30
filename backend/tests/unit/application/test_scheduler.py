@@ -69,3 +69,41 @@ async def test_scheduler_consumes_persisted_plan_after_poll_delay(
     assert len(executor.executed) == 1
     assert stored["last_triggered_at"] == polled_at.isoformat()
     assert stored["next_run_at"] == datetime(2026, 8, 20, 8, 0, tzinfo=UTC).isoformat()
+
+
+@pytest.mark.asyncio
+async def test_one_broken_schedule_does_not_stop_other_due_schedules(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "isolated-scheduler.db")
+    repository = SQLiteTaskRepository(database)
+    schedules = ScheduleService(repository)
+    due = datetime(2026, 8, 19, 8, 0, tzinfo=UTC)
+    for name in ("broken", "healthy"):
+        schedule = schedules.create(
+            ScheduleCreate(
+                name=name,
+                mode="post_close",
+                timezone="Asia/Shanghai",
+                local_time="16:00",
+                enabled=True,
+            )
+        )
+        repository.update_schedule_next_run(schedule.schedule_id, due)
+
+    class FailFirstExecutor(FakeExecutor):
+        async def execute(self, run_id, provider, worker_id):
+            self.executed.append(run_id)
+            if len(self.executed) == 1:
+                raise RuntimeError("provider secret must not persist")
+
+    executor = FailFirstExecutor()
+    scheduler = EmbeddedScheduler(repository, schedules, executor)
+
+    await scheduler.poll_once(due)
+
+    assert len(executor.executed) == 2
+    failed = repository.get_task_detail(executor.executed[0])
+    assert failed is not None
+    assert failed["status"] == "FAILED"
+    assert failed["error_code"] == "SCHEDULE_EXECUTION_FAILED"

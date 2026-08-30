@@ -85,5 +85,6 @@ def test_scheduled_bridge_confirms_default_selection_before_writing(tmp_path: Pa
     )
 
     assert bridge.advance() == 1
+    assert bridge.advance() == 0
     assert selections.confirmed == [run.run_id]
     assert writing.generated == [(run.run_id, ("a", "b", "c"))]

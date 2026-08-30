@@ -8,7 +8,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sector_pulse.application.schedule_service import ScheduleService, ScheduleView
-from sector_pulse.domain.task import TaskRunKey
+from sector_pulse.domain.task import TaskRunKey, TaskRunStatus
 from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
 
 
@@ -55,36 +55,52 @@ class EmbeddedScheduler:
             if due is None:
                 continue
             trading_date = due.astimezone(ZoneInfo(schedule.timezone)).date().isoformat()
-            if self._coordinator is not None:
-                self._coordinator.start_scheduled(schedule, current)
-                run_id = None
-            else:
-                fingerprint = hashlib.sha256(
-                    json.dumps(
-                        schedule.input_template, ensure_ascii=False, sort_keys=True
-                    ).encode("utf-8")
-                ).hexdigest()
-                run_id = self._repository.create_or_get_run(
-                    TaskRunKey(
-                        schedule_id=schedule.schedule_id,
-                        trading_date=trading_date,
-                        planned_slot=schedule.local_time,
-                        input_fingerprint=fingerprint,
-                    ),
-                    "live",
-                    schedule.input_template,
+            run_id: UUID | None = None
+            try:
+                if self._coordinator is not None:
+                    self._coordinator.start_scheduled(schedule, current)
+                else:
+                    fingerprint = hashlib.sha256(
+                        json.dumps(
+                            schedule.input_template, ensure_ascii=False, sort_keys=True
+                        ).encode("utf-8")
+                    ).hexdigest()
+                    run_id = self._repository.create_or_get_run(
+                        TaskRunKey(
+                            schedule_id=schedule.schedule_id,
+                            trading_date=trading_date,
+                            planned_slot=schedule.local_time,
+                            input_fingerprint=fingerprint,
+                        ),
+                        "live",
+                        schedule.input_template,
+                    )
+            except Exception:
+                self._repository.record_schedule_trigger(
+                    schedule.schedule_id,
+                    current,
+                    self._schedules.next_after(schedule, current),
                 )
+                continue
             self._repository.record_schedule_trigger(
-                schedule.schedule_id,
-                current,
-                self._schedules.next_after(schedule, current),
+                schedule.schedule_id, current, self._schedules.next_after(schedule, current)
             )
             if run_id is None:
                 continue
-            if self._bridge is not None:
-                self._bridge.start(run_id, schedule)
-            else:
-                await self._executor.execute(run_id, "live", "embedded-scheduler")
+            try:
+                if self._bridge is not None:
+                    self._bridge.start(run_id, schedule)
+                else:
+                    await self._executor.execute(run_id, "live", "embedded-scheduler")
+            except Exception:
+                self._repository.transition(
+                    run_id,
+                    TaskRunStatus.QUEUED,
+                    TaskRunStatus.FAILED,
+                    source="scheduler",
+                    summary="scheduled execution failed",
+                    error_code="SCHEDULE_EXECUTION_FAILED",
+                )
 
     def recover(self, now: datetime | None = None) -> int:
         return self._repository.recover_expired_leases(now)

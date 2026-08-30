@@ -420,7 +420,7 @@ git commit -m "fix: persist cancellation and startup recovery"
 **Interfaces:**
 - Produces: `claim_ready_linked_run(task_run_id, data_run_id)` and one-shot content generation.
 
-- [ ] **Step 1: Add tests for one-shot advance and failure isolation**
+- [x] **Step 1: Add tests for one-shot advance and failure isolation**
 
 ```python
 def test_bridge_advances_ready_run_once(bridge, writing) -> None:
@@ -435,11 +435,11 @@ async def test_one_broken_schedule_does_not_stop_other_due_schedules(scheduler) 
     assert scheduler.repository.error_event_count() == 1
 ```
 
-- [ ] **Step 2: Run and confirm duplicate advance/current loop exception behavior fails**
+- [x] **Step 2: Run and confirm duplicate advance/current loop exception behavior fails**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_scheduled_data_bridge.py backend/tests/unit/application/test_scheduler.py -q`
 
-- [ ] **Step 3: Add an atomic claim before generation and per-item exception isolation**
+- [x] **Step 3: Add an atomic claim before generation and per-item exception isolation**
 
 ```python
 if not self._tasks.claim_ready_linked_run(task_run_id, data_run_id):
@@ -452,11 +452,11 @@ else:
     self._tasks.mark_content_started(task_run_id)
 ```
 
-- [ ] **Step 4: Run scheduler/bridge tests and backend regression**
+- [x] **Step 4: Run scheduler/bridge tests and backend regression**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_scheduler.py backend/tests/unit/application/test_scheduled_data_bridge.py backend/tests/integration/test_phase2a_recovery.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/application backend/src/sector_pulse/storage/task_repository.py backend/tests/unit/application backend/tests/integration/test_phase2a_recovery.py

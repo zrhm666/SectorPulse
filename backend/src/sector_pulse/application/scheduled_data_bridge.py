@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -60,14 +61,21 @@ class ScheduledDataRunBridge:
 
     def advance(self) -> int:
         started = 0
-        for _task_run_id, data_run_id in self._tasks.list_linked_runs():
+        for task_run_id, data_run_id in self._tasks.list_linked_runs():
             data_run = self._real_runs.get_run(data_run_id)
             if data_run is None or data_run.status is not RealDataRunStatus.READY_FOR_ATTRIBUTION:
                 continue
-            if self._selections is None:
-                self._writing.generate(data_run_id)
-            else:
-                selection = self._selections.confirm_default(data_run_id)
-                self._writing.generate(data_run_id, selection.selected_sector_ids)
+            if not self._tasks.claim_ready_linked_run(task_run_id, data_run_id):
+                continue
+            try:
+                if self._selections is None:
+                    self._writing.generate(data_run_id)
+                else:
+                    selection = self._selections.confirm_default(data_run_id)
+                    self._writing.generate(data_run_id, selection.selected_sector_ids)
+            except Exception:
+                self._tasks.fail_claimed_run(task_run_id, "CONTENT_GENERATION_FAILED")
+                continue
+            self._tasks.mark_content_started(task_run_id, datetime.now(UTC))
             started += 1
         return started

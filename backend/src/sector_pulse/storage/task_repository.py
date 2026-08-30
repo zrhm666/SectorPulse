@@ -399,6 +399,58 @@ class SQLiteTaskRepository:
             ).fetchall()
         return [(UUID(row[0]), UUID(row[1])) for row in rows]
 
+    def claim_ready_linked_run(self, run_id: UUID, data_run_id: UUID) -> bool:
+        now = datetime.now(UTC)
+        with self._database.transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE task_runs
+                   SET status = ?, started_at = COALESCE(started_at, ?), heartbeat_at = ?
+                   WHERE run_id = ? AND data_run_id = ? AND status = ?""",
+                (
+                    TaskRunStatus.RUNNING.value,
+                    now.isoformat(),
+                    now.isoformat(),
+                    str(run_id),
+                    str(data_run_id),
+                    TaskRunStatus.QUEUED.value,
+                ),
+            )
+            if cursor.rowcount != 1:
+                return False
+            connection.execute(
+                """INSERT INTO task_events
+                (event_id, run_id, source, event_type, old_status, new_status,
+                 summary, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    str(uuid4()), str(run_id), "scheduled-data-bridge",
+                    "STATUS_TRANSITION", TaskRunStatus.QUEUED.value,
+                    TaskRunStatus.RUNNING.value, "ready data run claimed",
+                    now.isoformat(),
+                ),
+            )
+        return True
+
+    def fail_claimed_run(self, run_id: UUID, error_code: str) -> bool:
+        return self.transition(
+            run_id,
+            TaskRunStatus.RUNNING,
+            TaskRunStatus.FAILED,
+            source="scheduled-data-bridge",
+            summary="content generation start failed",
+            error_code=error_code,
+        )
+
+    def mark_content_started(self, run_id: UUID, created_at: datetime) -> None:
+        self.record_task_event(
+            run_id,
+            source="scheduled-data-bridge",
+            event_type="CONTENT_GENERATION_STARTED",
+            summary="content generation started",
+            idempotency_key=None,
+            created_at=created_at,
+        )
+
     def insert_schedule(self, values: Mapping[str, object]) -> None:
         enabled = values["enabled"]
         if not isinstance(enabled, bool):
