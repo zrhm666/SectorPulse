@@ -32,7 +32,7 @@ it('saves 800ms after the last change and skips unchanged text', async () => {
   expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ base_version: 1, path: 'introduction', value: '新导语' }))
 })
 
-it('flushes a dirty field immediately on blur', async () => {
+it('flushes the newest value when change and blur happen in one turn', async () => {
   vi.useFakeTimers()
   const onSave = vi.fn().mockResolvedValue({ draft_id: 'draft-1', version: 2, status: 'READY_FOR_HUMAN_REVIEW', content: {} })
   render(<Harness onSave={onSave} />)
@@ -41,6 +41,7 @@ it('flushes a dirty field immediately on blur', async () => {
   fireEvent.blur(screen.getByLabelText('导语'))
   await act(async () => undefined)
   expect(onSave).toHaveBeenCalledTimes(1)
+  expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ value: '失焦保存' }))
 })
 
 it('queues newer text behind the in-flight save and rebases it on the returned version', async () => {

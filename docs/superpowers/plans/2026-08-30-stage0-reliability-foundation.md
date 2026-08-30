@@ -848,7 +848,7 @@ git commit -m "refactor: integrate typed runtime dependencies"
 **Interfaces:**
 - Produces: `reduceAutosave(state, event) -> AutosaveMachineState` and React hook commands `setValue`, `flush`, `retry`.
 
-- [ ] **Step 1: Add deterministic rapid-blur and queued-save tests**
+- [x] **Step 1: Add deterministic rapid-blur and queued-save tests**
 
 ```typescript
 it('flushes the newest value when change and blur happen in one turn', async () => {
@@ -881,11 +881,11 @@ it('submits queued text against the returned server version', async () => {
 })
 ```
 
-- [ ] **Step 2: Run the test repeatedly with default workers and verify the current race reproduces**
+- [x] **Step 2: Run the test repeatedly with default workers and verify the current race reproduces**
 
 Run: `npm.cmd test -- src/hooks/useDraftAutosave.test.tsx --run`
 
-- [ ] **Step 3: Implement pure transitions and synchronize the ref before React rendering**
+- [x] **Step 3: Implement pure transitions and synchronize the ref before React rendering**
 
 ```typescript
 export function reduceAutosave(state: AutosaveMachineState, event: AutosaveEvent): AutosaveMachineState {
@@ -901,13 +901,13 @@ export function reduceAutosave(state: AutosaveMachineState, event: AutosaveEvent
 
 `setValue()` must compute `next = reduceAutosave(machineRef.current, event)`, assign `machineRef.current = next`, and only then call `setState(next)`.
 
-- [ ] **Step 4: Run autosave tests 10 times and the complete default-parallel suite**
+- [x] **Step 4: Run autosave tests 10 times and the complete default-parallel suite**
 
 Run: `1..10 | ForEach-Object { npm.cmd test -- src/hooks/useDraftAutosave.test.tsx --run; if ($LASTEXITCODE) { exit $LASTEXITCODE } }`
 
 Run: `npm.cmd test -- --run`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add web/src/hooks web/src/components/review
