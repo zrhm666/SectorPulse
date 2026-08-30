@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.task import TaskRunKey, TaskRunStatus, TaskStage
@@ -44,6 +45,38 @@ def test_duplicate_schedule_trigger_returns_same_run_id(repository):
     second = repository.create_or_get_run(key, "live", {"mode": "post_close"})
 
     assert first == second
+
+
+def test_due_schedule_is_consumed_with_trigger_cursor(repository) -> None:
+    schedule_id = uuid4()
+    due_at = datetime(2026, 8, 19, 8, 0, tzinfo=UTC)
+    repository.insert_schedule(
+        {
+            "schedule_id": str(schedule_id),
+            "name": "盘后",
+            "mode": "post_close",
+            "timezone": "Asia/Shanghai",
+            "local_time": "16:00",
+            "trading_days": "weekdays",
+            "input_template": {},
+            "enabled": True,
+            "next_run_at": due_at.isoformat(),
+            "created_at": due_at.isoformat(),
+            "updated_at": due_at.isoformat(),
+        }
+    )
+
+    assert [item["schedule_id"] for item in repository.list_due_schedules(due_at)] == [
+        str(schedule_id)
+    ]
+    next_run_at = datetime(2026, 8, 20, 8, 0, tzinfo=UTC)
+    repository.record_schedule_trigger(schedule_id, due_at, next_run_at)
+
+    assert repository.list_due_schedules(due_at) == []
+    stored = repository.get_schedule(schedule_id)
+    assert stored is not None
+    assert stored["last_triggered_at"] == due_at.isoformat()
+    assert stored["next_run_at"] == next_run_at.isoformat()
 
 
 def test_claim_run_requires_expired_or_same_worker_lease(repository):

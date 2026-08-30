@@ -2,16 +2,24 @@ import asyncio
 import hashlib
 import json
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Protocol
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from sector_pulse.application.schedule_service import ScheduleService
+from sector_pulse.application.schedule_service import ScheduleService, ScheduleView
 from sector_pulse.domain.task import TaskRunKey
-from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
 
 
 class Executor(Protocol):
-    async def execute(self, run_id, provider: str, worker_id: str) -> None: ...
+    async def execute(self, run_id: UUID, provider: str, worker_id: str) -> None: ...
+
+
+class ScheduledRunBridge(Protocol):
+    def start(self, task_run_id: UUID, schedule: ScheduleView) -> UUID: ...
+
+    def advance(self) -> int: ...
 
 
 class EmbeddedScheduler:
@@ -19,12 +27,12 @@ class EmbeddedScheduler:
 
     def __init__(
         self,
-        repository: SQLiteTaskRepository,
+        repository: RuntimeTaskRepositoryPort,
         schedules: ScheduleService,
         executor: Executor,
         *,
         poll_seconds: int = 10,
-        bridge: object | None = None,
+        bridge: ScheduledRunBridge | None = None,
     ) -> None:
         self._repository = repository
         self._schedules = schedules
@@ -35,11 +43,12 @@ class EmbeddedScheduler:
 
     async def poll_once(self, now: datetime | None = None) -> None:
         current = now or datetime.now(UTC)
-        for schedule in self._schedules.list():
-            due = self._schedules.next_due(schedule, current)
-            if due is None or due > current:
+        for stored in self._repository.list_due_schedules(current):
+            schedule = self._schedules.from_stored(stored)
+            due = schedule.next_run_at
+            if due is None:
                 continue
-            trading_date = due.date().isoformat()
+            trading_date = due.astimezone(ZoneInfo(schedule.timezone)).date().isoformat()
             fingerprint = hashlib.sha256(
                 json.dumps(
                     schedule.input_template, ensure_ascii=False, sort_keys=True
@@ -55,8 +64,10 @@ class EmbeddedScheduler:
                 "live",
                 schedule.input_template,
             )
-            self._repository.update_schedule_next_run(
-                schedule.schedule_id, due + timedelta(days=1)
+            self._repository.record_schedule_trigger(
+                schedule.schedule_id,
+                current,
+                self._schedules.next_after(schedule, current),
             )
             if self._bridge is not None:
                 self._bridge.start(run_id, schedule)

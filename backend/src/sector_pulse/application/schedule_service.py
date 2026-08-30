@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.ports import ScheduleRepositoryPort
 
 
 class ScheduleCreate(BaseModel):
@@ -28,7 +28,7 @@ class ScheduleView(ScheduleCreate):
 
 
 class ScheduleService:
-    def __init__(self, repository: SQLiteTaskRepository) -> None:
+    def __init__(self, repository: ScheduleRepositoryPort) -> None:
         self._repository = repository
 
     def create(self, request: ScheduleCreate) -> ScheduleView:
@@ -38,27 +38,36 @@ class ScheduleService:
         ZoneInfo(request.timezone)
         now = datetime.now(UTC)
         schedule_id = uuid4()
+        schedule = ScheduleView(
+            schedule_id=schedule_id, **request.model_dump(), created_at=now, updated_at=now
+        )
+        next_run_at = self.next_after(schedule, now)
         self._repository.insert_schedule(
             {
                 "schedule_id": str(schedule_id), "name": request.name,
                 "mode": request.mode, "timezone": request.timezone,
                 "local_time": request.local_time, "trading_days": request.trading_days,
                 "input_template": request.input_template, "enabled": request.enabled,
+                "next_run_at": next_run_at.isoformat() if next_run_at else None,
                 "created_at": now.isoformat(), "updated_at": now.isoformat(),
             }
         )
-        return ScheduleView(
-            schedule_id=schedule_id, **request.model_dump(), created_at=now, updated_at=now
-        )
+        return schedule.model_copy(update={"next_run_at": next_run_at})
 
     def list(self) -> list[ScheduleView]:
-        return [ScheduleView(**self._view_values(row)) for row in self._repository.list_schedules()]
+        return [
+            ScheduleView.model_validate(self._view_values(row))
+            for row in self._repository.list_schedules()
+        ]
 
-    def next_due(self, schedule: ScheduleView, now: datetime) -> datetime | None:
+    def from_stored(self, row: dict[str, object]) -> ScheduleView:
+        return ScheduleView.model_validate(self._view_values(row))
+
+    def next_after(self, schedule: ScheduleView, after: datetime) -> datetime | None:
         if not schedule.enabled or schedule.mode == "manual":
             return None
         local_zone = ZoneInfo(schedule.timezone)
-        local_now = now.astimezone(local_zone)
+        local_now = after.astimezone(local_zone)
         local_day = local_now.date()
         scheduled_time = self._parse_local_time(schedule.local_time)
         for offset in range(8):
@@ -66,9 +75,13 @@ class ScheduleService:
             if self._is_trading_day(candidate_day, schedule.trading_days):
                 candidate = datetime.combine(candidate_day, scheduled_time, local_zone)
                 candidate_utc = candidate.astimezone(UTC)
-                if candidate_utc >= now:
+                if candidate_utc > after:
                     return candidate_utc
         return None
+
+    def next_due(self, schedule: ScheduleView, now: datetime) -> datetime | None:
+        """Compatibility alias for callers not yet migrated to persisted cursors."""
+        return self.next_after(schedule, now)
 
     @staticmethod
     def _parse_local_time(value: str) -> time:
@@ -84,12 +97,22 @@ class ScheduleService:
 
     @staticmethod
     def _view_values(row: dict[str, object]) -> dict[str, object]:
+        schedule_id = row["schedule_id"]
+        next_run_at = row["next_run_at"]
+        created_at = row["created_at"]
+        updated_at = row["updated_at"]
+        if not isinstance(schedule_id, str):
+            raise TypeError("stored schedule_id must be a string")
+        if next_run_at is not None and not isinstance(next_run_at, str):
+            raise TypeError("stored next_run_at must be a string or null")
+        if not isinstance(created_at, str) or not isinstance(updated_at, str):
+            raise TypeError("stored schedule timestamps must be strings")
         return {
             **row,
-            "schedule_id": UUID(row["schedule_id"]),
+            "schedule_id": UUID(schedule_id),
             "next_run_at": (
-                datetime.fromisoformat(row["next_run_at"]) if row["next_run_at"] else None
+                datetime.fromisoformat(next_run_at) if next_run_at else None
             ),
-            "created_at": datetime.fromisoformat(row["created_at"]),
-            "updated_at": datetime.fromisoformat(row["updated_at"]),
+            "created_at": datetime.fromisoformat(created_at),
+            "updated_at": datetime.fromisoformat(updated_at),
         }

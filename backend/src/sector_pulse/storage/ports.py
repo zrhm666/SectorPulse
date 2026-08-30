@@ -198,6 +198,15 @@ class ScheduleRepositoryPort(Protocol):
 
     def get_schedule(self, schedule_id: UUID) -> dict[str, object] | None: ...
 
+    def list_due_schedules(self, now: datetime) -> list[dict[str, object]]: ...
+
+    def record_schedule_trigger(
+        self,
+        schedule_id: UUID,
+        triggered_at: datetime,
+        next_run_at: datetime | None,
+    ) -> None: ...
+
     def update_schedule_next_run(self, schedule_id: UUID, next_run_at: datetime) -> None: ...
 
 

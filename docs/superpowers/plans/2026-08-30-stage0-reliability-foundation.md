@@ -231,7 +231,7 @@ git commit -m "refactor: define typed storage ports"
 **Interfaces:**
 - Produces: `ScheduleService.next_after(schedule, after)` and `TaskRepositoryPort.list_due_schedules(now)`.
 
-- [ ] **Step 1: Add failing delayed-poll and idempotency cases**
+- [x] **Step 1: Add failing delayed-poll and idempotency cases**
 
 ```python
 @pytest.mark.parametrize("delay_seconds", [1, 10, 30])
@@ -243,11 +243,11 @@ async def test_scheduler_consumes_plan_after_poll_delay(scheduler, delay_seconds
     assert repository.count_runs() == 1
 ```
 
-- [ ] **Step 2: Verify the current `next_due >= now` logic fails**
+- [x] **Step 2: Verify the current `next_due >= now` logic fails**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_scheduler.py -q`
 
-- [ ] **Step 3: Implement persistent due consumption**
+- [x] **Step 3: Implement persistent due consumption**
 
 ```python
 async def poll_once(self, now: datetime | None = None) -> None:
@@ -261,11 +261,11 @@ async def poll_once(self, now: datetime | None = None) -> None:
             self._repository.record_schedule_error(schedule.schedule_id, safe_error_code(exc), current)
 ```
 
-- [ ] **Step 4: Run schedule, scheduler, and repository tests**
+- [x] **Step 4: Run schedule, scheduler, and repository tests**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/application/test_schedule_service.py backend/tests/unit/application/test_scheduler.py backend/tests/unit/storage/test_task_repository.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src/sector_pulse/application/schedule_service.py backend/src/sector_pulse/application/scheduler.py backend/src/sector_pulse/storage/task_repository.py backend/tests/unit/application backend/tests/unit/storage/test_task_repository.py

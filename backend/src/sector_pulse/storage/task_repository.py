@@ -408,7 +408,7 @@ class SQLiteTaskRepository:
             rows = connection.execute(
                 """SELECT schedule_id, name, mode, timezone, local_time, trading_days,
                           schedule_spec_json, input_template_json, enabled, version,
-                          next_run_at, created_at, updated_at
+                          next_run_at, last_triggered_at, created_at, updated_at
                    FROM schedules ORDER BY created_at, schedule_id"""
             ).fetchall()
         return [
@@ -417,7 +417,7 @@ class SQLiteTaskRepository:
                 "timezone": row[3], "local_time": row[4], "trading_days": row[5],
                 "schedule_spec": json.loads(row[6]), "input_template": json.loads(row[7]),
                 "enabled": bool(row[8]), "version": row[9], "next_run_at": row[10],
-                "created_at": row[11], "updated_at": row[12],
+                "last_triggered_at": row[11], "created_at": row[12], "updated_at": row[13],
             }
             for row in rows
         ]
@@ -427,6 +427,35 @@ class SQLiteTaskRepository:
             (item for item in self.list_schedules() if item["schedule_id"] == str(schedule_id)),
             None,
         )
+
+    def list_due_schedules(self, now: datetime) -> list[dict[str, object]]:
+        due_at = now.isoformat()
+        return [
+            item
+            for item in self.list_schedules()
+            if item["enabled"]
+            and item["next_run_at"] is not None
+            and str(item["next_run_at"]) <= due_at
+        ]
+
+    def record_schedule_trigger(
+        self,
+        schedule_id: UUID,
+        triggered_at: datetime,
+        next_run_at: datetime | None,
+    ) -> None:
+        with self._database.transaction() as connection:
+            connection.execute(
+                """UPDATE schedules
+                   SET last_triggered_at = ?, next_run_at = ?, updated_at = ?
+                   WHERE schedule_id = ?""",
+                (
+                    triggered_at.isoformat(),
+                    next_run_at.isoformat() if next_run_at is not None else None,
+                    triggered_at.isoformat(),
+                    str(schedule_id),
+                ),
+            )
 
     def update_schedule_next_run(self, schedule_id: UUID, next_run_at: datetime) -> None:
         with self._database.transaction() as connection:
