@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('built SPA opens the SectorPulse workbench', async ({ page }) => {
   await page.goto('/')

@@ -1,10 +1,5 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
-
-const browserErrors = new WeakMap<Page, string[]>()
-
-test.afterEach(async ({ page }) => {
-  expect(browserErrors.get(page) ?? []).toEqual([])
-})
+import type { Page, Route } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 const now = '2026-08-28T10:00:00Z'
 const contentRun = (runId = 'content-run') => ({
@@ -33,11 +28,7 @@ const operationsSummary = {
 }
 
 async function installFixture(page: Page) {
-  const errors: string[] = []
   const state = { createdSchedules: 0, retries: 0 }
-  browserErrors.set(page, errors)
-  page.on('pageerror', (error) => errors.push(error.message))
-  page.on('console', (event) => { if (event.type() === 'error') errors.push(event.text()) })
 
   const fulfill = (route: Route, json: unknown, status = 200) => route.fulfill({ json, status })
   await page.route('**/api/**', async (route) => {
@@ -58,7 +49,7 @@ async function installFixture(page: Page) {
     if (path === '/api/task-runs/task-run') return fulfill(route, { run_id: 'task-run', status: 'COMPLETED', provider: 'fixture', input_fingerprint: 'fingerprint', stages: [{ stage: 'FETCHING_MARKET', attempt_no: 1, status: 'COMPLETED', error_code: null }], events: [{ event_type: 'TASK_COMPLETED', summary: '任务已完成', created_at: now }], downgrade_reasons: [] })
     if (path === '/api/shadow-runs/summary') return fulfill(route, { trading_days: 1, passed: 1, failed: 0, blocked: 0, remaining: 19, complete: false })
     if (path === '/api/shadow-runs') return fulfill(route, [{ shadow_id: 'shadow-1', run_id: 'content-run', trading_date: '2026-08-28', mode: 'post_close', status: 'PASSED', created_at: now }])
-    return fulfill(route, { detail: `Unhandled fixture path: ${path}` }, 404)
+    return route.fallback()
   })
   return state
 }

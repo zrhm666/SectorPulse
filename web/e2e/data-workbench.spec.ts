@@ -1,12 +1,7 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 type FixtureState = 'ready' | 'active' | 'degraded' | 'empty' | 'stale' | 'failed'
-
-const browserErrors = new WeakMap<Page, string[]>()
-
-test.afterEach(async ({ page }) => {
-  expect(browserErrors.get(page) ?? []).toEqual([])
-})
 
 const candidateItems = Array.from({ length: 24 }, (_, index) => ({
   sector_id: `industry-${index + 1}`,
@@ -159,19 +154,13 @@ async function installWorkbenchFixture(page: Page, state: FixtureState = 'ready'
     if (suffix === '/quality') return fulfill(route, { market_quality: { industry: state === 'degraded' ? 'DEGRADED' : 'NORMAL' }, news_quality: { news: state === 'stale' ? 'STALE' : 'NORMAL' }, cutoff_violation_count: 0, duplicate_document_count: 0, downgrade_reasons: [], error_code: null })
     if (suffix === '/generate') return fulfill(route, { run_id: 'content-e2e' })
     if (suffix === '/retry') return fulfill(route, { run_id: 'retry-e2e' })
-    return fulfill(route, { detail: `Unhandled fixture path: ${suffix}` }, 404)
+    return route.fallback()
   }
   await page.route('**/api/data-runs/run-e2e', handleRoute)
   await page.route('**/api/data-runs/run-e2e/**', handleRoute)
 }
 
 async function openWorkbench(page: Page, viewport: { width: number; height: number }, state: FixtureState = 'ready') {
-  const errors: string[] = []
-  browserErrors.set(page, errors)
-  page.on('pageerror', (error) => errors.push(error.message))
-  page.on('console', (event) => {
-    if (event.type() === 'error') errors.push(event.text())
-  })
   await installWorkbenchFixture(page, state)
   await page.setViewportSize(viewport)
   await page.goto('/data-runs/run-e2e')

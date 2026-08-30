@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('desktop sidebar stays still while the main region scrolls', async ({ page }) => {
   await page.setViewportSize({ width: 1536, height: 1024 })
@@ -52,7 +52,7 @@ test('closed mobile navigation is removed from the tab order', async ({ page }) 
 test('legacy primary page actions keep readable text', async ({ page }) => {
   await page.setViewportSize({ width: 1536, height: 1024 })
   await page.goto('/')
-  const action = page.getByRole('link', { name: '新建分析', exact: true })
+  const action = page.getByRole('link', { name: '新建分析', exact: true }).first()
   await expect(action).toBeVisible()
   expect(await action.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)')
 })

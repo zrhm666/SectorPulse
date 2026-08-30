@@ -1,12 +1,7 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 type FixtureMode = 'pending' | 'loading' | 'empty' | 'approved' | 'blocked' | 'failed' | 'conflict'
-
-const browserErrors = new WeakMap<Page, string[]>()
-
-test.afterEach(async ({ page }) => {
-  expect(browserErrors.get(page) ?? []).toEqual([])
-})
 
 const sources = Array.from({ length: 12 }, (_, index) => ({
   source_id: `source-${index + 1}`,
@@ -32,17 +27,6 @@ function run(index = 1) {
 
 async function installReviewFixture(page: Page, mode: FixtureMode = 'pending') {
   const state = { patchCount: 0, version: 2, introduction: '当前导语', conflictReturned: false }
-  const errors: string[] = []
-  browserErrors.set(page, errors)
-  page.on('pageerror', (error) => errors.push(error.message))
-  page.on('console', (event) => {
-    if (event.type() !== 'error') return
-    const message = event.text()
-    const expectedHttpFailure = (mode === 'failed' && message.includes('503'))
-      || (mode === 'conflict' && message.includes('409'))
-    if (!expectedHttpFailure) errors.push(message)
-  })
-
   const fulfill = (route: Route, json: unknown, status = 200) => route.fulfill({ json, status })
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -90,7 +74,7 @@ async function installReviewFixture(page: Page, mode: FixtureMode = 'pending') {
     if (path.endsWith('/approve') && request.method() === 'POST') return fulfill(route, { draft_id: 'draft-1', version: state.version, status: 'APPROVED_FOR_COPY', actor: 'reviewer' })
     if (path.endsWith('/revoke') && request.method() === 'POST') return fulfill(route, { draft_id: 'draft-1', version: state.version, status: 'REVOKED', actor: 'reviewer' })
     if (path.endsWith('/return') && request.method() === 'POST') return fulfill(route, { draft_id: 'draft-1', version: state.version, status: 'RETURNED', actor: 'reviewer' })
-    return fulfill(route, { detail: `Unhandled fixture path: ${path}` }, 404)
+    return route.fallback()
   })
   return state
 }
@@ -157,15 +141,19 @@ test('historical versions remain read-only and cannot be approved', async ({ pag
   await expect(page.getByRole('button', { name: '批准复制' })).toBeDisabled()
 })
 
-for (const mode of ['failed', 'conflict'] as const) {
-  test(`${mode} autosave preserves local text and exposes recovery`, async ({ page }) => {
-    await openReview(page, { width: 1440, height: 900 }, mode)
-    await page.getByLabel('导语').fill(`${mode} 本地文本`)
-    await expect(page.getByRole('button', { name: '重试保存导语' })).toBeVisible({ timeout: 2500 })
-    await expect(page.getByLabel('导语')).toHaveValue(`${mode} 本地文本`)
-    await expect(page.getByRole('button', { name: '批准复制' })).toBeDisabled()
-  })
-}
+test.describe('autosave recovery', () => {
+  test.use({ allowedHttpErrorStatuses: [409, 503] })
+
+  for (const mode of ['failed', 'conflict'] as const) {
+    test(`${mode} autosave preserves local text and exposes recovery`, async ({ page }) => {
+      await openReview(page, { width: 1440, height: 900 }, mode)
+      await page.getByLabel('导语').fill(`${mode} 本地文本`)
+      await expect(page.getByRole('button', { name: '重试保存导语' })).toBeVisible({ timeout: 2500 })
+      await expect(page.getByLabel('导语')).toHaveValue(`${mode} 本地文本`)
+      await expect(page.getByRole('button', { name: '批准复制' })).toBeDisabled()
+    })
+  }
+})
 
 test('loading, empty, governance-blocked and approved states remain explicit', async ({ page }) => {
   await installReviewFixture(page, 'loading')

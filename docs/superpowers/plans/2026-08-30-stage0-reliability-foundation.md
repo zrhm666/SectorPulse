@@ -1098,7 +1098,7 @@ git commit -m "refactor: split fastapi capability routers"
 **Interfaces:**
 - Produces: a shared test fixture that fails on page errors, console errors, and unhandled `/api` requests.
 
-- [ ] **Step 1: Add a failing unhandled-request guard**
+  - [x] **Step 1: Add a failing unhandled-request guard**
 
 ```typescript
 export const test = base.extend({
@@ -1113,21 +1113,23 @@ export const test = base.extend({
 })
 ```
 
-- [ ] **Step 2: Run E2E and verify existing 9000 proxy errors are caught**
+  - [x] **Step 2: Run E2E and verify existing 9000 proxy errors are caught**
 
 Run: `npm.cmd run test:e2e`
 
-- [ ] **Step 3: Route every E2E API call through deterministic fixtures and let Playwright own Chromium/preview**
+  - [x] **Step 3: Route every E2E API call through deterministic fixtures and let Playwright own Chromium/preview**
 
 Move the response maps currently duplicated in specs into `e2e/fixtures.ts`, register `page.route('**/api/**', ...)` before navigation, and fail the fixture when a request has no declared method/path response. Remove the machine-specific Edge `executablePath`; use Playwright's installed `chromium`. Keep only Vite preview in `webServer`, set `reuseExistingServer: !process.env.CI`, and set the preview command to `npm.cmd run preview -- --host 127.0.0.1 --port 4173` on Windows or `npm run preview -- --host 127.0.0.1 --port 4173` elsewhere via a small `process.platform` constant in the config. API cross-layer behavior remains covered by FastAPI integration tests, while E2E tests own all browser-visible API state.
 
-- [ ] **Step 4: Run E2E twice and verify exit code 0 without manual termination**
+Execution note: Playwright 1.62 on this Windows host reproducibly hung at `pw:webserver Terminating the WebServer`, including with direct Vite startup and graceful shutdown configured. The accepted implementation therefore uses `e2e/run-e2e.mjs` as the single lifecycle owner for Vite preview and Playwright; it starts both as direct Node children, propagates Playwright's exit code, and explicitly waits for preview termination. This preserved the one-command contract and produced two consecutive clean exits.
+
+  - [x] **Step 4: Run E2E twice and verify exit code 0 without manual termination**
 
 Run: `npm.cmd run test:e2e`
 
 Run: `npm.cmd run test:e2e`
 
-- [ ] **Step 5: Commit**
+  - [x] **Step 5: Commit**
 
 ```powershell
 git add web/playwright.config.ts web/e2e web/package.json
