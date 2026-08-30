@@ -75,6 +75,19 @@ class PostgresPhase1BRunsRepository:
             rows = result.fetchall()
         return [self._row_to_model(row) for row in rows]
 
+    def mark_interrupted(self, now: datetime) -> int:
+        with self._database.start().begin() as connection:
+            result = connection.execute(
+                text(
+                    """UPDATE phase1b_runs
+                       SET status = 'INTERRUPTED', finished_at = :finished_at,
+                           error_message = 'process restarted before content completion'
+                       WHERE status = 'RUNNING'"""
+                ),
+                {"finished_at": now.isoformat()},
+            )
+        return result.rowcount
+
     @staticmethod
     def _values(run: Phase1BRunRow) -> dict[str, object]:
         return {

@@ -61,3 +61,32 @@ def test_postgres_phase1b_runs_can_update_failure_status() -> None:
                 {"run_id": str(item.run_id)},
             )
         database.close()
+
+
+def test_postgres_content_recovery_preserves_snapshot() -> None:
+    url = os.environ.get("SECTOR_PULSE_DATABASE_URL")
+    if not url:
+        pytest.skip("requires SECTOR_PULSE_DATABASE_URL")
+    database = PostgresDatabase(url)
+    database.initialize()
+    repository = PostgresPhase1BRunsRepository(database)
+    item = Phase1BRunRow(
+        run_id=uuid4(), requested_at=datetime.now(UTC), provider="postgres-test",
+        status="RUNNING", input_json={"recovery": True},
+    )
+    try:
+        repository.insert(item)
+        now = datetime.now(UTC)
+        assert repository.mark_interrupted(now) >= 1
+        updated = repository.get_run(item.run_id)
+        assert updated is not None
+        assert updated.status == "INTERRUPTED"
+        assert updated.finished_at == now
+        assert updated.input_json == {"recovery": True}
+    finally:
+        with database.start().begin() as connection:
+            connection.execute(
+                text("DELETE FROM phase1b_runs WHERE run_id = :run_id"),
+                {"run_id": str(item.run_id)},
+            )
+        database.close()

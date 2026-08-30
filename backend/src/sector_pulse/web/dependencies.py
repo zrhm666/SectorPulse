@@ -155,6 +155,7 @@ def build_runtime_dependencies(
         data_run_service,
         writing_service,
         candidate_selection_service,
+        content_runs=storage.phase1b_runs,
     )
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
@@ -172,6 +173,7 @@ def build_runtime_dependencies(
         poll_seconds=settings.scheduler_poll_seconds,
         bridge=scheduled_bridge,
         coordinator=coordinator,
+        dispatch_enabled=settings.scheduler_enabled,
     )
     return RuntimeDependencies(
         database=database,
@@ -218,6 +220,7 @@ def build_web_router_dependencies(
         data_run_service,
         writing_service,
         candidate_selection_service,
+        content_runs=runtime.storage.phase1b_runs,
     )
     coordinator = RunCoordinator(
         runtime.storage.task,
@@ -233,6 +236,7 @@ def build_web_router_dependencies(
         poll_seconds=settings.scheduler_poll_seconds,
         bridge=scheduled_bridge,
         coordinator=coordinator,
+        dispatch_enabled=settings.scheduler_enabled,
     )
     evidence_service = EvidenceDecisionService(runtime.storage.governance)
     return WebRouterDependencies(

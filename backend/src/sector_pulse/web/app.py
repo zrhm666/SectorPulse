@@ -50,14 +50,18 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await initialize_database(database)
+        storage.phase1b_runs.mark_interrupted(datetime.now(UTC))
+        if scheduler is not None:
+            scheduler.reconcile_finished()
         storage.task.recover_expired_leases()
         if run_coordinator is not None:
             run_coordinator.recover_startup(datetime.now(UTC))
-        if scheduler is not None and settings.scheduler_enabled:
+        if scheduler is not None:
+            scheduler.reconcile_finished()
             scheduler.recover()
             scheduler.start()
         yield
-        if scheduler is not None and settings.scheduler_enabled:
+        if scheduler is not None:
             await scheduler.stop()
         await close_database(database)
 

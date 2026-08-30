@@ -1,15 +1,19 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
+from fastapi.testclient import TestClient
 from sector_pulse.application.run_coordinator import RunCoordinator
 from sector_pulse.application.schedule_service import ScheduleService
 from sector_pulse.application.scheduler import EmbeddedScheduler
 from sector_pulse.application.task_run_service import TaskRunService
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.domain.task import TaskRunKey, TaskRunStatus
+from sector_pulse.storage.phase1b_runs_repository import Phase1BRunRow, SQLitePhase1BRunsRepository
 from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.web.app import create_app
 
 
 class NoopExecutor:
@@ -82,3 +86,42 @@ def test_startup_marks_running_task_interrupted(tmp_path: Path) -> None:
     detail = repository.get_task_detail(run_id)
     assert detail is not None
     assert detail["status"] == TaskRunStatus.INTERRUPTED.value
+
+
+def test_app_startup_recovers_abandoned_content_without_losing_snapshot(tmp_path):
+    path = tmp_path / "app-content-recovery.db"
+    repo = SQLitePhase1BRunsRepository(SQLiteDatabase(path))
+    run_id = uuid4()
+    repo.insert(Phase1BRunRow(
+        run_id=run_id, requested_at=datetime.now(UTC), provider="fixture",
+        status="RUNNING", input_json={"retained": True},
+    ))
+
+    with TestClient(create_app(database_path=path, static_dir=None)):
+        recovered = repo.get_run(run_id)
+        assert recovered.status == "INTERRUPTED"
+        assert recovered.input_json == {"retained": True}
+
+
+def test_app_startup_preserves_completed_linked_content_outcome(tmp_path):
+    path = tmp_path / "completed-linked-recovery.db"
+    database = SQLiteDatabase(path)
+    tasks = SQLiteTaskRepository(database)
+    real_runs = SQLiteRealDataRunRepository(database)
+    content_runs = SQLitePhase1BRunsRepository(database)
+    task_id = tasks.create_or_get_run(TaskRunKey(input_fingerprint="completed"), "fixture", {})
+    run = RealDataRun(
+        request=RealDataRunRequest(mode="post_close"),
+        status=RealDataRunStatus.READY_FOR_ATTRIBUTION,
+    )
+    real_runs.insert(run)
+    tasks.link_data_run(task_id, run.run_id)
+    tasks.transition(task_id, TaskRunStatus.QUEUED, TaskRunStatus.RUNNING,
+                     source="test", summary="started")
+    content_runs.insert(Phase1BRunRow(
+        run_id=run.run_id, requested_at=datetime.now(UTC), provider="fixture",
+        status="READY_FOR_HUMAN_REVIEW",
+    ))
+
+    with TestClient(create_app(database_path=path, static_dir=None)):
+        assert tasks.get_task_detail(task_id)["status"] == "READY_FOR_HUMAN_REVIEW"

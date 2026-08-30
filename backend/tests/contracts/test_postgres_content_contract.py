@@ -51,7 +51,8 @@ from sector_pulse.storage.postgres_shadow_acceptance_repository import (
                 "get_review",
             ),
         ),
-        (PostgresPhase1BRunsRepository, ("insert", "get_run", "update_status", "list_runs")),
+        (PostgresPhase1BRunsRepository,
+         ("insert", "get_run", "update_status", "list_runs", "mark_interrupted")),
         (PostgresAgentInvocationRepository, ("save", "list_for_run")),
         (PostgresNewsEvidenceRepository, ("get_events",)),
         (

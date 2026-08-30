@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -107,3 +108,30 @@ async def test_one_broken_schedule_does_not_stop_other_due_schedules(
     assert failed is not None
     assert failed["status"] == "FAILED"
     assert failed["error_code"] == "SCHEDULE_EXECUTION_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_disabled_schedule_dispatch_still_advances_manual_work(tmp_path):
+    database = SQLiteDatabase(tmp_path / "manual-maintenance.db")
+    repository = SQLiteTaskRepository(database)
+    advanced = asyncio.Event()
+
+    class Bridge:
+        def advance(self):
+            advanced.set()
+            return 1
+
+    embedded = EmbeddedScheduler(
+        repository, ScheduleService(repository), FakeExecutor(),
+        bridge=Bridge(), dispatch_enabled=False,
+    )
+
+    async def forbidden_poll(*args, **kwargs):
+        raise AssertionError("disabled schedules must not be dispatched")
+
+    embedded.poll_once = forbidden_poll
+    embedded.start()
+    try:
+        await asyncio.wait_for(advanced.wait(), timeout=1)
+    finally:
+        await embedded.stop()

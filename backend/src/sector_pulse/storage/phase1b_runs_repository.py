@@ -65,6 +65,17 @@ class SQLitePhase1BRunsRepository:
             ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
+    def mark_interrupted(self, now: datetime) -> int:
+        with self._database.transaction() as connection:
+            result = connection.execute(
+                """UPDATE phase1b_runs
+                   SET status = 'INTERRUPTED', finished_at = ?,
+                       error_message = 'process restarted before content completion'
+                   WHERE status = 'RUNNING'""",
+                (now.isoformat(),),
+            )
+        return result.rowcount
+
     def get_run(self, run_id: UUID) -> Phase1BRunRow | None:
         with self._database.connection() as conn:
             row = conn.execute(

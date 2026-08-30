@@ -41,7 +41,7 @@ def test_initialize_is_idempotent(tmp_path: Path) -> None:
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
 
-        assert versions == [(version,) for version in range(1, 17)]
+        assert versions == [(version,) for version in range(1, 18)]
 
 
 def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> None:
@@ -81,6 +81,12 @@ def test_reliable_runtime_migration_preserves_existing_task_and_foreign_keys(
     database.initialize(legacy_migrations)
     with database.transaction() as connection:
         connection.execute(
+            """INSERT INTO phase1b_runs
+            (run_id, requested_at, provider, status, draft_id, input_json)
+            VALUES ('content-before-017', '2026-08-30T00:00:00Z', 'fixture',
+                    'RUNNING', 'retained-draft', '{"retained": true}')"""
+        )
+        connection.execute(
             """INSERT INTO task_runs
             (run_id, provider, input_fingerprint, status, requested_at)
             VALUES (?, ?, ?, ?, ?)""",
@@ -112,10 +118,17 @@ def test_reliable_runtime_migration_preserves_existing_task_and_foreign_keys(
             "SELECT event_id FROM task_events WHERE run_id = 'run-before-016'"
         ).fetchone()
         foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
+        connection.execute(
+            "UPDATE phase1b_runs SET status = 'INTERRUPTED' WHERE run_id = 'content-before-017'"
+        )
+        content = connection.execute(
+            "SELECT draft_id, input_json FROM phase1b_runs WHERE run_id = 'content-before-017'"
+        ).fetchone()
 
     assert status == ("INTERRUPTED",)
     assert event == ("event-before-016",)
     assert foreign_key_errors == []
+    assert content == ("retained-draft", '{"retained": true}')
 
 
 def test_failed_migration_rolls_back_schema_and_version(tmp_path: Path) -> None:

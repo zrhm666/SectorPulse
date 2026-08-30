@@ -37,3 +37,27 @@ def test_insert_list_and_update(tmp_path) -> None:
     listed = repo.list_runs()
     assert len(listed) == 1
     assert listed[0].run_id == run_id
+
+
+def test_recovery_preserves_content_artifacts_and_only_interrupts_running(tmp_path):
+    repo = SQLitePhase1BRunsRepository(SQLiteDatabase(tmp_path / "recover-content.db"))
+    now = datetime.now(UTC)
+    running_id, complete_id, draft_id = uuid4(), uuid4(), uuid4()
+    repo.insert(Phase1BRunRow(
+        run_id=running_id, requested_at=now, provider="fixture", status="RUNNING",
+        input_json={"retained": True}, draft_id=draft_id, elapsed_ms=123,
+    ))
+    repo.insert(Phase1BRunRow(
+        run_id=complete_id, requested_at=now, provider="fixture",
+        status="READY_FOR_HUMAN_REVIEW",
+    ))
+
+    assert repo.mark_interrupted(now) == 1
+    assert repo.mark_interrupted(now) == 0
+    recovered = repo.get_run(running_id)
+    assert recovered.status == "INTERRUPTED"
+    assert recovered.finished_at == now
+    assert recovered.input_json == {"retained": True}
+    assert recovered.draft_id == draft_id
+    assert recovered.elapsed_ms == 123
+    assert repo.get_run(complete_id).status == "READY_FOR_HUMAN_REVIEW"

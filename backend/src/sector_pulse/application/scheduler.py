@@ -21,6 +21,8 @@ class ScheduledRunBridge(Protocol):
 
     def advance(self) -> int: ...
 
+    def reconcile_finished(self) -> int: ...
+
 
 class ScheduledRunCoordinator(Protocol):
     def start_scheduled(self, schedule: ScheduleView, now: datetime) -> UUID: ...
@@ -38,6 +40,7 @@ class EmbeddedScheduler:
         poll_seconds: int = 10,
         bridge: ScheduledRunBridge | None = None,
         coordinator: ScheduledRunCoordinator | None = None,
+        dispatch_enabled: bool = True,
     ) -> None:
         self._repository = repository
         self._schedules = schedules
@@ -45,6 +48,7 @@ class EmbeddedScheduler:
         self._poll_seconds = poll_seconds
         self._bridge = bridge
         self._coordinator = coordinator
+        self._dispatch_enabled = dispatch_enabled
         self._task: asyncio.Task[None] | None = None
 
     async def poll_once(self, now: datetime | None = None) -> None:
@@ -112,6 +116,9 @@ class EmbeddedScheduler:
             return 0
         return self._bridge.advance()
 
+    def reconcile_finished(self) -> int:
+        return self._bridge.reconcile_finished() if self._bridge is not None else 0
+
     def start(self) -> None:
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._loop())
@@ -126,6 +133,7 @@ class EmbeddedScheduler:
 
     async def _loop(self) -> None:
         while True:
-            await self.poll_once()
+            if self._dispatch_enabled:
+                await self.poll_once()
             self.advance_bridged_runs()
             await asyncio.sleep(self._poll_seconds)

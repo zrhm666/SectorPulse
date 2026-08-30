@@ -243,6 +243,8 @@ class CandidateSelectionRepositoryPort(Protocol):
 
 @runtime_checkable
 class Phase1BRunsRepositoryPort(Protocol):
+    def mark_interrupted(self, now: datetime) -> int: ...
+
     def insert(self, run: Phase1BRunRow) -> None: ...
 
     def update_status(
