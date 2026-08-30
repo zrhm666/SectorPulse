@@ -1,0 +1,74 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sqlite-and-web:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: python -m pip install --upgrade "pip>=26.2"
+      - run: python -m pip install -e ".[dev,postgres]"
+      - run: python -m ruff check backend
+      - run: python -m mypy backend/src/sector_pulse
+      - run: python -m pip_audit --vulnerability-service osv --timeout 60 --progress-spinner off
+      - run: python -m pytest -m "not live and not live_llm" --import-mode=importlib -q
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm test -- --run
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - run: npm run test:e2e
+        working-directory: web
+      - run: npm audit --omit=dev
+        working-directory: web
+
+  postgres-contracts:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sectorpulse_test
+          POSTGRES_USER: sectorpulse
+          POSTGRES_PASSWORD: sectorpulse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sectorpulse -d sectorpulse_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECTOR_PULSE_DATABASE_URL: postgresql+psycopg://sectorpulse:sectorpulse_test@127.0.0.1:5432/sectorpulse_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install --upgrade "pip>=26.2"
+      - run: python -m pip install -e ".[dev,postgres]"
+      - run: >-
+          python -m pytest
+          backend/tests/contracts/test_postgres_data_contract.py
+          backend/tests/contracts/test_postgres_content_contract.py
+          backend/tests/integration/test_postgres_*.py
+          -q

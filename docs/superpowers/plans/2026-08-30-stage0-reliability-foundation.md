@@ -1198,13 +1198,13 @@ git commit -m "chore: upgrade supported react router"
 **Interfaces:**
 - Produces: zero strict Mypy errors and one authoritative modular CSS system.
 
-- [ ] **Step 1: Capture exact type and legacy selector baselines**
+- [x] **Step 1: Capture exact type and legacy selector baselines**
 
 Run: `\.venv\Scripts\python.exe -m mypy backend/src/sector_pulse`
 
 Run: `rg -n "styles.css|--color-|!important|0.01ms" web/src`
 
-- [ ] **Step 2: Fix type errors by narrowing rows and depending on ports**
+- [x] **Step 2: Fix type errors by narrowing rows and depending on ports**
 
 ```python
 def require_str(row: Mapping[str, object], key: str) -> str:
@@ -1216,7 +1216,7 @@ def require_str(row: Mapping[str, object], key: str) -> str:
 
 Use explicit helpers for `str`, `int`, `datetime`, JSON mappings, and optional values. Do not replace errors with `Any` or unverified casts.
 
-- [ ] **Step 3: Migrate remaining used legacy selectors and remove the legacy import**
+- [x] **Step 3: Migrate remaining used legacy selectors and remove the legacy import**
 
 ```css
 @media (prefers-reduced-motion: reduce) {
@@ -1232,7 +1232,7 @@ Use explicit helpers for `str`, `int`, `datetime`, JSON mappings, and optional v
 
 Remove `@import url("../styles.css") layer(legacy);` only after `rg` confirms every rendered class is defined in modular CSS. Delete `web/src/styles.css` in the same commit.
 
-- [ ] **Step 4: Run strict typing, frontend tests, build, and detector**
+- [x] **Step 4: Run strict typing, frontend tests, build, and detector**
 
 Run: `\.venv\Scripts\python.exe -m mypy backend/src/sector_pulse`
 
@@ -1244,12 +1244,14 @@ Run: `npm.cmd run build`
 
 Run: `node C:\Users\18067\.codex\skills\impeccable\scripts\detect.mjs --json web\src`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/src web/src
 git commit -m "refactor: enforce typed runtime and modular styles"
 ```
+
+Task 17 implementation and verification completed; committed as `fd8bf2b`.
 
 ## Phase F — Integrated Acceptance
 
@@ -1266,7 +1268,7 @@ git commit -m "refactor: enforce typed runtime and modular styles"
 **Interfaces:**
 - Produces: one non-Live local gate and documented PostgreSQL/Live boundaries.
 
-- [ ] **Step 1: Write the verification script with fail-fast commands**
+- [x] **Step 1: Write the verification script with fail-fast commands**
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -1360,7 +1362,7 @@ jobs:
       - run: python -m pytest backend/tests/contracts/test_postgres_data_contract.py backend/tests/contracts/test_postgres_content_contract.py backend/tests/integration/test_postgres_*.py -q
 ```
 
-- [ ] **Step 2: Run the gate without PostgreSQL and record that boundary explicitly**
+- [x] **Step 2: Run the gate without PostgreSQL and record that boundary explicitly**
 
 Run: `powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1`
 
@@ -1370,11 +1372,13 @@ Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_
 
 Before this command, verify the resolved database name and backup target without printing credentials. Do not create, drop, truncate, or reset the user's database during acceptance.
 
-- [ ] **Step 4: Update README and acceptance evidence**
+Local boundary (2026-08-31): `postgresql-x64-18` is stopped and the service manager denied startup. Business database backup/migration and isolated PostgreSQL round-trip evidence remain pending administrator action. Ordinary verification must not use the business database.
+
+- [x] **Step 4: Update README and acceptance evidence**
 
 Document the synchronous psycopg URL compatibility, backup command, Stage 0 gate, cancellation/recovery behavior, and actual MIT license link. Record exact test counts, build sizes, PostgreSQL migration version, skipped Live tests, and any upstream-only advisory.
 
-- [ ] **Step 5: Run repository integrity checks and commit**
+- [x] **Step 5: Run repository integrity checks and commit**
 
 Run: `git diff --check`
 
@@ -1382,10 +1386,12 @@ Run: `git status --short`
 
 ```powershell
 git add scripts/verify-stage0.ps1 .github/workflows/quality.yml pyproject.toml README.md .env.example docs/superpowers/acceptance/2026-08-30-stage0-reliability-foundation.md
-git commit -m "docs: complete stage 0 reliability acceptance"
+git commit -m "docs: add stage 0 quality gate and acceptance evidence"
 ```
 
 ## Final Review Gate
+
+Execution status (2026-08-31): inline review completed as requested. Linked outcome reconciliation, manual advancement with automatic dispatch disabled, and content interruption recovery were corrected with regression tests in `fc063e1`; the quality script also isolates ordinary tests from the business database. The full non-Live gate passed (336 backend tests, 174 frontend tests, 40 browser tests). PostgreSQL round-trip verification and branch integration remain pending; no merge or push has occurred.
 
 After Task 18:
 

@@ -68,6 +68,7 @@ Set-Location SectorPulse
 
 Copy-Item .env.example .env
 py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade "pip>=26.2"
 .\.venv\Scripts\python.exe -m pip install -e ".[dev,postgres]"
 
 Set-Location web
@@ -212,10 +213,29 @@ SECTOR_PULSE_DATABASE_URL=
 适合长期运行和更严格的持久化需求。先创建数据库和用户，再配置：
 
 ```dotenv
-SECTOR_PULSE_DATABASE_URL=postgresql+asyncpg://用户名:密码@127.0.0.1:5432/数据库名
+SECTOR_PULSE_DATABASE_URL=postgresql+psycopg://用户名:密码@127.0.0.1:5432/数据库名
 ```
 
 设置 `SECTOR_PULSE_DATABASE_URL` 后 PostgreSQL 优先于 SQLite。连接或迁移失败会终止启动，避免数据被意外写入另一个数据库。
+运行时统一使用同步 psycopg 驱动；已有的 `postgresql+asyncpg://` 配置会自动规范化为 psycopg URL，便于旧环境平滑升级。
+
+升级或迁移前，请先备份目标数据库。下面的命令不会修改数据库，密码可通过 PostgreSQL 的密码文件或临时 `PGPASSWORD` 环境变量提供：
+
+```powershell
+$backupFile = "data/backups/sectorpulse-$(Get-Date -Format 'yyyyMMdd-HHmmss').dump"
+New-Item (Split-Path $backupFile) -ItemType Directory -Force | Out-Null
+pg_dump -h 127.0.0.1 -U 用户名 -d 数据库名 --format=custom --file=$backupFile
+```
+
+应用启动时只执行尚未应用的前向迁移，不会自动删除、截断或重置现有数据。当前最新迁移版本为 `017_content_interrupted`。
+
+### 取消与异常恢复
+
+- 取消请求会先持久化，再由执行器在安全检查点停止任务。
+- 服务重启时，遗留的运行中任务会被标记为 `INTERRUPTED`，不会伪装成仍在执行。
+- 手动和定时分析共用同一执行路径；某个定时任务失败不会阻止其他到期任务继续推进。
+- 调度器持久化上次消费窗口，重启后不会重复消费已经处理的到期窗口。
+- 关闭自动调度只停止新到期任务的派发；已手动触发任务仍会推进，并同步采集、写作的最终结果。
 
 ## 技术架构
 
@@ -271,6 +291,18 @@ SectorPulse/
 
 ## 测试与质量检查
 
+推荐从仓库根目录运行完整 Stage 0 门禁：
+
+```powershell
+# 首次运行浏览器测试时安装 Chromium
+Set-Location web
+npx.cmd playwright install chromium
+Set-Location ..
+powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1
+```
+
+该命令依次执行 Ruff、严格 Mypy、Python 依赖审计、非 Live 后端测试、前端单测、生产构建、Playwright 和生产依赖审计。测试子进程强制使用 Fixture/SQLite，不继承业务 PostgreSQL 连接，不会访问 Live 数据源或调用真实 LLM。PostgreSQL 合约测试由 CI 的隔离 PostgreSQL 16 服务执行；本机执行时必须明确指向专用测试库。
+
 后端：
 
 ```powershell
@@ -294,6 +326,7 @@ Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参�
 - [UI 设计系统](docs/design/soft-blue-operations-ui-system.md)
 - [完整项目审查](docs/superpowers/reports/2026-08-23-full-project-review.md)
 - [实现计划与设计记录](docs/superpowers/)
+- [Stage 0 可靠性验收](docs/superpowers/acceptance/2026-08-30-stage0-reliability-foundation.md)
 
 ## 当前边界
 
@@ -305,4 +338,4 @@ Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参�
 
 ## License
 
-本仓库当前未包含开源许可证文件。源码公开可见不等于自动授予复制、修改或分发权；如需使用或贡献，请先联系仓库所有者确认授权方式。
+本项目采用 [MIT License](LICENSE)。
