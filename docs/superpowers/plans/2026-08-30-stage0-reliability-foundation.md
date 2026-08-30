@@ -479,7 +479,7 @@ git commit -m "fix: isolate scheduled workflow advancement"
 **Interfaces:**
 - Produces: `PostgresDatabase.start() -> Engine`, `healthcheck() -> bool`, `initialize() -> None`, `close() -> None`.
 
-- [ ] **Step 1: Rewrite the database unit contract first**
+- [x] **Step 1: Rewrite the database unit contract first**
 
 ```python
 def test_postgres_database_builds_sync_engine() -> None:
@@ -497,11 +497,11 @@ def test_legacy_asyncpg_url_is_normalized_for_sync_psycopg() -> None:
     assert config.url == "postgresql+psycopg://user:pass@localhost/db"
 ```
 
-- [ ] **Step 2: Run and verify the async engine implementation fails the new contract**
+- [x] **Step 2: Run and verify the async engine implementation fails the new contract**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/storage/test_postgres_database.py backend/tests/unit/storage/test_database_runtime.py -q`
 
-- [ ] **Step 3: Change the dependency and database implementation**
+- [x] **Step 3: Change the dependency and database implementation**
 
 ```toml
 postgres = ["psycopg[binary]>=3.2,<4", "SQLAlchemy>=2.0,<3"]
@@ -530,13 +530,13 @@ class PostgresDatabase:
 
 Normalize accepted configuration URLs from `postgresql+asyncpg://` to `postgresql+psycopg://` in `resolve_database_config` so existing `.env` files remain usable without exposing the URL.
 
-- [ ] **Step 4: Install updated editable dependencies and run database tests**
+- [x] **Step 4: Install updated editable dependencies and run database tests**
 
 Run: `\.venv\Scripts\python.exe -m pip install -e ".[dev,postgres]"`
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/unit/storage/test_postgres_database.py backend/tests/unit/storage/test_database_runtime.py backend/tests/unit/storage/test_postgres_migrations.py -q`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add pyproject.toml backend/src/sector_pulse/storage/postgres.py backend/src/sector_pulse/storage/database_runtime.py backend/tests

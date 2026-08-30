@@ -22,3 +22,12 @@ def test_postgres_migration_files_are_split_safe() -> None:
         ]
         assert statements, path
         assert all("PRAGMA" not in statement.upper() for statement in statements)
+
+
+def test_postgres_migration_uses_named_version_parameter() -> None:
+    source = Path("backend/src/sector_pulse/storage/postgres.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "VALUES (:version)" in source
+    assert "VALUES ($1)" not in source

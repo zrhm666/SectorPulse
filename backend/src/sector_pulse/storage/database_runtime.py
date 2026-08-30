@@ -21,9 +21,9 @@ async def initialize_database(database: Database) -> None:
     if isinstance(database, SQLiteDatabase):
         database.initialize()
     else:
-        await database.initialize()
+        database.initialize()
 
 
 async def close_database(database: Database) -> None:
     if isinstance(database, PostgresDatabase):
-        await database.close()
+        database.close()

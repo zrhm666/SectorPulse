@@ -13,6 +13,9 @@ def resolve_database_config(database_url: str | None, database_path: str) -> Dat
     if not database_url:
         return DatabaseConfig(backend="sqlite", url=database_path)
     scheme = urlparse(database_url).scheme
-    if scheme in {"postgresql", "postgresql+asyncpg", "postgres"}:
-        return DatabaseConfig(backend="postgresql", url=database_url)
+    if scheme in {"postgresql", "postgresql+asyncpg", "postgresql+psycopg", "postgres"}:
+        remainder = database_url.split("://", 1)[1]
+        return DatabaseConfig(
+            backend="postgresql", url=f"postgresql+psycopg://{remainder}"
+        )
     raise ValueError(f"unsupported database URL scheme: {scheme}")
