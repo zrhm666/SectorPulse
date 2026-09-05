@@ -31,7 +31,9 @@ class DataRunService:
         self._factory = RealDataProviderFactory(consent_file)
         self._allow_fixture = allow_fixture
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
-        self._run_inputs: dict[UUID, tuple[RealDataRunRequest, Literal["fixture", "live"]]] = {}
+        self._run_inputs: dict[
+            UUID, tuple[RealDataRunRequest, Literal["fixture", "live"], UUID | None]
+        ] = {}
 
     def preflight(self, provider: Literal["fixture", "live"]) -> None:
         if provider == "fixture":
@@ -48,6 +50,8 @@ class DataRunService:
         self,
         request: RealDataRunRequest,
         provider: Literal["fixture", "live"],
+        *,
+        retry_of_run_id: UUID | None = None,
     ) -> UUID:
         self.preflight(provider)
         dependencies_factory = self._dependencies_factory
@@ -62,6 +66,7 @@ class DataRunService:
                     request,
                     run_id=run_id,
                     provider=provider,
+                    retry_of_run_id=retry_of_run_id,
                     progress_sink=lambda status: self.bus.emit(
                         run_id,
                         {"type": "progress", "status": status.value},
@@ -69,7 +74,7 @@ class DataRunService:
                 )
                 self.bus.finish(result.run.run_id, {"type": "done", "status": result.status.value})
             except asyncio.CancelledError:
-                self._persist_cancelled(run_id, request, provider)
+                self._persist_cancelled(run_id, request, provider, retry_of_run_id)
                 self.bus.finish(run_id, {"type": "cancelled", "status": "CANCELLED"})
                 raise
 
@@ -78,7 +83,7 @@ class DataRunService:
 
         task = asyncio.create_task(create_and_run())
         self._tasks[run_id] = task
-        self._run_inputs[run_id] = (request, provider)
+        self._run_inputs[run_id] = (request, provider, retry_of_run_id)
 
         def forget(_task: asyncio.Task[None]) -> None:
             self._tasks.pop(run_id, None)
@@ -92,8 +97,8 @@ class DataRunService:
         if task is None or task.done():
             return False
         task.cancel()
-        request, provider = self._run_inputs[run_id]
-        self._persist_cancelled(run_id, request, provider)
+        request, provider, retry_of_run_id = self._run_inputs[run_id]
+        self._persist_cancelled(run_id, request, provider, retry_of_run_id)
         return True
 
     def _persist_cancelled(
@@ -101,12 +106,14 @@ class DataRunService:
         run_id: UUID,
         request: RealDataRunRequest,
         provider: Literal["fixture", "live"],
+        retry_of_run_id: UUID | None,
     ) -> None:
         finished_at = datetime.now(UTC)
         if self.repository.get_run(run_id) is None:
             self.repository.insert(
                 RealDataRun(
                     run_id=run_id,
+                    retry_of_run_id=retry_of_run_id,
                     request=request,
                     provider=provider,
                     status=RealDataRunStatus.CANCELLED,
@@ -140,7 +147,7 @@ class DataRunService:
         }
         if source.status not in retryable:
             raise ValueError(f"run status {source.status.value} cannot be retried")
-        return self.create(source.request, source.provider)
+        return self.create(source.request, source.provider, retry_of_run_id=source.run_id)
 
     def mark_interrupted(self) -> int:
         return self.repository.mark_interrupted()

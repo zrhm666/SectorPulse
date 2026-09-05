@@ -60,12 +60,14 @@ async def run_real_data_workflow(
     progress_sink: Callable[[RealDataRunStatus], None] | None = None,
     run_id: UUID | None = None,
     provider: Literal["fixture", "live"] = "live",
+    retry_of_run_id: UUID | None = None,
 ) -> RealDataRunResult:
     """复用已验证的采集链路，并在外层增加真实数据状态和持久化边界。"""
     real_run = RealDataRun(
         run_id=run_id or UUID(int=0),
         provider=provider,
         request=request,
+        retry_of_run_id=retry_of_run_id,
     )
     storage = cast(RuntimeStorageBundle | None, getattr(dependencies, "storage", None))
     database = dependencies.database

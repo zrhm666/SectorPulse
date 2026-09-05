@@ -41,7 +41,7 @@ def test_initialize_is_idempotent(tmp_path: Path) -> None:
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
 
-        assert versions == [(version,) for version in range(1, 18)]
+        assert versions == [(version,) for version in range(1, 19)]
 
 
 def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> None:
@@ -122,13 +122,14 @@ def test_reliable_runtime_migration_preserves_existing_task_and_foreign_keys(
             "UPDATE phase1b_runs SET status = 'INTERRUPTED' WHERE run_id = 'content-before-017'"
         )
         content = connection.execute(
-            "SELECT draft_id, input_json FROM phase1b_runs WHERE run_id = 'content-before-017'"
+            "SELECT draft_id, input_json, retry_of_run_id "
+            "FROM phase1b_runs WHERE run_id = 'content-before-017'"
         ).fetchone()
 
     assert status == ("INTERRUPTED",)
     assert event == ("event-before-016",)
     assert foreign_key_errors == []
-    assert content == ("retained-draft", '{"retained": true}')
+    assert content == ("retained-draft", '{"retained": true}', None)
 
 
 def test_failed_migration_rolls_back_schema_and_version(tmp_path: Path) -> None:

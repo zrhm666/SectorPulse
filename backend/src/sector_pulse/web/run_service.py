@@ -61,7 +61,8 @@ class RunService:
         self._tasks = RunTaskRegistry()
 
     def create_run(
-        self, input_json: dict[str, Any], provider: str, run_id: UUID | None = None
+        self, input_json: dict[str, Any], provider: str, run_id: UUID | None = None,
+        *, retry_of_run_id: UUID | None = None,
     ) -> UUID:
         # 先做同步预检，避免未配置 Live 任务先落库为 RUNNING。
         self._preflight(provider)
@@ -103,6 +104,7 @@ class RunService:
                 status="RUNNING",
                 input_json_hash=input_hash,
                 input_json=input_json,
+                retry_of_run_id=retry_of_run_id,
             )
         )
 
@@ -293,7 +295,7 @@ class RunService:
         row = self._runs_repo.get_run(run_id)
         if row is None or row.status in {"RUNNING"} or row.input_json is None:
             raise ProviderUnavailable("run cannot be retried without a completed input snapshot")
-        return self.create_run(row.input_json, row.provider)
+        return self.create_run(row.input_json, row.provider, retry_of_run_id=row.run_id)
 
     def cancel_run(self, run_id: UUID) -> bool:
         if not self._tasks.cancel(run_id):
@@ -314,6 +316,7 @@ class RunService:
                 elapsed_ms=r.elapsed_ms,
                 total_cost_cny=r.total_cost_cny,
                 draft_id=r.draft_id,
+                retry_of_run_id=r.retry_of_run_id,
             )
             for r in self._runs_repo.list_runs(limit)
         ]
@@ -332,6 +335,7 @@ class RunService:
             elapsed_ms=row.elapsed_ms,
             total_cost_cny=row.total_cost_cny,
             draft_id=row.draft_id,
+            retry_of_run_id=row.retry_of_run_id,
             input_json_hash=row.input_json_hash,
             error_message=row.error_message,
             sector_count=len(cards),

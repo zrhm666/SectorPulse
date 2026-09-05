@@ -50,6 +50,21 @@ def _input_json() -> dict:
     }
 
 
+async def test_content_retry_persists_lineage_and_preserves_original(tmp_path):
+    service = _service(tmp_path)
+    original = service.create_run(_input_json(), "fixture")
+    await service.wait(original)
+    before = service._runs_repo.get_run(original)
+    retry = service.retry_run(original)
+    await service.wait(retry)
+    stored = service._runs_repo.get_run(retry)
+    assert retry != original
+    assert stored.retry_of_run_id == original
+    assert stored.input_json == before.input_json
+    assert service._runs_repo.get_run(original) == before
+    assert service.get_run(retry).retry_of_run_id == original
+
+
 async def test_create_run_lifecycle(tmp_path) -> None:
     svc = _service(tmp_path)
     run_id = svc.create_run(_input_json(), "fixture")

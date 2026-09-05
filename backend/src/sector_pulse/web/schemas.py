@@ -23,6 +23,7 @@ class RunSummary(BaseModel):
     elapsed_ms: int | None
     total_cost_cny: str | None
     draft_id: UUID | None
+    retry_of_run_id: UUID | None = None
 
 
 class RunDetail(RunSummary):

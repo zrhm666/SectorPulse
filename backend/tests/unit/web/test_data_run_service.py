@@ -1,6 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -53,16 +54,59 @@ def test_retry_reuses_original_request_and_provider(status: RealDataRunStatus) -
     source = _run(status)
     service = DataRunService(RunRepository(source), ProgressBus())  # type: ignore[arg-type]
     created_id = uuid4()
-    captured: list[tuple[RealDataRunRequest, str]] = []
+    captured: list[tuple[RealDataRunRequest, str, UUID | None]] = []
 
-    def create(request: RealDataRunRequest, provider: str) -> UUID:
-        captured.append((request, provider))
+    def create(request: RealDataRunRequest, provider: str, *, retry_of_run_id=None) -> UUID:
+        captured.append((request, provider, retry_of_run_id))
         return created_id
 
     service.create = create  # type: ignore[method-assign,assignment]
 
     assert service.retry(source.run_id) == created_id
-    assert captured == [(source.request, "fixture")]
+    assert captured == [(source.request, "fixture", source.run_id)]
+
+
+@pytest.mark.asyncio
+async def test_immediate_retry_cancellation_preserves_lineage(tmp_path):
+    repository = SQLiteRealDataRunRepository(SQLiteDatabase(tmp_path / "lineage.db"))
+    original = _run(RealDataRunStatus.FAILED)
+    repository.insert(original)
+    service = DataRunService(
+        repository, ProgressBus(), dependencies_factory=lambda _: None, allow_fixture=True,
+    )
+    retry = service.retry(original.run_id)
+    assert service.cancel(retry)
+    await service.wait(retry)
+    stored = repository.get_run(retry)
+    assert stored.status is RealDataRunStatus.CANCELLED
+    assert stored.retry_of_run_id == original.run_id
+    assert repository.get_run(original.run_id).status is RealDataRunStatus.FAILED
+
+
+@pytest.mark.asyncio
+async def test_retry_workflow_persists_lineage_after_provider_failure(tmp_path, monkeypatch):
+    database = SQLiteDatabase(tmp_path / "workflow-lineage.db")
+    repository = SQLiteRealDataRunRepository(database)
+    original = _run(RealDataRunStatus.FAILED)
+    repository.insert(original)
+
+    async def unavailable_provider(*args, **kwargs):
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(
+        "sector_pulse.application.real_data_orchestrator.run_phase1a2_probe",
+        unavailable_provider,
+    )
+    service = DataRunService(
+        repository, ProgressBus(),
+        dependencies_factory=lambda _: SimpleNamespace(database=database), allow_fixture=True,
+    )
+    retry = service.retry(original.run_id)
+    await service.wait(retry)
+    stored = repository.get_run(retry)
+    assert stored.status is RealDataRunStatus.FAILED
+    assert stored.retry_of_run_id == original.run_id
+    assert stored.request == original.request
 
 
 @pytest.mark.parametrize(

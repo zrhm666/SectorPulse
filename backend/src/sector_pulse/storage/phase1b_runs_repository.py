@@ -20,6 +20,7 @@ class Phase1BRunRow:
     error_message: str | None = None
     finished_at: datetime | None = None
     input_json: dict[str, object] | None = None
+    retry_of_run_id: UUID | None = None
 
 
 class SQLitePhase1BRunsRepository:
@@ -32,8 +33,8 @@ class SQLitePhase1BRunsRepository:
             conn.execute(
                 """INSERT INTO phase1b_runs
                 (run_id, requested_at, provider, status, elapsed_ms, total_cost_cny,
-                 input_json_hash, draft_id, error_message, finished_at, input_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 input_json_hash, draft_id, error_message, finished_at, input_json, retry_of_run_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     str(run.run_id), run.requested_at.isoformat(), run.provider,
                     run.status, run.elapsed_ms, run.total_cost_cny,
@@ -41,6 +42,7 @@ class SQLitePhase1BRunsRepository:
                     run.error_message, run.finished_at.isoformat() if run.finished_at else None,
                     json.dumps(run.input_json, ensure_ascii=False, sort_keys=True)
                     if run.input_json is not None else None,
+                    str(run.retry_of_run_id) if run.retry_of_run_id else None,
                 ),
             )
 
@@ -92,4 +94,5 @@ class SQLitePhase1BRunsRepository:
             draft_id=UUID(r[7]) if r[7] else None, error_message=r[8],
             finished_at=datetime.fromisoformat(r[9]) if r[9] else None,
             input_json=json.loads(r[10]) if r[10] else None,
+            retry_of_run_id=UUID(r[11]) if r[11] else None,
         )

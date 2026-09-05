@@ -30,6 +30,7 @@ class RealDataRunQueries:
         quality = payload["quality"]
         return {
             "run_id": payload["run_id"],
+            "retry_of_run_id": payload["retry_of_run_id"],
             "provider": payload["provider"],
             "mode": request["mode"],
             "status": payload["status"],

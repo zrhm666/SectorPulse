@@ -17,7 +17,7 @@ def test_postgres_phase1b_runs_round_trip() -> None:
     database.initialize()
     item = Phase1BRunRow(
         run_id=uuid4(), requested_at=datetime.now(UTC), provider="postgres-test",
-        status="RUNNING", input_json={"test": True},
+        status="RUNNING", input_json={"test": True}, retry_of_run_id=uuid4(),
     )
     repository = PostgresPhase1BRunsRepository(database)
     repository.insert(item)
@@ -25,6 +25,7 @@ def test_postgres_phase1b_runs_round_trip() -> None:
     assert loaded is not None
     assert loaded.run_id == item.run_id
     assert loaded.input_json == {"test": True}
+    assert loaded.retry_of_run_id == item.retry_of_run_id
     assert any(run.run_id == item.run_id for run in repository.list_runs())
     database.close()
 

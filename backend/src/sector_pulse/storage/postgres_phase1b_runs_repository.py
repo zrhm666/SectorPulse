@@ -18,10 +18,11 @@ class PostgresPhase1BRunsRepository:
                 text(
                     """INSERT INTO phase1b_runs
                     (run_id, requested_at, provider, status, elapsed_ms, total_cost_cny,
-                     input_json_hash, draft_id, error_message, finished_at, input_json)
+                     input_json_hash, draft_id, error_message, finished_at,
+                     input_json, retry_of_run_id)
                     VALUES (:run_id, :requested_at, :provider, :status, :elapsed_ms,
                      :total_cost_cny, :input_json_hash, :draft_id, :error_message,
-                     :finished_at, :input_json)"""
+                     :finished_at, :input_json, :retry_of_run_id)"""
                 ),
                 self._values(run),
             )
@@ -93,6 +94,7 @@ class PostgresPhase1BRunsRepository:
         return {
             "run_id": str(run.run_id), "requested_at": run.requested_at.isoformat(),
             "provider": run.provider, "status": run.status, "elapsed_ms": run.elapsed_ms,
+            "retry_of_run_id": str(run.retry_of_run_id) if run.retry_of_run_id else None,
             "total_cost_cny": run.total_cost_cny, "input_json_hash": run.input_json_hash,
             "draft_id": str(run.draft_id) if run.draft_id else None,
             "error_message": run.error_message,
@@ -118,4 +120,5 @@ class PostgresPhase1BRunsRepository:
                 datetime.fromisoformat(str(values[9])) if values[9] else None
             ),
             input_json=json.loads(str(values[10])) if values[10] else None,
+            retry_of_run_id=UUID(str(values[11])) if values[11] else None,
         )
