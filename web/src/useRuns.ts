@@ -9,7 +9,7 @@ export interface ProgressEvent {
   message?: string
 }
 
-const TERMINAL = new Set(['READY_FOR_HUMAN_REVIEW', 'FAILED', 'CANCELLED', 'BUDGET_EXCEEDED', 'ATTRIBUTION_BLOCKED', 'DRAFT_GENERATION_FAILED'])
+const TERMINAL = new Set(['READY_FOR_HUMAN_REVIEW', 'FAILED', 'CANCELLED', 'INTERRUPTED', 'UNREVIEWED', 'REVISE_REQUIRED', 'BUDGET_EXCEEDED', 'ATTRIBUTION_BLOCKED', 'DRAFT_GENERATION_FAILED'])
 
 export function useRunSSE(runId: string | null, onDone?: () => void) {
   const [events, setEvents] = useState<ProgressEvent[]>([])
@@ -17,6 +17,9 @@ export function useRunSSE(runId: string | null, onDone?: () => void) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    setEvents([])
+    setDone(false)
+    setError(null)
     if (!runId) return
     let es: EventSource | null = null
     let reconnectTimer: number | undefined
@@ -25,6 +28,7 @@ export function useRunSSE(runId: string | null, onDone?: () => void) {
     const refreshTerminalState = async () => {
       try {
         const run = await fetchRun(runId)
+        if (disposed) return true
         if (TERMINAL.has(run.status)) {
           setDone(true)
           onDone?.()
@@ -40,6 +44,7 @@ export function useRunSSE(runId: string | null, onDone?: () => void) {
       if (disposed) return
       es = new EventSource(`/api/runs/${runId}/events`)
       es.onmessage = (e) => {
+        if (disposed) return
         let event: ProgressEvent
         try {
           event = JSON.parse(e.data) as ProgressEvent

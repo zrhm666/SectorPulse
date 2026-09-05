@@ -71,6 +71,8 @@ export default function RunDetailPage() {
           { label: '板块数', value: run.sector_count ?? 0 },
         ]} />
         {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成"><p>{run.error_message ?? '本次运行未能完成，请检查系统状态。'}</p>{run.input_json_hash && <p>已保留输入快照，可使用相同输入重新运行。</p>}</InlineAlert>}
+        {run.status === 'INTERRUPTED' && <InlineAlert tone="warning" title="运行已中断">服务重启前的执行未完成，可使用已保存的输入重新运行。</InlineAlert>}
+        {['UNREVIEWED', 'REVISE_REQUIRED'].includes(run.status) && <InlineAlert tone="warning" title="审核尚未通过">本次生成已结束，请检查草稿与审核结果后处理。</InlineAlert>}
         {streamError && run.status !== 'FAILED' && <InlineAlert tone="warning" title="实时进度已中断">{streamError}。页面仍保留最近一次运行快照。</InlineAlert>}
         {retryError && <InlineAlert tone="error" title="重试未能启动">请检查 Provider 和系统配置后再试。</InlineAlert>}
         <div className="detail-actions">{run.draft_id && run.status === 'READY_FOR_HUMAN_REVIEW' && <Link className="button button-primary" to={`/review?run=${encodeURIComponent(run.run_id)}`}>进入审核工作台</Link>}{run.retryable && <button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button>}</div>
