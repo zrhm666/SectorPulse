@@ -12,6 +12,14 @@ from sector_pulse.storage.sqlite import SQLiteDatabase
 from sector_pulse.web.app import create_app
 
 
+def test_unstarted_scheduler_is_not_reported_as_ready(tmp_path, monkeypatch):
+    monkeypatch.setenv("SECTOR_PULSE_SCHEDULER_ENABLED", "true")
+    client = TestClient(create_app(database_path=tmp_path / "not-started.db"))
+    response = client.get("/api/operations/summary")
+    assert response.status_code == 200
+    assert response.json()["readiness"]["scheduler"]["status"] == "warning"
+
+
 def test_operations_summary_is_redacted_and_describes_empty_runtime(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("SECTOR_PULSE_LLM_PROVIDER", "openai-compatible")
     monkeypatch.setenv("SECTOR_PULSE_LLM_MODEL", "safe-model")

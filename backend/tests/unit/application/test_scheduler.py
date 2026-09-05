@@ -135,3 +135,69 @@ async def test_disabled_schedule_dispatch_still_advances_manual_work(tmp_path):
         await asyncio.wait_for(advanced.wait(), timeout=1)
     finally:
         await embedded.stop()
+
+
+@pytest.mark.asyncio
+async def test_scheduler_recovers_after_maintenance_failure(scheduler, caplog):
+    embedded, _, _, _ = scheduler
+    recovered = asyncio.Event()
+    failed = asyncio.Event()
+    embedded._poll_seconds = 0
+    embedded._dispatch_enabled = False
+
+    class Bridge:
+        def advance(self):
+            if not failed.is_set():
+                failed.set()
+                raise RuntimeError("private provider credentials")
+            recovered.set()
+            return 1
+
+    embedded._bridge = Bridge()
+    embedded.start()
+    try:
+        await asyncio.wait_for(failed.wait(), timeout=1)
+        await asyncio.wait_for(recovered.wait(), timeout=1)
+        assert embedded.is_running
+        assert embedded.is_healthy
+        assert "private provider credentials" not in caplog.text
+    finally:
+        await embedded.stop()
+    assert not embedded.is_running
+
+
+@pytest.mark.asyncio
+async def test_dispatch_failure_still_advances_manual_work_and_reports_unhealthy(scheduler):
+    embedded, _, _, _ = scheduler
+    advanced = asyncio.Event()
+
+    async def broken_poll(*args, **kwargs):
+        raise RuntimeError("temporary database outage")
+
+    class Bridge:
+        def advance(self):
+            advanced.set()
+            return 1
+
+    embedded.poll_once = broken_poll
+    embedded._bridge = Bridge()
+    embedded.start()
+    try:
+        await asyncio.wait_for(advanced.wait(), timeout=1)
+        assert embedded.is_running
+        assert not embedded.is_healthy
+    finally:
+        await embedded.stop()
+
+
+@pytest.mark.asyncio
+async def test_stop_collects_an_already_failed_background_task(scheduler):
+    embedded, _, _, _ = scheduler
+
+    async def failed_loop():
+        raise RuntimeError("failed before shutdown")
+
+    embedded._task = asyncio.create_task(failed_loop())
+    await asyncio.sleep(0)
+    await embedded.stop()
+    assert not embedded.is_running

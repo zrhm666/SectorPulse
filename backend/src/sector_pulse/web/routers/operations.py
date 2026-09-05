@@ -72,7 +72,7 @@ def _readiness(
         )
     else:
         scheduler_status = OperationsReadinessItem(
-            status="warning", label="调度器", detail="已启用但尚未启动"
+            status="warning", label="调度器", detail="调度尚未就绪或最近一次轮询失败"
         )
     return OperationsReadiness(
         database=OperationsReadinessItem(
@@ -171,7 +171,7 @@ def build_operations_router(
                 llm_configured=llm_configured,
                 live_llm_consent=Path(".live-llm-consent").is_file(),
                 scheduler_enabled=settings.scheduler_enabled,
-                scheduler_started=scheduler is not None,
+                scheduler_started=scheduler is not None and scheduler.is_healthy,
             ),
             recent_runs=tuple(
                 OperationsRecentRun(

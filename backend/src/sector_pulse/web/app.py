@@ -60,10 +60,14 @@ def create_app(
             scheduler.reconcile_finished()
             scheduler.recover()
             scheduler.start()
-        yield
-        if scheduler is not None:
-            await scheduler.stop()
-        await close_database(database)
+        try:
+            yield
+        finally:
+            try:
+                if scheduler is not None:
+                    await scheduler.stop()
+            finally:
+                await close_database(database)
 
     app = FastAPI(title="SectorPulse Web", lifespan=lifespan)
     register_error_handlers(app)

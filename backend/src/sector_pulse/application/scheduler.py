@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import json
-from contextlib import suppress
+import logging
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
@@ -10,6 +10,8 @@ from zoneinfo import ZoneInfo
 from sector_pulse.application.schedule_service import ScheduleService, ScheduleView
 from sector_pulse.domain.task import TaskRunKey, TaskRunStatus
 from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+
+logger = logging.getLogger(__name__)
 
 
 class Executor(Protocol):
@@ -50,6 +52,7 @@ class EmbeddedScheduler:
         self._coordinator = coordinator
         self._dispatch_enabled = dispatch_enabled
         self._task: asyncio.Task[None] | None = None
+        self._healthy = False
 
     async def poll_once(self, now: datetime | None = None) -> None:
         current = now or datetime.now(UTC)
@@ -121,19 +124,48 @@ class EmbeddedScheduler:
 
     def start(self) -> None:
         if self._task is None or self._task.done():
+            self._healthy = False
             self._task = asyncio.create_task(self._loop())
+
+    @property
+    def is_running(self) -> bool:
+        return self._task is not None and not self._task.done()
+
+    @property
+    def is_healthy(self) -> bool:
+        return self.is_running and self._healthy
 
     async def stop(self) -> None:
         if self._task is None:
             return
         self._task.cancel()
-        with suppress(asyncio.CancelledError):
+        try:
             await self._task
-        self._task = None
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.warning("scheduler stopped after failure: error_type=%s", type(exc).__name__)
+        finally:
+            self._task = None
+            self._healthy = False
 
     async def _loop(self) -> None:
         while True:
+            healthy = True
             if self._dispatch_enabled:
-                await self.poll_once()
-            self.advance_bridged_runs()
+                try:
+                    await self.poll_once()
+                except Exception as exc:
+                    healthy = False
+                    logger.warning(
+                        "scheduler cycle failed: stage=dispatch error_type=%s", type(exc).__name__
+                    )
+            try:
+                self.advance_bridged_runs()
+            except Exception as exc:
+                healthy = False
+                logger.warning(
+                    "scheduler cycle failed: stage=maintenance error_type=%s", type(exc).__name__
+                )
+            self._healthy = healthy
             await asyncio.sleep(self._poll_seconds)
