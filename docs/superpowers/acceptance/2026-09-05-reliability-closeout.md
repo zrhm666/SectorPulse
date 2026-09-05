@@ -29,6 +29,7 @@
 | 浏览器测试 | 40 项通过，使用受控接口响应 |
 | 生产构建 | 116 模块，CSS 56.94 kB / gzip 10.31 kB，JS 303.90 kB / gzip 97.71 kB |
 | npm 生产依赖审计 | 0 漏洞 |
+| npm 含开发依赖审计 | 未通过：主目录 `npm audit --json` 报告 6 个受影响依赖节点（5 中危、1 高危），集中在 Vite/esbuild 及相关测试工具依赖链；不能把生产依赖审计结果理解为全量依赖无漏洞 |
 | 实际 HTTP + SQLite | 构建资源、内容生成、审核、批准、导出、审计、重试来源通过 |
 | 实际 HTTP + PostgreSQL | 同样八项流程通过，使用 Fixture LLM |
 | PostgreSQL 17→18 升级 | 独立旧结构数据库保存草稿和输入后升级，内容保留且新增来源字段为空 |
@@ -46,6 +47,7 @@ PostgreSQL 测试使用本机安装的 `D:\software\postgresql18\bin`，不是 D
 - 20 日影子测试继续按用户要求暂停。
 - CI 已配置检查，未推送远端，因此没有本轮远端 CI 执行结果。
 - Starlette/httpx 与 Vite 转换插件仍有上游弃用警告，未影响本轮检查。
+- 开发工具链安全升级待办：当前主构建使用 Vite 5.4.21，包含已公开的开发服务器漏洞；本轮未进行跨主版本工具链升级。不要将开发服务器开放到局域网或公网；本机使用后端提供已构建的 `web/dist`。这不是对所有开发漏洞的完整缓解，后续仍需升级并重新执行前端及浏览器回归。参考 [Vite Windows 路径绕过公告](https://github.com/vitejs/vite/security/advisories/GHSA-fx2h-pf6j-xcff) 与 [esbuild 开发服务器公告](https://github.com/evanw/esbuild/security/advisories/GHSA-67mh-4wv8-2f99)。
 
 ## 复验
 
@@ -64,4 +66,8 @@ $env:SECTOR_PULSE_TEST_DATABASE_URL='postgresql+psycopg://测试用户:密码@12
 ## 集成记录
 
 工作分支：`codex/stage0-reliability`。本轮实现提交：`740d009`（设计计划）、`f8ebb28`（调度）、`b5465bd`（终态）、`28a4312`（重试来源）、`841b7a7`（可选部署）。
-本地 main 集成与主目录重建在最终检查后记录；不推送远端。
+验收脚本、CI 与收尾文档提交为 `125163b`。本地 `main` 已从 `d2e044d` 快进至 `125163b`，包含此前可靠性分支全部实现；未推送远端，保留开发分支和隔离测试归档。
+
+主目录 `D:\work\SectorPulse\web` 已按锁文件重新安装依赖并执行生产构建，资源文件为 `index-SGsO_oUZ.css` 与 `index-DiR47LUP.js`，与验收工作区完全一致。主目录再次通过真实 HTTP + 临时 SQLite 的八项流程，生产依赖审计仍为 0 漏洞。本文最终状态由后续文档提交补充，不改变已验证的应用代码。
+
+中断后第一次常规复验受沙箱临时目录访问限制而失败；获准在沙箱外重跑后完整质量脚本退出码为 0，包含上述 343/178/40 项及新增真实 HTTP 检查。业务 PostgreSQL 服务最后检查仍为 Stopped，未启动业务应用。

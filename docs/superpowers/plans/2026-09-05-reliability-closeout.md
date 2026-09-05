@@ -79,12 +79,17 @@
 - [ ] 业务库执行 custom-format pg_dump 并用 pg_restore --list 验证；日志不得包含密码。
 - [x] 独立 PostgreSQL 18.6 实例执行 39 项契约及集成测试，迁移头 018；专用库备份恢复及 17→18 旧数据保留验证通过，业务库未用于测试。
 - [x] 使用临时 SQLite 和 PostgreSQL 启动实际 FastAPI 并通过 HTTP 验证 Fixture 创建、完成、草稿、审核/导出；结果通过。
-- [x] 运行 `scripts/verify-stage0.ps1 -PythonPath D:\work\SectorPulse\.venv\Scripts\python.exe`，343 后端、178 前端、40 浏览器测试通过，审计无漏洞。
+- [x] 运行 `scripts/verify-stage0.ps1 -PythonPath D:\work\SectorPulse\.venv\Scripts\python.exe`，343 后端、178 前端、40 浏览器测试通过，Python 与 npm 生产依赖审计无漏洞；含开发依赖的 npm 审计仍有告警，见下方后续待办。
 
 ## Task 6：文档、审查与本地集成
 
 - [x] 修正旧验收记录的不准确重试来源描述，链接本轮实现和证据；更新 README migration head。
-- [ ] 当前会话审查全部差异；运行 `git diff --check`，提交验收文档。
-- [ ] 本地门槛全部通过后确认 main 干净，执行 `git merge --ff-only codex/stage0-reliability`。
-- [ ] 主目录构建前端并确认 main 提交和 dist 一致，保留分支以便追踪；不推送。
-- [ ] 若必要环境仍阻塞，记录准确待办，保留已提交成果，说明阻塞原因与继续条件。
+- [x] 当前会话审查全部差异；运行 `git diff --check`，提交验收文档（125163b）。
+- [x] 本地门槛全部通过后确认 main 干净，执行 `git merge --ff-only codex/stage0-reliability`，由 d2e044d 快进至 125163b。
+- [x] 主目录按锁文件安装依赖、构建前端，与验收工作区资源文件名一致；真实 HTTP + 临时 SQLite 复验通过，保留分支、不推送。
+- [x] 将业务库备份/升级、Live 验证、可选 Docker 启动及开发工具依赖安全告警明确记录为未完成项。
+
+## 后续待办（不计入本轮已完成）
+
+- [ ] 用户以管理员权限启动本机 PostgreSQL 服务后，先备份业务库并检查归档，再执行前向迁移与业务启动验收；不要求 Docker。
+- [ ] 升级 Vite/esbuild 开发工具链并回归构建、前端单测与浏览器测试，重新检查含开发依赖的 npm 审计。当前全量审计仍有告警，禁止以生产依赖审计为 0 宣称全量安全。
