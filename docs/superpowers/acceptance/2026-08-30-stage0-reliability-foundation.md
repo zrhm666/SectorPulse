@@ -6,6 +6,8 @@ Scope: SQLite/PostgreSQL runtime parity, durable execution lifecycle, scheduler 
 
 ## Acceptance status
 
+Historical record: current status and PostgreSQL 18 evidence are in the [2026-09-05 closeout](2026-09-05-reliability-closeout.md).
+
 **SQLite and Web gate: passed.**  
 **Local PostgreSQL round-trip gate: pending host administrator action.**
 
@@ -41,7 +43,7 @@ The authoritative schema migration head is `017_content_interrupted`, following 
 - A broken scheduled run does not stop other due schedules.
 - Cancellation intent is persisted and observed at safe execution checkpoints.
 - Startup recovery marks abandoned active work as interrupted instead of leaving false running state.
-- Retry lineage is persisted for data and content runs.
+- Correction (2026-09-05): this gate only covered storage-level retry fields; service retries did not yet persist their lineage. End-to-end lineage was implemented in `28a4312` and verified in the [closeout acceptance](2026-09-05-reliability-closeout.md).
 - Draft autosave is deterministic and protects newer local edits from stale responses.
 - Closed mobile navigation is removed from accessibility and keyboard focus order.
 - FastAPI capability routers preserve the public API while keeping the composition root small.

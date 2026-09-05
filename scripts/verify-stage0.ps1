@@ -72,6 +72,9 @@ raise SystemExit(pytest.main([
   try {
     Invoke-QualityCommand 'Frontend unit tests' { & npm.cmd test -- --run }
     Invoke-QualityCommand 'Frontend production build' { & npm.cmd run build }
+    Invoke-QualityCommand 'Built SPA and real Fixture API' {
+      & $python (Join-Path $repositoryRoot 'scripts\verify-runtime-smoke.py')
+    }
     Invoke-QualityCommand 'Frontend browser tests' { & npm.cmd run test:e2e }
     Invoke-QualityCommand 'Production dependency audit' { & npm.cmd audit --omit=dev }
   }

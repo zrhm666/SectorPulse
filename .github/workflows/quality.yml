@@ -35,6 +35,7 @@ jobs:
         working-directory: web
       - run: npm run build
         working-directory: web
+      - run: python scripts/verify-runtime-smoke.py
       - run: npm run test:e2e
         working-directory: web
       - run: npm audit --omit=dev

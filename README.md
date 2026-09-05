@@ -222,6 +222,8 @@ SECTOR_PULSE_DATABASE_URL=
 
 适合长期运行和更严格的持久化需求。先创建数据库和用户，再配置：
 
+**本机已安装 PostgreSQL 时，无需 Docker。** 使用根目录 `.venv` 运行后端，连接本机数据库即可；前端构建后由后端一起提供。Docker Compose 只是可选部署方式。
+
 ```dotenv
 SECTOR_PULSE_DATABASE_URL=postgresql+psycopg://用户名:密码@127.0.0.1:5432/数据库名
 ```
@@ -339,6 +341,9 @@ Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参�
 - [完整项目审查](docs/superpowers/reports/2026-08-23-full-project-review.md)
 - [实现计划与设计记录](docs/superpowers/)
 - [Stage 0 可靠性验收](docs/superpowers/acceptance/2026-08-30-stage0-reliability-foundation.md)
+- [2026-09-05 收尾设计](docs/superpowers/specs/2026-09-05-reliability-closeout-design.md)
+- [2026-09-05 收尾计划](docs/superpowers/plans/2026-09-05-reliability-closeout.md)
+- [2026-09-05 最新验收](docs/superpowers/acceptance/2026-09-05-reliability-closeout.md)
 
 ## 当前边界
 
