@@ -1,5 +1,7 @@
 # 2026-09-05 可靠性收尾验收
 
+> 后续更新：2026-09-06 本机服务启动后，业务库备份、014→018 迁移及真实查询验收已完成，见 [业务 PostgreSQL 升级验收](2026-09-06-business-postgresql-upgrade.md)。下文保留 2026-09-05 当时的验收结果与环境状态。
+
 ## 结论
 
 代码修复、SQLite 与隔离 PostgreSQL 18.6 验证通过。本机使用 `.venv` + PostgreSQL，不需要 Docker。

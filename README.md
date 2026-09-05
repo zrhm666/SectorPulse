@@ -343,7 +343,8 @@ Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参�
 - [Stage 0 可靠性验收](docs/superpowers/acceptance/2026-08-30-stage0-reliability-foundation.md)
 - [2026-09-05 收尾设计](docs/superpowers/specs/2026-09-05-reliability-closeout-design.md)
 - [2026-09-05 收尾计划](docs/superpowers/plans/2026-09-05-reliability-closeout.md)
-- [2026-09-05 最新验收](docs/superpowers/acceptance/2026-09-05-reliability-closeout.md)
+- [2026-09-05 可靠性验收](docs/superpowers/acceptance/2026-09-05-reliability-closeout.md)
+- [2026-09-06 本机业务 PostgreSQL 升级验收](docs/superpowers/acceptance/2026-09-06-business-postgresql-upgrade.md)
 
 ## 当前边界
 

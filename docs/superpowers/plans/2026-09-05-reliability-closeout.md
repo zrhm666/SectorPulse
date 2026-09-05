@@ -76,7 +76,7 @@
 **Files:** 新建 `docs/superpowers/acceptance/2026-09-05-reliability-closeout.md`，必要时添加可复用验收脚本至 scripts。
 
 - [x] 只读确认 PostgreSQL 服务、连接目标与数据库名；尝试启动已安装服务，Windows 服务管理器拒绝访问。
-- [ ] 业务库执行 custom-format pg_dump 并用 pg_restore --list 验证；日志不得包含密码。
+- [x] 2026-09-06 业务库执行 custom-format pg_dump 并用 pg_restore --list、全归档读取及 SHA-256 验证；日志不含密码。详见 [业务库升级验收](../acceptance/2026-09-06-business-postgresql-upgrade.md)。
 - [x] 独立 PostgreSQL 18.6 实例执行 39 项契约及集成测试，迁移头 018；专用库备份恢复及 17→18 旧数据保留验证通过，业务库未用于测试。
 - [x] 使用临时 SQLite 和 PostgreSQL 启动实际 FastAPI 并通过 HTTP 验证 Fixture 创建、完成、草稿、审核/导出；结果通过。
 - [x] 运行 `scripts/verify-stage0.ps1 -PythonPath D:\work\SectorPulse\.venv\Scripts\python.exe`，343 后端、178 前端、40 浏览器测试通过，Python 与 npm 生产依赖审计无漏洞；含开发依赖的 npm 审计仍有告警，见下方后续待办。
@@ -91,5 +91,5 @@
 
 ## 后续待办（不计入本轮已完成）
 
-- [ ] 用户以管理员权限启动本机 PostgreSQL 服务后，先备份业务库并检查归档，再执行前向迁移与业务启动验收；不要求 Docker。
+- [x] 2026-09-06 用户启动本机 PostgreSQL 服务后，完成业务库备份、014→018 迁移、原有 43 表/6,499 行数据核对及 81 项真实 HTTP 查询；启动恢复标记 15 条遗留内容运行，未创建测试业务数据。不使用 Docker。
 - [ ] 升级 Vite/esbuild 开发工具链并回归构建、前端单测与浏览器测试，重新检查含开发依赖的 npm 审计。当前全量审计仍有告警，禁止以生产依赖审计为 0 宣称全量安全。
