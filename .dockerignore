@@ -1,4 +1,8 @@
 .git
+.worktrees
+.pip-cache
+.live-data-consent
+.live-llm-consent
 .venv
 .env
 .env.*

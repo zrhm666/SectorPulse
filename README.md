@@ -197,6 +197,16 @@ docker compose --profile postgres up --build -d sector-pulse-postgres
 
 访问 <http://127.0.0.1:8011>。Compose 会同时启动 PostgreSQL 16，并使用持久化 volume 保存数据。
 
+基础容器配置用于 Fixture 演练。启用实时采集和 LLM 时，先按“授权文件”说明确认使用上游数据和模型额度，在宿主机创建两个授权文件，再显式加载 Live 覆盖文件：
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.live.yml up --build -d sector-pulse
+# PostgreSQL 部署使用：
+docker compose -f docker-compose.yml -f docker-compose.live.yml --profile postgres up --build -d sector-pulse-postgres
+```
+
+覆盖文件只读挂载 `.live-data-consent` 和 `.live-llm-consent`；缺失文件会阻止启动，不会自动创建授权。SQLite 容器显式清空数据库 URL，避免误用宿主机 PostgreSQL 配置。
+
 ## 数据库
 
 ### SQLite（默认）
@@ -227,7 +237,7 @@ New-Item (Split-Path $backupFile) -ItemType Directory -Force | Out-Null
 pg_dump -h 127.0.0.1 -U 用户名 -d 数据库名 --format=custom --file=$backupFile
 ```
 
-应用启动时只执行尚未应用的前向迁移，不会自动删除、截断或重置现有数据。当前最新迁移版本为 `017_content_interrupted`。
+应用启动时只执行尚未应用的前向迁移，不会自动删除、截断或重置现有数据。当前最新迁移版本为 `018_content_retry_lineage`。
 
 ### 取消与异常恢复
 
@@ -236,6 +246,8 @@ pg_dump -h 127.0.0.1 -U 用户名 -d 数据库名 --format=custom --file=$backup
 - 手动和定时分析共用同一执行路径；某个定时任务失败不会阻止其他到期任务继续推进。
 - 调度器持久化上次消费窗口，重启后不会重复消费已经处理的到期窗口。
 - 关闭自动调度只停止新到期任务的派发；已手动触发任务仍会推进，并同步采集、写作的最终结果。
+- 单轮调度异常会降级并在下一轮重试，系统状态反映实际循环健康状态。
+- 数据与内容重试均新建运行，通过 `retry_of_run_id` 保留来源，原记录和输入不变。
 
 ## 技术架构
 

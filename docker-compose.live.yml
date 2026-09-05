@@ -1,0 +1,30 @@
+# Explicit opt-in overlay. Both consent files must already exist as regular files.
+services:
+  sector-pulse:
+    volumes:
+      - type: bind
+        source: ./.live-data-consent
+        target: /app/.live-data-consent
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.live-llm-consent
+        target: /app/.live-llm-consent
+        read_only: true
+        bind:
+          create_host_path: false
+  sector-pulse-postgres:
+    volumes:
+      - type: bind
+        source: ./.live-data-consent
+        target: /app/.live-data-consent
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.live-llm-consent
+        target: /app/.live-llm-consent
+        read_only: true
+        bind:
+          create_host_path: false
