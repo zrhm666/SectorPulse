@@ -104,28 +104,31 @@ export default function useDataRunWorkbench(runId: string): DataRunWorkbenchStat
           fetchDataRunCandidatePage(runId, {}, controller.signal),
           fetchDataRunContentRun(runId, controller.signal),
         ])
+        if (!mountedRef.current || controller.signal.aborted || controllerRef.current !== controller) return
         const next = { run, summary, selection, candidates, contentRun }
         nextActive = isActive(next)
         failureCountRef.current = 0
-        if (!mountedRef.current || controller.signal.aborted) return
         snapshotRef.current = next
         setSnapshot(next)
         setStale(false)
         setError(null)
         setLastSuccessfulAt(new Date())
       } catch (requestError) {
-        if (controller.signal.aborted || !mountedRef.current) return
+        if (controller.signal.aborted || !mountedRef.current || controllerRef.current !== controller) return
         failed = true
         failureCountRef.current += 1
         setStale(snapshotRef.current !== null)
         setError(SAFE_ERROR_MESSAGE)
       } finally {
-        if (controllerRef.current === controller) controllerRef.current = null
-        inFlightRef.current = null
-        if (mountedRef.current) {
-          setInitialLoading(false)
-          setRefreshing(false)
-          schedule(nextActive, failed)
+        // Switching runs can leave an aborted request settling after the new one.
+        if (controllerRef.current === controller) {
+          controllerRef.current = null
+          inFlightRef.current = null
+          if (mountedRef.current) {
+            setInitialLoading(false)
+            setRefreshing(false)
+            schedule(nextActive, failed)
+          }
         }
       }
     })()
@@ -156,6 +159,7 @@ export default function useDataRunWorkbench(runId: string): DataRunWorkbenchStat
       mountedRef.current = false
       clearTimer()
       controllerRef.current?.abort()
+      controllerRef.current = null
       inFlightRef.current = null
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }

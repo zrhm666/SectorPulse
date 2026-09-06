@@ -61,7 +61,7 @@ describe('useDataRunWorkbench', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     visibility = 'visible'
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
     resolveCore()
@@ -82,6 +82,32 @@ describe('useDataRunWorkbench', () => {
     expect(result.current.selection?.version).toBe(0)
     expect(result.current.candidates?.data_version).toBe('a'.repeat(64))
     expect(result.current.stale).toBe(false)
+  })
+
+  it('does not let a previous run release the new run request', async () => {
+    let resolveOld!: (value: typeof activeRun) => void
+    let resolveCurrent!: (value: typeof activeRun) => void
+    vi.mocked(api.fetchDataRun)
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveCurrent = resolve }))
+    const { result, rerender } = renderHook(({ id }) => useDataRunWorkbench(id), {
+      initialProps: { id: 'run-1' },
+    })
+    rerender({ id: 'run-2' })
+    let pending!: Promise<void>
+    act(() => { pending = result.current.refresh() })
+
+    await act(async () => { resolveOld(activeRun); await Promise.resolve() })
+
+    expect(result.current.run).toBeNull()
+    expect(result.current.initialLoading).toBe(true)
+    expect(result.current.refresh()).toBe(pending)
+    await act(async () => {
+      resolveCurrent({ ...activeRun, run_id: 'run-2' })
+      await pending
+    })
+    expect(result.current.run?.run_id).toBe('run-2')
+    expect(result.current.initialLoading).toBe(false)
   })
 
   it('polls every two seconds and stops when both workflows are terminal', async () => {

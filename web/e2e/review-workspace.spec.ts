@@ -161,17 +161,15 @@ test('loading, empty, governance-blocked and approved states remain explicit', a
   await expect(page.getByText('正在加载审核队列…')).toBeVisible()
   await expect(page.getByRole('region', { name: '审核主工作区' })).toBeVisible()
 
-  await page.unroute('**/api/**')
+  // Later routes take precedence; keep the previous fixture until reload completes.
   await installReviewFixture(page, 'empty')
   await page.reload()
   await expect(page.getByRole('heading', { name: '暂无可审核草稿' })).toBeVisible()
 
-  await page.unroute('**/api/**')
   await installReviewFixture(page, 'blocked')
   await page.reload()
   await expect(page.getByText('治理检查未通过，不能批准。')).toBeVisible()
 
-  await page.unroute('**/api/**')
   await installReviewFixture(page, 'approved')
   await page.reload()
   await expect(page.getByRole('link', { name: '导出已批准版本' })).toBeVisible()

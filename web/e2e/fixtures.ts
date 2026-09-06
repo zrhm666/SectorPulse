@@ -2,14 +2,17 @@ import { expect, test as base } from '@playwright/test'
 
 type E2EOptions = {
   allowedHttpErrorStatuses: number[]
+  allowAbortedGetRequests: boolean
 }
 
 export const test = base.extend<E2EOptions>({
   allowedHttpErrorStatuses: [[], { option: true }],
-  page: async ({ page, allowedHttpErrorStatuses }, use) => {
+  allowAbortedGetRequests: [process.env.SECTOR_PULSE_E2E_DEV_MODE === '1', { option: true }],
+  page: async ({ page, context, allowedHttpErrorStatuses, allowAbortedGetRequests }, use) => {
     const failures: string[] = []
 
-    await page.route('**/api/**', async (route) => {
+    // A page replacing its fixture routes must never fall through to a local backend.
+    await context.route('**/api/**', async (route) => {
       const request = route.request()
       const path = new URL(request.url()).pathname
 
@@ -62,7 +65,10 @@ export const test = base.extend<E2EOptions>({
     })
     page.on('requestfailed', (request) => {
       if (new URL(request.url()).pathname.startsWith('/api/')) {
-        failures.push(`requestfailed: ${request.method()} ${request.url()}`)
+        const reason = request.failure()?.errorText
+        // StrictMode intentionally aborts first-mount GETs. Production stays strict.
+        if (allowAbortedGetRequests && request.method() === 'GET' && reason === 'net::ERR_ABORTED') return
+        failures.push(`requestfailed: ${request.method()} ${request.url()} ${reason}`)
       }
     })
 

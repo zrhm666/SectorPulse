@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as operationsApi from '../operationsApi'
 import useOperationsSummary from './useOperationsSummary'
@@ -35,7 +36,7 @@ describe('useOperationsSummary', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     visibility = 'visible'
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
     vi.mocked(operationsApi.fetchOperationsSummary).mockResolvedValue(summary)
@@ -55,6 +56,42 @@ describe('useOperationsSummary', () => {
     expect(result.current.data?.summary.active).toBe(1)
     expect(result.current.error).toBeNull()
     expect(result.current.stale).toBe(false)
+  })
+
+  it('reloads after StrictMode cancels the first mount request', async () => {
+    vi.mocked(operationsApi.fetchOperationsSummary).mockImplementationOnce((signal) => (
+      new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+      })
+    ))
+    const { result } = renderHook(() => useOperationsSummary(), { wrapper: StrictMode })
+
+    await act(async () => { await Promise.resolve() })
+
+    expect(result.current.data).toEqual(summary)
+    expect(result.current.initialLoading).toBe(false)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('does not let a cancelled request publish data or release its replacement', async () => {
+    let resolveOld!: (value: typeof summary) => void
+    let resolveCurrent!: (value: typeof summary) => void
+    vi.mocked(operationsApi.fetchOperationsSummary)
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveCurrent = resolve }))
+    const { result } = renderHook(() => useOperationsSummary(), { wrapper: StrictMode })
+    let pending!: Promise<void>
+    act(() => { pending = result.current.refresh() })
+
+    await act(async () => { resolveOld(summary); await Promise.resolve() })
+
+    expect(result.current.data).toBeNull()
+    expect(result.current.initialLoading).toBe(true)
+    expect(result.current.refresh()).toBe(pending)
+    const latest = { ...summary, summary: { ...summary.summary, total: 3 } }
+    await act(async () => { resolveCurrent(latest); await pending })
+    expect(result.current.data).toEqual(latest)
+    expect(result.current.initialLoading).toBe(false)
   })
 
   it('polls every five seconds only while a run is active', async () => {

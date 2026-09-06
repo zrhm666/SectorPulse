@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ReviewApiError, type DraftPatchInput, type DraftPatchResponse } from '../editingApi'
 import useDraftAutosave from './useDraftAutosave'
@@ -17,6 +18,21 @@ function Harness({ onSave }: { onSave: (input: DraftPatchInput) => Promise<Draft
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+it.each(['saved', 'failed', 'conflict'] as const)('keeps StrictMode edits visible with %s save state', async (status) => {
+  vi.useFakeTimers()
+  const onSave = vi.fn().mockResolvedValue({ draft_id: 'draft-1', version: 2, status: 'READY_FOR_HUMAN_REVIEW', content: {} })
+  if (status === 'failed') onSave.mockRejectedValue(new Error('offline'))
+  if (status === 'conflict') onSave.mockRejectedValue(new ReviewApiError('conflict', 409, 'CONFLICT'))
+  render(<StrictMode><Harness onSave={onSave} /></StrictMode>)
+
+  fireEvent.change(screen.getByLabelText('导语'), { target: { value: '开发模式不能丢失' } })
+  expect(screen.getByLabelText('导语')).toHaveValue('开发模式不能丢失')
+  expect(screen.getByLabelText('保存状态')).toHaveTextContent('dirty')
+  await act(() => vi.advanceTimersByTimeAsync(800))
+  expect(screen.getByLabelText('导语')).toHaveValue('开发模式不能丢失')
+  expect(screen.getByLabelText('保存状态')).toHaveTextContent(status)
 })
 
 it('saves 800ms after the last change and skips unchanged text', async () => {

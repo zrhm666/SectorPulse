@@ -55,24 +55,27 @@ export default function useOperationsSummary(): OperationsSummaryState {
     const request = (async () => {
       try {
         const next = await fetchOperationsSummary(controller.signal)
+        if (!mountedRef.current || controller.signal.aborted || controllerRef.current !== controller) return
         nextActive = next.summary.active
-        if (!mountedRef.current) return
         dataRef.current = next
         setData(next)
         setStale(false)
         setError(null)
         setLastSuccessfulAt(new Date())
       } catch (requestError) {
-        if (controller.signal.aborted || !mountedRef.current) return
+        if (controller.signal.aborted || !mountedRef.current || controllerRef.current !== controller) return
         setError(SAFE_ERROR_MESSAGE)
         setStale(dataRef.current !== null)
       } finally {
-        if (controllerRef.current === controller) controllerRef.current = null
-        inFlightRef.current = null
-        if (mountedRef.current) {
-          setInitialLoading(false)
-          setRefreshing(false)
-          schedule(nextActive)
+        // A cancelled mount must not finish or reschedule its replacement.
+        if (controllerRef.current === controller) {
+          controllerRef.current = null
+          inFlightRef.current = null
+          if (mountedRef.current) {
+            setInitialLoading(false)
+            setRefreshing(false)
+            schedule(nextActive)
+          }
         }
       }
     })()
@@ -97,6 +100,8 @@ export default function useOperationsSummary(): OperationsSummaryState {
       mountedRef.current = false
       clearTimer()
       controllerRef.current?.abort()
+      controllerRef.current = null
+      inFlightRef.current = null
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [clearTimer, schedule])

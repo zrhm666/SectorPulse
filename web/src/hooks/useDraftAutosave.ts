@@ -166,10 +166,13 @@ export default function useDraftAutosave({
     queueRef.current = []
   }, [enabled])
 
-  useEffect(() => () => {
-    mountedRef.current = false
-    debounceTimersRef.current.forEach(clearTimeout)
-    savedTimersRef.current.forEach(clearTimeout)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      debounceTimersRef.current.forEach(clearTimeout)
+      savedTimersRef.current.forEach(clearTimeout)
+    }
   }, [])
 
   const hasPending = useMemo(

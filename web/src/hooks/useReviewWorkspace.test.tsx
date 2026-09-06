@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
 import * as editing from '../editingApi'
@@ -20,7 +21,7 @@ const version = {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   vi.mocked(api.fetchRuns).mockResolvedValue([approvedRun, pendingRun])
   vi.mocked(api.fetchDraft).mockResolvedValue({ versions: [version] })
   vi.mocked(editing.fetchGovernance).mockResolvedValue({ status: 'PASS', issues: [] })
@@ -36,6 +37,23 @@ it('selects the first pending review and loads its complete workspace', async ()
   expect(result.current.versions).toEqual([version])
   expect(result.current.governance?.status).toBe('PASS')
   expect(result.current.initialLoading).toBe(false)
+})
+
+it('keeps the queue loading until the StrictMode replacement request finishes', async () => {
+  let resolveCurrent!: (value: typeof pendingRun[]) => void
+  vi.mocked(api.fetchRuns)
+    .mockImplementationOnce((signal) => new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    }))
+    .mockReturnValueOnce(new Promise((resolve) => { resolveCurrent = resolve }))
+  const { result } = renderHook(() => useReviewWorkspace(), { wrapper: StrictMode })
+  await act(async () => { await Promise.resolve() })
+
+  expect(result.current.initialLoading).toBe(true)
+  expect(result.current.queueError).toBeNull()
+  await act(async () => { resolveCurrent([pendingRun]); await Promise.resolve() })
+  expect(result.current.initialLoading).toBe(false)
+  expect(result.current.selectedRun?.run_id).toBe('run-pending')
 })
 
 it('prevents a stale run response from replacing the newer selection', async () => {

@@ -80,8 +80,10 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
       if (!mountedRef.current || controller.signal.aborted) return
       setQueueError('无法加载审核队列，请确认服务可用后重试。')
     } finally {
-      if (queueControllerRef.current === controller) queueControllerRef.current = null
-      if (mountedRef.current) setInitialLoading(false)
+      if (queueControllerRef.current === controller) {
+        queueControllerRef.current = null
+        if (mountedRef.current) setInitialLoading(false)
+      }
     }
   }, [requestedId])
 
