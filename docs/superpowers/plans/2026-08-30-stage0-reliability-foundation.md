@@ -1,5 +1,7 @@
 # SectorPulse Stage 0 Reliability Foundation Implementation Plan
 
+> Status reconciled 2026-09-06: the PostgreSQL gates below were completed by the [closeout acceptance](../acceptance/2026-09-05-reliability-closeout.md) and [business database upgrade](../acceptance/2026-09-06-business-postgresql-upgrade.md). The subsequent [toolchain acceptance](../acceptance/2026-09-06-web-toolchain-security.md) records the final local regression and main integration. See [current project status](../../PROJECT_STATUS.md) for remaining scope; historical commands and implementation examples below are not the current quality script.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make scheduling, cancellation, restart recovery, autosave, and SQLite/PostgreSQL behavior reliable and enforceable by one repeatable quality gate.
@@ -590,10 +592,9 @@ def get_run(self, run_id: UUID) -> RealDataRun | None:
 
 Use `Mapping[str, object]` row decoders with explicit coercion helpers; do not index an `object` or return `Any`.
 
-- [ ] **Step 4: Run PostgreSQL data integration contracts**
+- [x] **Step 4: Run PostgreSQL data integration contracts**
 
-Offline synchronous contract: 6 passed. Real PostgreSQL round trips remain pending because
-`localhost:5432` timed out on 2026-08-30; they are repeated by Task 17's isolated database gate.
+Initial evidence: 6 offline synchronous contracts passed; the local server was unavailable on 2026-08-30. Completed in the later [isolated PostgreSQL acceptance](../acceptance/2026-09-05-reliability-closeout.md): data round trips are included in the 39 passing PostgreSQL contract/integration cases, using a dedicated test instance, not the business database.
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_data_contract.py backend/tests/integration/test_postgres_real_data_run_repository.py backend/tests/integration/test_postgres_market_snapshot_repository.py backend/tests/integration/test_postgres_news_repository.py backend/tests/integration/test_postgres_news_retrieval_repository.py backend/tests/integration/test_postgres_evidence_repositories.py backend/tests/integration/test_postgres_candidate_selection_repository.py -q`
 
@@ -661,10 +662,9 @@ Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_
 
 Use `Engine.begin()` for every save/update operation and `Engine.connect()` for every read. Convert returned SQLAlchemy rows through `Mapping[str, object]` decoders before constructing domain values. Keep draft version read-check-write inside one `Engine.begin()` block; keep approval/revocation plus their audit event inside one block; keep shadow update and its recovery/compliance append individually atomic. Remove `async`/`await` from `PostgresReviewAnalyticsQueries.for_run/summary` and return `ReviewMetrics`/`ReviewSummary` directly.
 
-- [ ] **Step 4: Run all content/governance PostgreSQL integration tests**
+- [x] **Step 4: Run all content/governance PostgreSQL integration tests**
 
-Offline synchronous contract: 10 adapter groups passed. Real PostgreSQL round trips remain
-pending because `localhost:5432` timed out; Task 17 repeats them in an isolated database.
+Initial evidence: 10 offline adapter groups passed while the local server was unavailable. The later [isolated PostgreSQL acceptance](../acceptance/2026-09-05-reliability-closeout.md) completed content/governance round trips within the 39 passing cases, plus real HTTP review, approval, export and audit flows.
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/integration/test_postgres_phase1b_repository.py backend/tests/integration/test_postgres_phase1b_runs_repository.py backend/tests/integration/test_postgres_agent_invocation_repository.py backend/tests/integration/test_postgres_draft_edit_repository.py backend/tests/integration/test_postgres_governance_repository.py backend/tests/integration/test_postgres_release_audit_repository.py backend/tests/integration/test_postgres_prompt_golden_repository.py backend/tests/integration/test_postgres_shadow_repository.py backend/tests/integration/test_postgres_review_analytics.py -q`
 
@@ -728,10 +728,9 @@ def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
     )
 ```
 
-- [ ] **Step 4: Run every PostgreSQL integration and contract test**
+- [x] **Step 4: Run every PostgreSQL integration and contract test**
 
-  Offline contract coverage passes. Real PostgreSQL round trips are deferred to Task 17
-  because the local server at `localhost:5432` currently times out.
+  Completed by the [isolated PostgreSQL acceptance](../acceptance/2026-09-05-reliability-closeout.md): 39 passed, comprising 22 real-database cases and 17 synchronous repository contracts. This includes task/operations contracts; these counts are not additional to the earlier task-specific evidence.
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts backend/tests/integration/test_postgres_* -q`
 
@@ -1366,13 +1365,13 @@ jobs:
 
 Run: `powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1`
 
-- [ ] **Step 3: Start/confirm PostgreSQL, back up the database, then run migrations and all PostgreSQL contracts**
+- [x] **Step 3: Start/confirm PostgreSQL, back up the database, then run migrations and all PostgreSQL contracts**
 
 Run: `\.venv\Scripts\python.exe -m pytest backend/tests/contracts/test_postgres_* backend/tests/integration/test_postgres_* -q`
 
 Before this command, verify the resolved database name and backup target without printing credentials. Do not create, drop, truncate, or reset the user's database during acceptance.
 
-Local boundary (2026-08-31): `postgresql-x64-18` is stopped and the service manager denied startup. Business database backup/migration and isolated PostgreSQL round-trip evidence remain pending administrator action. Ordinary verification must not use the business database.
+Initial boundary (2026-08-31): the service was stopped and startup was denied. Subsequently, the [isolated PostgreSQL acceptance](../acceptance/2026-09-05-reliability-closeout.md) completed all 39 cases, test-database backup/restore and forward-migration checks. After the user started the native service, the [2026-09-06 business upgrade](../acceptance/2026-09-06-business-postgresql-upgrade.md) completed verified backup, 014→018 migration, preservation checks and 81 HTTP queries. Business archive readability was verified, but a full restore of that business archive was not performed. Ordinary tests still must not use the business database.
 
 - [x] **Step 4: Update README and acceptance evidence**
 
@@ -1392,6 +1391,8 @@ git commit -m "docs: add stage 0 quality gate and acceptance evidence"
 ## Final Review Gate
 
 Execution status (2026-08-31): inline review completed as requested. Linked outcome reconciliation, manual advancement with automatic dispatch disabled, and content interruption recovery were corrected with regression tests in `fc063e1`; the quality script also isolates ordinary tests from the business database. The full non-Live gate passed (336 backend tests, 174 frontend tests, 40 browser tests). PostgreSQL round-trip verification and branch integration remain pending; no merge or push has occurred.
+
+Completion update (2026-09-06): the pending PostgreSQL and local integration gates above are now complete, supported by the linked acceptance records. The latest accepted application code is on local main (`31ce7ce` at this reconciliation); the main frontend was rebuilt and verified. Remote CI, optional container execution and Live upstream acceptance are not implied by local completion. No remote push or shadow-test restart occurred.
 
 After Task 18:
 

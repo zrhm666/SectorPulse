@@ -8,6 +8,8 @@ Scope: SQLite/PostgreSQL runtime parity, durable execution lifecycle, scheduler 
 
 Historical record: current status and PostgreSQL 18 evidence are in the [2026-09-05 closeout](2026-09-05-reliability-closeout.md).
 
+2026-09-06 follow-up: the [business PostgreSQL upgrade](2026-09-06-business-postgresql-upgrade.md) and [web toolchain/local integration](2026-09-06-web-toolchain-security.md) are complete. The pending states and migration head below describe the original acceptance only; see [current project status](../../PROJECT_STATUS.md) before acting on them.
+
 **SQLite and Web gate: passed.**  
 **Local PostgreSQL round-trip gate: pending host administrator action.**
 

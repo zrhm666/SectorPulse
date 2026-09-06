@@ -343,6 +343,7 @@ Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参�
 
 ## 文档
 
+- [项目当前进度与未完成边界](docs/PROJECT_STATUS.md)
 - [产品定义](PRODUCT.md)
 - [UI 设计系统](docs/design/soft-blue-operations-ui-system.md)
 - [完整项目审查](docs/superpowers/reports/2026-08-23-full-project-review.md)
