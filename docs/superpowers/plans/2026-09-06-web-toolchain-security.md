@@ -47,5 +47,5 @@
 - [x] 本地脚本在前端单测前执行工具链测试，依赖审计处执行 `npm ls --all` 及全量 `npm audit`；CI 添加相同步骤。
 - [x] 运行 `powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1 -PythonPath D:\work\SectorPulse\.venv\Scripts\python.exe`，最终退出 0：343 后端、185 前端、4 工具链、40 生产/40 开发浏览器、实际 SQLite HTTP、依赖树与全量审计均通过。业务 PostgreSQL 不用于测试。
 - [x] 验收文档记录实际版本、测试数量、构建资源、全量/生产审计以及未执行的 Live/Docker/远端 CI 范围；勾选原收尾计划的开发依赖待办。
-- [ ] `git diff --check`、当前会话审查后提交；main 干净时 `git merge --ff-only codex/stage0-reliability`，不拉远端、不推送。
-- [ ] 主目录 `web` 执行 `npm ci --cache .npm-cache`、工具链测试、构建和全量审计；主目录 `.venv` 执行 `scripts/verify-runtime-smoke.py` 默认临时 SQLite，确认已构建资源与真实接口可用。
+- [x] `git diff --check`、当前会话审查后提交；main 干净时由 `bbafb17` 快进合入 `c9cc456`，不拉远端、不推送。应用修复为 `b7f8bc0`。
+- [x] 主目录 `web` 执行 `npm ci --cache .npm-cache`、4 项工具链测试、构建、完整依赖树和全量审计通过；主目录 `.venv` 执行 `scripts/verify-runtime-smoke.py` 默认临时 SQLite 八项流程通过。CSS/JS 名称和 SHA-256 与工作区完全一致。
