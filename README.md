@@ -317,7 +317,7 @@ Set-Location ..
 powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1
 ```
 
-该命令依次执行 Ruff、严格 Mypy、Python 依赖审计、非 Live 后端测试、前端单测、生产构建、Playwright 和生产依赖审计。测试子进程强制使用 Fixture/SQLite，不继承业务 PostgreSQL 连接，不会访问 Live 数据源或调用真实 LLM。PostgreSQL 合约测试由 CI 的隔离 PostgreSQL 16 服务执行；本机执行时必须明确指向专用测试库。
+该命令依次执行 Ruff、严格 Mypy、Python 依赖审计、非 Live 后端测试、前端工具链边界测试、前端单测、生产构建、真实 SQLite HTTP 流程、生产及开发模式 Playwright、依赖树检查和包含开发依赖的全量 npm 安全审计。测试子进程强制使用 Fixture/SQLite，不继承业务 PostgreSQL 连接，不会访问 Live 数据源或调用真实 LLM。PostgreSQL 合约测试由 CI 的隔离 PostgreSQL 16 服务执行；本机执行时必须明确指向专用测试库。
 
 后端：
 
@@ -330,8 +330,13 @@ powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1
 
 ```powershell
 Set-Location web
+npm.cmd run test:tooling
 npm.cmd test
 npm.cmd run build
+npm.cmd run test:e2e
+npm.cmd run test:e2e:dev
+npm.cmd ls --all
+npm.cmd audit
 ```
 
 Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参数时才会访问外部服务。PostgreSQL 集成测试需要 `SECTOR_PULSE_DATABASE_URL` 已进入当前进程环境。
@@ -347,6 +352,9 @@ Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参�
 - [2026-09-05 收尾计划](docs/superpowers/plans/2026-09-05-reliability-closeout.md)
 - [2026-09-05 可靠性验收](docs/superpowers/acceptance/2026-09-05-reliability-closeout.md)
 - [2026-09-06 本机业务 PostgreSQL 升级验收](docs/superpowers/acceptance/2026-09-06-business-postgresql-upgrade.md)
+- [2026-09-06 前端工具链升级设计](docs/superpowers/specs/2026-09-06-web-toolchain-security-design.md)
+- [2026-09-06 前端工具链升级计划](docs/superpowers/plans/2026-09-06-web-toolchain-security.md)
+- [2026-09-06 前端工具链与开发模式验收](docs/superpowers/acceptance/2026-09-06-web-toolchain-security.md)
 
 ## 当前边界
 

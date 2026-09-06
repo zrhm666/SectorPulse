@@ -31,6 +31,8 @@ jobs:
         working-directory: web
       - run: npx playwright install --with-deps chromium
         working-directory: web
+      - run: npm run test:tooling
+        working-directory: web
       - run: npm test -- --run
         working-directory: web
       - run: npm run build
@@ -38,7 +40,11 @@ jobs:
       - run: python scripts/verify-runtime-smoke.py
       - run: npm run test:e2e
         working-directory: web
-      - run: npm audit --omit=dev
+      - run: npm run test:e2e:dev
+        working-directory: web
+      - run: npm ls --all
+        working-directory: web
+      - run: npm audit
         working-directory: web
 
   postgres-contracts:

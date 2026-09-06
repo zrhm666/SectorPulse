@@ -70,13 +70,16 @@ raise SystemExit(pytest.main([
 
   Push-Location (Join-Path $repositoryRoot 'web')
   try {
+    Invoke-QualityCommand 'Frontend toolchain boundary tests' { & npm.cmd run test:tooling }
     Invoke-QualityCommand 'Frontend unit tests' { & npm.cmd test -- --run }
     Invoke-QualityCommand 'Frontend production build' { & npm.cmd run build }
     Invoke-QualityCommand 'Built SPA and real Fixture API' {
       & $python (Join-Path $repositoryRoot 'scripts\verify-runtime-smoke.py')
     }
     Invoke-QualityCommand 'Frontend browser tests' { & npm.cmd run test:e2e }
-    Invoke-QualityCommand 'Production dependency audit' { & npm.cmd audit --omit=dev }
+    Invoke-QualityCommand 'Frontend development browser tests (StrictMode)' { & npm.cmd run test:e2e:dev }
+    Invoke-QualityCommand 'Frontend dependency tree' { & npm.cmd ls --all }
+    Invoke-QualityCommand 'All frontend dependency audit' { & npm.cmd audit --cache .npm-cache }
   }
   finally {
     Pop-Location
