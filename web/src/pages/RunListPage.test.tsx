@@ -18,6 +18,7 @@ beforeEach(() => vi.mocked(fetchDataRuns).mockResolvedValue([
 
 it('renders a scan-friendly run table and filters status', async () => {
   render(<MemoryRouter><RunListPage /></MemoryRouter>)
+  expect(screen.getByRole('link', { name: '运行对比' })).toHaveAttribute('href', '/runs/compare')
   expect(await screen.findByTitle('run-running')).toBeVisible()
   expect(screen.getByRole('region', { name: '运行筛选' })).toBeInTheDocument()
   expect(screen.getByTitle('run-failed')).toBeVisible()

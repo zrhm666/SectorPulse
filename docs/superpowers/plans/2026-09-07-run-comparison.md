@@ -351,7 +351,7 @@ function fetchComparisonEvidence(pair: ComparisonPair, options: { kind?: SectorK
 
 这些是契约声明，实际导出函数必须有请求实现；API DTO 和上述类型统一从 runComparisonsApi 导出。hook 接口为 `useRunComparison(pair: ComparisonPair | null): { data: RunComparisonView | null; loading: boolean; error: string | null; reload: () => void }`；分页请求由对应面板持有局部状态并使用相同取消规则。RunPickerDialog props 为 `{ title: string; constraint: Pick<RunOption, 'provider' | 'mode'> | null; excludedRunId: string | null; onSelect: (run: RunOption) => void; onClose: () => void }`。
 
-- [ ] **1. 写红灯交互测试**。用 MemoryRouter 初始化 `/runs/compare?base=00000000-0000-0000-0000-000000000001&compare=00000000-0000-0000-0000-000000000002`；mock 只读 API，验证静态路径不会落入 `/runs/:runId`。dialog 测试示例：
+- [x] **1. 写红灯交互测试**。用 MemoryRouter 初始化 `/runs/compare?base=00000000-0000-0000-0000-000000000001&compare=00000000-0000-0000-0000-000000000002`；mock 只读 API，验证静态路径不会落入 `/runs/:runId`。dialog 测试示例：
 
 ```tsx
 const onSelect = vi.fn()
@@ -366,8 +366,8 @@ expect(fetchComparisonRuns).toHaveBeenLastCalledWith(
 
 测试准备在本文件 mock fetchComparisonRuns 返回 items 为合法 RunOption、total=55、offset 与请求一致；原生 showModal 在 jsdom 中使用当前项目支持方式设置测试替身，真实焦点由 Task 6 浏览器验证。再用 deferred promise 控制旧请求晚到，断言页面仍显示新 A/B 组合。
 
-- [ ] **2. 运行确认失败**：在 web 执行 `npm test -- src/pages/RunComparisonPage.test.tsx src/pages/run-comparison/RunPickerDialog.test.tsx src/hooks/useRunComparison.test.tsx`。
-- [ ] **3. 编写 GET 包装**，保留本地相对 URL，不写死8000/9000端口，使用 URLSearchParams，沿用 error.message 解析。请求不得发 POST。核心示例：
+- [x] **2. 运行确认失败**：在 web 执行 `npm test -- src/pages/RunComparisonPage.test.tsx src/pages/run-comparison/RunPickerDialog.test.tsx src/hooks/useRunComparison.test.tsx`。
+- [x] **3. 编写 GET 包装**，保留本地相对 URL，不写死8000/9000端口，使用 URLSearchParams，沿用 error.message 解析。请求不得发 POST。核心示例：
 
 ```typescript
 export async function fetchRunComparison(pair: ComparisonPair, signal: AbortSignal): Promise<RunComparisonView> {
@@ -383,10 +383,10 @@ export async function fetchRunComparison(pair: ComparisonPair, signal: AbortSign
 
 其余三个 GET 用同一文件私有请求函数复用此错误逻辑；400/500不回退为成功空数组。hook effect 内每次创建 AbortController 和 cancelled 标记，cleanup 同时 abort 与置 cancelled；成功、失败、finally 都检查当前请求归属，AbortError 不显示用户错误。
 
-- [ ] **4. 实现选择区和 URL 提交**。page 用 useSearchParams 获取已提交 pair；临时选择保存完整 RunOption，改变其中一侧时验证另一侧 provider/mode，失配清空并提示。只提交两个不同完整 UUID；base 单独存在时调用既有 `fetchDataRun` 读入元信息，不假定在第一页。交换已提交组合时更新 URL 并清空结果。非法 tab 归一为 sectors，非法 UUID 显示可编辑选择错误，不崩溃。
-- [ ] **5. 加入既有入口及布局**。AppRoutes 增加 `/runs/compare` 并放在参数路由前；RunListPage 新增 Link，DataRunPage 仅对设计终态集合显示预填 base 的 Link。复用 AppShell 和现有按钮/面板，只从 page 引入 scoped CSS；原有 sidebar navigation 数据不变。
-- [ ] **6. 验证绿灯**：运行上述新增测试、runComparisonsApi.test.ts 及两处入口原有测试；在不完整组合、只有一条历史、404和409情况下检查按钮、提示、返回入口均真实有效。
-- [ ] **7. 本地小提交**：仅本任务文件，提交 `feat: select and restore run comparison pairs`。
+- [x] **4. 实现选择区和 URL 提交**。page 用 useSearchParams 获取已提交 pair；临时选择保存完整 RunOption，改变其中一侧时验证另一侧 provider/mode，失配清空并提示。只提交两个不同完整 UUID；base 单独存在时调用既有 `fetchDataRun` 读入元信息，不假定在第一页。交换已提交组合时更新 URL 并清空结果。非法 tab 归一为 sectors，非法 UUID 显示可编辑选择错误，不崩溃。
+- [x] **5. 加入既有入口及布局**。AppRoutes 增加 `/runs/compare` 并放在参数路由前；RunListPage 新增 Link，DataRunPage 仅对设计终态集合显示预填 base 的 Link。复用 AppShell 和现有按钮/面板，只从 page 引入 scoped CSS；原有 sidebar navigation 数据不变。
+- [x] **6. 验证绿灯**：运行上述新增测试、runComparisonsApi.test.ts 及两处入口原有测试；在不完整组合、只有一条历史、404和409情况下检查按钮、提示、返回入口均真实有效。
+- [x] **7. 本地小提交**：仅本任务文件，提交 `feat: select and restore run comparison pairs`。
 
 ### Task 5：行情表、新闻成员与证据关系
 

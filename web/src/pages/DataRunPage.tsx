@@ -49,6 +49,7 @@ import NewsRecordsPanel from './data-run/NewsRecordsPanel'
 import QualityPanel from './data-run/QualityPanel'
 import MarketDetailDrawer from './data-run/MarketDetailDrawer'
 import NewsDetailDrawer from './data-run/NewsDetailDrawer'
+import { terminalDataStatuses } from './run-comparison/ComparisonShared'
 
 type WorkbenchTab = 'market' | 'candidates' | 'news-records' | 'evidence' | 'quality'
 
@@ -363,7 +364,7 @@ export default function DataRunPage() {
   ]
 
   return <section className="data-run-page density-compact">
-    <PageHeader title={run.mode === 'post_close' ? '盘后数据运行' : '盘中数据运行'} description={`运行 ${run.run_id.slice(0, 8)} · ${formatDate(run.requested_at)}`} actions={<Link className="button button-secondary" to="/runs">返回运行历史</Link>} />
+    <PageHeader title={run.mode === 'post_close' ? '盘后数据运行' : '盘中数据运行'} description={`运行 ${run.run_id.slice(0, 8)} · ${formatDate(run.requested_at)}`} actions={<>{terminalDataStatuses.has(run.status) && <Link className="button button-secondary" to={`/runs/compare?base=${run.run_id}`}>以此为基准对比</Link>}<Link className="button button-secondary" to="/runs">返回运行历史</Link></>} />
     <SummaryStrip label="数据运行摘要" className="data-run-summary" items={[
       { label: '状态', value: <StatusBadge status={run.status} /> },
       { label: '场景', value: run.mode === 'post_close' ? '盘后复盘' : '盘中分析' },

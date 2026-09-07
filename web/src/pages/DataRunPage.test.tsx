@@ -86,6 +86,16 @@ function renderPage() {
   )
 }
 
+it('offers a comparison base only for terminal data runs', async () => {
+  const view = renderPage()
+  expect(await screen.findByRole('link', { name: '以此为基准对比' })).toHaveAttribute('href', '/runs/compare?base=run-1')
+  view.unmount()
+  vi.mocked(api.fetchDataRun).mockResolvedValue({ ...READY_RUN, status: 'FETCHING_MARKET' })
+  renderPage()
+  await screen.findByRole('heading', { name: '盘中数据运行' })
+  expect(screen.queryByRole('link', { name: '以此为基准对比' })).not.toBeInTheDocument()
+})
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.fetchDataRun).mockResolvedValue(READY_RUN)

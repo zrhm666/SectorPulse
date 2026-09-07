@@ -63,7 +63,7 @@ export default function RunListPage() {
       <PageHeader
         title="分析运行"
         description="查看真实运行记录，或立即发起一次分析。"
-        actions={<Link className="button button-primary" to="/runs/new">新建分析</Link>}
+        actions={<><Link className="button button-secondary" to="/runs/compare">运行对比</Link><Link className="button button-primary" to="/runs/new">新建分析</Link></>}
       />
       <Panel title="运行历史" description="所有数据均来自现有运行接口。" density="compact">
         {!loading && !loadError && rows.length > 0 && <section className="registry-toolbar" aria-label="运行筛选">
