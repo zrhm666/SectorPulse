@@ -2,7 +2,7 @@
 
 日期：2026-09-07。代码核对基线：本地 `main / bf8d953`。
 
-状态：三阶段实现与本地验收已完成，补充验收于 2026-09-08 收尾；代码位于 `codex/run-comparison`，尚未合入 main。按用户偏好在当前会话连续执行，无子代理。最终证据见 [验收记录](../acceptance/2026-09-08-run-comparison.md)。
+状态：三阶段实现与本地验收已完成，补充验收于 2026-09-08 收尾；同日已将功能提交 `19fe775` 合入本地 main 并重建主目录前端，未推送远端。按用户偏好在当前会话连续执行，无子代理。最终证据见 [验收记录](../acceptance/2026-09-08-run-comparison.md)。
 
 关联：[实施计划](../plans/2026-09-07-run-comparison.md) · [项目进度](../../PROJECT_STATUS.md) · [项目视觉规范](../../design/sectorpulse-reference-ui-system.md)。这是功能增强路线图 Stage 1 中的一个小阶段，不代表整个 Stage 1 已启动或完成。
 
