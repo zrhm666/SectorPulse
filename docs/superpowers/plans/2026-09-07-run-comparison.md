@@ -434,7 +434,7 @@ expanded、detailsId 为行组件内部状态和 useId，row 为 SectorCompariso
 
 ## Phase 3：完整验收与交付
 
-### Task 6：双数据库只读证明、真实浏览器与文档
+### Task 6：双数据库只读证明、真实浏览器与文档（已完成）
 
 **Files:** 新增 `backend/tests/integration/test_postgres_run_comparison_api.py`、`web/e2e/run-comparison.spec.ts`；扩充前述 SQLite HTTP 测试；更新 README、PROJECT_STATUS、新增实际日期的验收 MD；保存实际构建截图 `docs/screenshots/sectorpulse-run-comparison.png`。
 
