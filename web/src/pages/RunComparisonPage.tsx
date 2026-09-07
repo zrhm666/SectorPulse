@@ -14,6 +14,9 @@ import type { ComparisonPair, ComparisonTab, RunOption } from '../runComparisons
 import { formatDate } from '../runPresentation'
 import RunPickerDialog from './run-comparison/RunPickerDialog'
 import { kindLabel, QueryError } from './run-comparison/ComparisonShared'
+import SectorComparisonPanel from './run-comparison/SectorComparisonPanel'
+import NewsComparisonPanel from './run-comparison/NewsComparisonPanel'
+import EvidenceComparisonPanel from './run-comparison/EvidenceComparisonPanel'
 import '../styles/run-comparison.css'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -107,6 +110,9 @@ function Workspace({ baseId, compareId, tab, commit, changeTab }: {
       }}>{item.label}</button>)}</div>
       <div role="tabpanel" id={`comparison-panel-${tab}`} aria-labelledby={`comparison-tab-${tab}`} tabIndex={0}>
         <p className="comparison-note">查询时间：{formatDate(data.queried_at)}。本页仅查看留存记录，不会触发采集或写作。</p>
+        {tab === 'sectors' && <SectorComparisonPanel data={data} />}
+        {tab === 'news' && <NewsComparisonPanel pair={{ base: baseId, compare: compareId }} />}
+        {tab === 'evidence' && <EvidenceComparisonPanel pair={{ base: baseId, compare: compareId }} />}
       </div>
     </>}
     {picker && <RunPickerDialog key={picker} title={picker === 'base' ? '选择基准运行' : '选择对照运行'} constraint={selected[picker === 'base' ? 'compare' : 'base']} excludedRunId={selected[picker === 'base' ? 'compare' : 'base']?.run_id ?? null} onSelect={select} onClose={() => setPicker(null)} />}

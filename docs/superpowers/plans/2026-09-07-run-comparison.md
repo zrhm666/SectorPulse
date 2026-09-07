@@ -428,9 +428,9 @@ expect(screen.queryByRole('link', { name: '查看原文' })).not.toBeInTheDocume
 
 expanded、detailsId 为行组件内部状态和 useId，row 为 SectorComparisonRow。新闻也原位展开摘要；只渲染纯文本，不使用 dangerouslySetInnerHTML。分页前按钮有边界 disabled，加载时 aria-busy；局部错误保留原 pair 和重试操作，不显示上一组合的数据。
 
-- [ ] **4. 实现标签页与响应式**。三个 tab 具备 tablist/tab/tabpanel、方向键、Home/End 和 roving tabindex；切换 tab 更新 URL，卸载旧分页组件以清理请求。960px 选择区纵排，720px 以下逐板块显示；复用 var(--sp-*) 与 compact 间距，数字 font-variant-numeric: tabular-nums；不得整体修改 globals 或 token 来适配单页。
-- [ ] **5. 验证绿灯和构建**：运行该目录全部测试，执行 `npm run build`，检查真实数据缺失、全类别不可比、旧新闻无 lineage、证据元数据丢失均有可解释状态。
-- [ ] **6. 本地小提交**：提交 `feat: present sector news and evidence comparisons`。
+- [x] **4. 实现标签页与响应式**。三个 tab 具备 tablist/tab/tabpanel、方向键、Home/End 和 roving tabindex；切换 tab 更新 URL，卸载旧分页组件以清理请求。960px 选择区纵排，720px 以下逐板块显示；复用 var(--sp-*) 与 compact 间距，数字 font-variant-numeric: tabular-nums；不得整体修改 globals 或 token 来适配单页。
+- [x] **5. 验证绿灯和构建**：新页面及既有前端全套 58 个测试文件、209 项通过；构建通过；结果面板覆盖真实数据缺失、全类别不可比、旧新闻无 lineage、证据元数据丢失。
+- [x] **6. 本地小提交**：在 Task 5 实现后提交 `feat: present sector news and evidence comparisons`。
 
 ## Phase 3：完整验收与交付
 
