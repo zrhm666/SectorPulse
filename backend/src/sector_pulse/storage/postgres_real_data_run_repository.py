@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Literal, cast
 from uuid import UUID
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.engine import RowMapping
 
 from sector_pulse.domain.market import SectorKind
@@ -125,6 +125,37 @@ class PostgresRealDataRunRepository:
                     "finished_at": finished_at.isoformat() if finished_at else None,
                 },
             )
+
+    def list_comparison_runs(
+        self, *, provider: Literal["fixture", "live"] | None = None,
+        mode: Literal["intraday", "post_close"] | None = None,
+        offset: int = 0, limit: int = 20,
+    ) -> tuple[list[RealDataRun], int]:
+        if offset < 0 or not 1 <= limit <= 100:
+            raise ValueError("invalid comparison pagination")
+        parameters: dict[str, object] = {
+            "terminal": tuple(status.value for status in RealDataRunStatus if status.is_terminal),
+        }
+        where = "status IN :terminal"
+        if provider is not None:
+            where += " AND provider = :provider"
+            parameters["provider"] = provider
+        if mode is not None:
+            where += " AND mode = :mode"
+            parameters["mode"] = mode
+        count_query = text(f"SELECT COUNT(*) FROM real_data_runs WHERE {where}").bindparams(
+            bindparam("terminal", expanding=True)
+        )
+        page_query = text(
+            f"SELECT * FROM real_data_runs WHERE {where} "
+            "ORDER BY requested_at DESC, run_id DESC LIMIT :limit OFFSET :offset"
+        ).bindparams(bindparam("terminal", expanding=True))
+        with self._database.start().connect() as connection:
+            total = int(connection.execute(count_query, parameters).scalar_one())
+            rows = connection.execute(
+                page_query, {**parameters, "limit": limit, "offset": offset}
+            ).mappings().all()
+        return [self._row_to_run(row) for row in rows], total
 
     def save_candidates(
         self, run_id: UUID, candidates: tuple[RealDataCandidate, ...]

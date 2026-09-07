@@ -109,6 +109,33 @@ class SQLiteRealDataRunRepository:
             for row in rows
         ]
 
+    def list_comparison_runs(
+        self, *, provider: Literal["fixture", "live"] | None = None,
+        mode: Literal["intraday", "post_close"] | None = None,
+        offset: int = 0, limit: int = 20,
+    ) -> tuple[list[RealDataRun], int]:
+        if offset < 0 or not 1 <= limit <= 100:
+            raise ValueError("invalid comparison pagination")
+        terminal = tuple(status.value for status in RealDataRunStatus if status.is_terminal)
+        parameters: list[object] = list(terminal)
+        where = f"status IN ({','.join('?' for _ in terminal)})"
+        if provider is not None:
+            where += " AND provider = ?"
+            parameters.append(provider)
+        if mode is not None:
+            where += " AND mode = ?"
+            parameters.append(mode)
+        with self._database.connection() as connection:
+            total = connection.execute(
+                f"SELECT COUNT(*) FROM real_data_runs WHERE {where}", parameters,
+            ).fetchone()[0]
+            rows = connection.execute(
+                f"SELECT * FROM real_data_runs WHERE {where} "
+                "ORDER BY requested_at DESC, run_id DESC LIMIT ? OFFSET ?",
+                [*parameters, limit, offset],
+            ).fetchall()
+        return [self._row_to_run(row) for row in rows], int(total)
+
     def mark_interrupted(self) -> int:
         terminal = tuple(status.value for status in RealDataRunStatus if status.is_terminal)
         placeholders = ",".join("?" for _ in terminal)

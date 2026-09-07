@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 from uuid import UUID
 
 from sector_pulse.application.operations_summary import OperationalRun
@@ -118,6 +118,12 @@ class RealDataRunRepositoryPort(Protocol):
     def get_run(self, run_id: UUID) -> RealDataRun | None: ...
 
     def list_runs(self, limit: int = 50) -> list[RealDataRun]: ...
+
+    def list_comparison_runs(
+        self, *, provider: Literal["fixture", "live"] | None = None,
+        mode: Literal["intraday", "post_close"] | None = None,
+        offset: int = 0, limit: int = 20,
+    ) -> tuple[list[RealDataRun], int]: ...
 
     def get_candidates(self, run_id: UUID) -> list[RealDataCandidate]: ...
 
