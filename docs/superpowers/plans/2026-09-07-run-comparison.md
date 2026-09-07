@@ -25,9 +25,9 @@
 
 ## 执行状态与准备
 
-创建日期：2026-09-07；代码核对基线 `main / bf8d953`。**本文件是待执行计划，不是验收记录；当前无任务已完成。** 跨来源/场景限制是设计稿推荐默认值，用户若在实施前另行选择，先同步契约与测试。
+创建日期：2026-09-07；规划核对基线 `main / bf8d953`，实现基线 `5099334`。用户已要求继续实施；Phase 1 已完成，Phase 2 正在执行，完整功能尚未交付。首版采用已确认的同来源、同场景约束。
 
-实现开始时使用 using-git-worktrees 检查隔离工作区，以当时已核对的 main 创建 `codex/run-comparison`；不得在旧的 `.worktrees/stage0-reliability` 上直接开工，也不得清除用户未提交改动。本轮只写文档，不创建功能分支或执行以下实现命令。
+已从 main 创建隔离分支 `codex/run-comparison`，工作区 `.worktrees/run-comparison`；没有修改旧工作区、业务配置或主目录构建。后续继续在这个功能工作区执行。
 
 每项任务遵循 test-driven-development：先运行新增测试确认红灯，再实现，再运行确认绿灯，随后本地小提交。阶段间不重复请求用户确认；遇到业务权限、测试库身份不明或设计边界必须扩展时才暂停。
 
@@ -35,7 +35,7 @@ PowerShell 验证命令从功能工作区根目录执行；共享已有 Python �
 
 ## 文件责任图
 
-下列“新增”路径是计划产物，当前尚不存在。后端路径均相对仓库根。
+下列“新增”路径是本功能计划产物，完成情况见各任务。后端路径均相对仓库根。
 
 | 动作 | 路径 | 责任 |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ PowerShell 验证命令从功能工作区根目录执行；共享已有 Python �
 - `document_membership(base_ids: set[str], compare_ids: set[str]) -> dict[str, Membership]`；仅负责集合，coverage guard 在查询服务。
 - MissingReason 为 VALUE_MISSING/FIELD_UNDECLARED/SECTOR_MISSING；Membership 为 BOTH/ONLY_BASE/ONLY_COMPARE。这两个 Literal 在 models 定义。
 
-- [ ] **1. 写红灯测试**，包含以下精确断言，再补种类同码、单侧 null、负值和 Decimal 序列化用例：
+- [x] **1. 写红灯测试**，包含以下精确断言，再补种类同码、单侧 null、负值和 Decimal 序列化用例：
 
 ```python
 from decimal import Decimal
@@ -113,8 +113,8 @@ def test_membership_uses_ids_not_titles() -> None:
     }
 ```
 
-- [ ] **2. 运行测试确认失败**：`python -m pytest backend/tests/unit/application/test_run_comparison_diff.py -q`。预期新模块未定义导致失败；若意外通过，先检查 PYTHONPATH 和是否存在他人实现。
-- [ ] **3. 实现 DTO 和纯规则**。核心算术不读取数据库、不转换 float；空值原因自动补 VALUE_MISSING，明确原因意味着对应值未知：
+- [x] **2. 运行测试确认失败**：`python -m pytest backend/tests/unit/application/test_run_comparison_diff.py -q`。预期新模块未定义导致失败；若意外通过，先检查 PYTHONPATH 和是否存在他人实现。
+- [x] **3. 实现 DTO 和纯规则**。核心算术不读取数据库、不转换 float；空值原因自动补 VALUE_MISSING，明确原因意味着对应值未知：
 
 ```python
 def metric_difference(base, compare, *, unit, base_reason=None, compare_reason=None):
@@ -146,8 +146,8 @@ def document_membership(base_ids, compare_ids):
 
 上段函数体实施时使用 Interfaces 的完整类型签名。字段读取逻辑按 available_fields、sector 是否存在逐项判断；没有 declared 字段不能利用默认 0。候选使用 `(item.sector_kind, item.sector_id)`；不调用现有评分器或 breadth_ratio。
 
-- [ ] **4. 验证绿灯及风格**：重跑该测试，再运行 `python -m ruff check backend/src/sector_pulse/application/run_comparison_models.py backend/src/sector_pulse/application/run_comparison_diff.py backend/tests/unit/application/test_run_comparison_diff.py`。
-- [ ] **5. 本地小提交**：只暂存本任务三个文件，提交 `feat: define truthful run comparison rules`。
+- [x] **4. 验证绿灯及风格**：重跑该测试，再运行 `python -m ruff check backend/src/sector_pulse/application/run_comparison_models.py backend/src/sector_pulse/application/run_comparison_diff.py backend/tests/unit/application/test_run_comparison_diff.py`。
+- [x] **5. 本地小提交**：只暂存本任务三个文件，提交 `feat: define truthful run comparison rules`。
 
 ### Task 2：双数据库历史选择分页
 
@@ -169,7 +169,7 @@ def list_comparison_runs(
 
 这是协议签名说明；实际实现必须返回查询结果，不保留空方法体。既有 list_runs 不改语义，RuntimeStorageBundle 无新增仓储字段。
 
-- [ ] **1. 写分页红灯测试**。在临时 SQLite 插入 55 个同时间终态 fixture 运行和一个 FETCHING_MARKET，按 UUID 从大到小核对所有页；原始实体由既有类型直接构建：
+- [x] **1. 写分页红灯测试**。在临时 SQLite 插入 55 个同时间终态 fixture 运行和一个 FETCHING_MARKET，按 UUID 从大到小核对所有页；原始实体由既有类型直接构建：
 
 ```python
 from datetime import UTC, datetime
@@ -202,8 +202,8 @@ def test_listing_reaches_history_beyond_fifty(tmp_path) -> None:
     assert [item.run_id for item in items] == [UUID(int=n) for n in range(5, 0, -1)]
 ```
 
-- [ ] **2. 运行确认失败**：`python -m pytest backend/tests/integration/test_comparison_run_listing.py -q`。预期未实现 list_comparison_runs。
-- [ ] **3. 两种仓储实现同一 SQL 语义**。终态枚举使用 `tuple(status.value for status in RealDataRunStatus if status.is_terminal)`；终态列表、provider、mode、offset、limit 全部绑定参数，禁止拼接用户值。固定 SQL 结构如下，SQLite 使用对应问号/命名占位符，PostgreSQL 使用 SQLAlchemy text + expanding bindparam：
+- [x] **2. 运行确认失败**：`python -m pytest backend/tests/integration/test_comparison_run_listing.py -q`。预期未实现 list_comparison_runs。
+- [x] **3. 两种仓储实现同一 SQL 语义**。终态枚举使用 `tuple(status.value for status in RealDataRunStatus if status.is_terminal)`；终态列表、provider、mode、offset、limit 全部绑定参数，禁止拼接用户值。固定 SQL 结构如下，SQLite 使用对应问号/命名占位符，PostgreSQL 使用 SQLAlchemy text + expanding bindparam：
 
 ```sql
 SELECT * FROM real_data_runs
@@ -216,10 +216,10 @@ LIMIT :limit OFFSET :offset
 
 COUNT(*) 使用完全相同 WHERE，在同一连接中查询；结果映射复用仓储已有 `_row_to_run`。仓储拒绝 offset <0 或 limit 不在 1–100；边界空页仍返回正确 total。SQL 语法按数据库驱动绑定，不直接把示意 SQL 原样发送 SQLite。
 
-- [ ] **4. 验证 SQLite 并准备 PostgreSQL 等价测试**。核对专用库真实名称与连接目标后才设置测试进程变量；缺少专用库时记录“PostgreSQL 未验证”，不得把 skip 当通过。在本任务就将 Task 6 展示的完整 comparison_postgres fixture 写入 `backend/tests/comparison_support.py`，两个 PostgreSQL 比较测试模块显式导入该 fixture；标记整个测试模块 `pytestmark = pytest.mark.postgres`。等价用例同时验证 provider/mode 过滤、所有终态包含、运行中排除、相同时间稳定排序和越界页。
+- [x] **4. 验证 SQLite 并准备 PostgreSQL 等价测试**。核对专用库真实名称与连接目标后才设置测试进程变量；缺少专用库时记录“PostgreSQL 未验证”，不得把 skip 当通过。在本任务就将 Task 6 展示的完整 comparison_postgres fixture 写入 `backend/tests/comparison_support.py`，两个 PostgreSQL 比较测试模块显式导入该 fixture；标记整个测试模块 `pytestmark = pytest.mark.postgres`。等价用例同时验证 provider/mode 过滤、所有终态包含、运行中排除、相同时间稳定排序和越界页。
 PostgreSQL 专用库允许保留之前测试记录：先记录基线总量，使用本次新 UUID 插入，核对总量增量及遍历各页得到的本次 ID 集合；不要直接照搬临时 SQLite 的固定 UUID 和 total=55 断言到可重复使用的实库，也不要为了总数方便清空数据库。
 
-- [ ] **5. 本地小提交**：上述仓储、协议、测试支撑和两项测试，提交 `feat: page comparable runs on sqlite and postgres`。
+- [x] **5. 本地小提交**：上述仓储、协议、测试支撑和两项测试，提交 `feat: page comparable runs on sqlite and postgres`。
 
 ### Task 3：只读对比查询与 HTTP
 
@@ -236,7 +236,7 @@ evidence(base_run_id: UUID, compare_run_id: UUID, *, kind: SectorKind|None=None,
 
 provider、mode 使用 Task 2 Literal；MembershipFilter 在 models 定义为 ALL/BOTH/ONLY_BASE/ONLY_COMPARE。错误类型在 queries 定义 `ComparisonNotFoundError`、`ComparisonConflictError`、`ComparisonInputError`，均继承 ValueError。路由 `build_run_comparisons_router(queries: RunComparisonQueries) -> APIRouter` 捕获并分别转 HTTPException 404/409/422，其他异常交给全站脱敏 handler。
 
-- [ ] **1. 先写最小只读 API 红灯用例**，用临时 SQLite + 单独 FastAPI router，避免启动业务调度器：
+- [x] **1. 先写最小只读 API 红灯用例**，用临时 SQLite + 单独 FastAPI router，避免启动业务调度器：
 
 ```python
 from fastapi import FastAPI
@@ -268,8 +268,8 @@ def test_same_run_is_rejected_without_creating_runs(tmp_path) -> None:
     assert len(storage.real_data_runs.list_runs()) == 1
 ```
 
-- [ ] **2. 运行确认失败**：`python -m pytest backend/tests/integration/test_run_comparison_api.py -q`。
-- [ ] **3. 实现完整两侧验证与组装**。读取顺序固定为运行验证 → 各类快照兼容性 → 独立 get_candidates → 候选并集行 → 新闻 ID coverage/集合 → warning。新闻及证据端点调用相同验证入口，但不为了分页重复加载全部元数据。仅分组兼容时做键匹配，全部分类缺失时返回真实空组和警告。
+- [x] **2. 运行确认失败**：`python -m pytest backend/tests/integration/test_run_comparison_api.py -q`。
+- [x] **3. 实现完整两侧验证与组装**。读取顺序固定为运行验证 → 各类快照兼容性 → 独立 get_candidates → 候选并集行 → 新闻 ID coverage/集合 → warning。新闻及证据端点调用相同验证入口，但不为了分页重复加载全部元数据。仅分组兼容时做键匹配，全部分类缺失时返回真实空组和警告。
 
 ```python
 base_ids = {link.document_id for link in storage.news_retrieval.list_query_documents(base_id)}
@@ -298,8 +298,8 @@ metadata_by_id = storage.news.get_documents(page_ids) if page_ids else {}
 
 证据键为 `(link.sector_kind, link.sector_id, link.event_id)`；先限制兼容分类和候选并集，再集合差异、稳定排序和分页，最后 get_events 批量查询标题；保留两侧 mapping 原值，不拼接 current event.document_ids。警告代码、字段空值及排名方向逐项照设计 §4、§6。
 
-- [ ] **4. 加入四个同步 GET 端点和依赖装配**。WebRouterDependencies 增加 comparison_queries，在 build_web_router_dependencies 用 runtime.storage 构建并允许同名 overrides 注入；app.include_router 注册新前缀。为端点声明 response_model、UUID/Literal、分页 Query 范围。不得构造新的数据库连接配置或启动业务运行。
-- [ ] **5. 增加以下固定数据测试并运行至全绿**：
+- [x] **4. 加入四个同步 GET 端点和依赖装配**。WebRouterDependencies 增加 comparison_queries，在 build_web_router_dependencies 用 runtime.storage 构建并允许同名 overrides 注入；app.include_router 注册新前缀。为端点声明 response_model、UUID/Literal、分页 Query 范围。不得构造新的数据库连接配置或启动业务运行。
+- [x] **5. 增加以下固定数据测试并运行至全绿**：
 
 | 固定输入 | 必须断言 |
 | --- | --- |
@@ -315,9 +315,21 @@ metadata_by_id = storage.news.get_documents(page_ids) if page_ids else {}
 
 命令：`python -m pytest backend/tests/unit/application/test_run_comparison_diff.py backend/tests/unit/application/test_run_comparison_queries.py backend/tests/integration/test_run_comparison_api.py backend/tests/unit/web/test_dependencies.py -q`。补全应用装配 smoke 测试时使用显式临时 settings，禁用 scheduler，不加载业务 `.env`。
 
-- [ ] **6. 本地小提交**：只读查询、路由、装配与测试，提交 `feat: expose persisted run comparison queries`。Phase 1 完成后在本计划记入实际命令结果，不先标记前端完成。
+- [x] **6. 本地小提交**：只读查询、路由、装配与测试，提交 `feat: expose persisted run comparison queries`。Phase 1 完成后在本计划记入实际命令结果，不先标记前端完成。
 
 ## Phase 2：对照工作台
+
+### Phase 1 执行证据（2026-09-07）
+
+- Task 1：11 项纯规则测试通过，本地提交 `55f55c4`。
+- Task 2：双数据库历史分页及仓储契约 16 项通过，本地提交 `5da1e7f`。
+- Task 3：SQLite 查询、HTTP 及应用装配 43 项通过；隔离 PostgreSQL 专项 6 项通过，四个 GET 查询前后全库内容摘要一致。
+- 全量非 Live、非 PostgreSQL 后端：400 passed / 14 skipped / 20 deselected；Ruff 通过，Mypy 167 个源文件通过。唯一警告来自现有 Starlette/httpx 测试依赖。
+- 现有测试有同名模块，所有后端验证命令必须加 `--import-mode=importlib`，与仓库 CI 保持一致；下文示例命令同样适用。
+- PostgreSQL 使用原生 18.6 临时实例 `127.0.0.1:55447`、守卫库名 `sector_pulse_run_comparison_test`；没有连接业务库，也无需 Docker。
+- 实库红灯发现同 ID 新闻更新被 canonical URL 去重提前跳过；仅修复此条件，保留异 ID 同 URL 的别名规则，补充真实 PostgreSQL 回归后通过。不新增迁移。
+- 计划校正：现有候选主键缺少 kind，同一次运行不能存入行业/概念同码两行。纯规则覆盖同码，持久化测试覆盖跨运行同码不串板块；该旧表限制保留为后续独立问题。
+- 新闻/事件删除存在级联关系，因此只比较当前仍留存的成员与关联；元数据缺失测试模拟读取成员后元数据不可用，不宣称能恢复已经级联删除的历史。
 
 ### Task 4：运行选择、URL 状态与入口
 

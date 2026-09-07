@@ -20,6 +20,7 @@ from sector_pulse.web.dependencies import (
 from sector_pulse.web.errors import register_error_handlers
 from sector_pulse.web.routers.data_runs import build_data_runs_router
 from sector_pulse.web.routers.operations import build_operations_router
+from sector_pulse.web.routers.run_comparisons import build_run_comparisons_router
 from sector_pulse.web.routers.runs_review import (
     build_review_governance_router,
     build_runs_review_router,
@@ -71,6 +72,7 @@ def create_app(
 
     app = FastAPI(title="SectorPulse Web", lifespan=lifespan)
     register_error_handlers(app)
+    app.include_router(build_run_comparisons_router(router_dependencies.comparison_queries))
     app.include_router(
         build_operations_router(
             settings=settings,

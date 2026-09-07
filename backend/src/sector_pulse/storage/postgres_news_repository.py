@@ -23,7 +23,9 @@ class PostgresNewsRepository:
                 )
                 row = existing.first()
                 canonical_ids[document.document_id] = row[0] if row else document.document_id
-                if row:
+                # A different ID for the same URL is an alias; the existing ID
+                # itself must still reach the metadata upsert, as in SQLite.
+                if row and row[0] != document.document_id:
                     continue
                 connection.execute(
                     text(

@@ -43,6 +43,8 @@
 
 特别注意：`SectorSnapshot.breadth_ratio` 在上涨数、下跌数总和为 0 时返回 0.5；这是模型兜底，不是观测值。比较层应根据实际字段和分母自行判断。
 
+实施核对补充（2026-09-07）：现有 `real_data_candidates` 的主键为 `(run_id, sector_id)`，没有包含 kind，因此同次运行的跨类型同码候选存在原表限制。本功能仍按 `(kind, id)` 对比已经保存的记录，测试纯规则及跨运行不串类型；不在只读功能中隐式引入迁移。新闻成员与板块事件关联存在删除级联，删除历史不能从当前表还原，首版只核对当前留存关系。新闻元数据更新在 PostgreSQL 的同 ID 去重条件已修复，与 SQLite 对齐。
+
 文中 `domain/`、`application/`、`storage/` 均相对于 `backend/src/sector_pulse/`。
 
 ## 3. 方案选择

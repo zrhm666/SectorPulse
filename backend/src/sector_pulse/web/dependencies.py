@@ -11,6 +11,7 @@ from sector_pulse.application.governance_service import GovernanceService
 from sector_pulse.application.phase1a2_probe import Phase1A2Dependencies
 from sector_pulse.application.real_data_queries import RealDataRunQueries
 from sector_pulse.application.run_commands import RunCommandService
+from sector_pulse.application.run_comparison_queries import RunComparisonQueries
 from sector_pulse.application.run_coordinator import RunCoordinator
 from sector_pulse.application.run_queries import RunQueryService
 from sector_pulse.application.schedule_service import ScheduleService
@@ -67,6 +68,7 @@ class WebRouterDependencies:
     commands: RunCommandService
     queries: RunQueryService
     real_queries: RealDataRunQueries
+    comparison_queries: RunComparisonQueries
     workbench_queries: DataRunWorkbenchQueries
     candidate_selection_service: CandidateSelectionService
     data_run_service: DataRunService
@@ -239,10 +241,14 @@ def build_web_router_dependencies(
         dispatch_enabled=settings.scheduler_enabled,
     )
     evidence_service = EvidenceDecisionService(runtime.storage.governance)
+    comparison_queries = overrides.get("comparison_queries") if overrides else None
+    if comparison_queries is None:
+        comparison_queries = RunComparisonQueries(runtime.storage)
     return WebRouterDependencies(
         commands=RunCommandService(service),
         queries=RunQueryService(service),
         real_queries=RealDataRunQueries(runtime.storage.real_data_runs),
+        comparison_queries=comparison_queries,
         workbench_queries=workbench_queries,
         candidate_selection_service=candidate_selection_service,
         data_run_service=data_run_service,
