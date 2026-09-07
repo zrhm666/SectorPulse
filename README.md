@@ -107,7 +107,9 @@ Fixture 使用仓库内的可复现样例，不调用真实数据源，也不消
 
 ![SectorPulse 运行对比工作台](docs/screenshots/sectorpulse-run-comparison.png)
 
-图中使用隔离 Fixture 数据，仅用于展示界面结构和可解释的缺失状态，不代表真实行情或投资结论。
+图中是生产构建页面，使用浏览器测试拦截的只读 GET Fixture 响应，不连接业务数据库、不代表真实行情或投资结论。支持候选关系筛选、来源与字段口径展开，以及新闻和证据分页；窄屏按板块分组展示 A/B 对照。
+
+[查看运行选择界面](docs/screenshots/sectorpulse-run-comparison-selection.png) · [查看移动端布局](docs/screenshots/sectorpulse-run-comparison-mobile.png) · [本地验收记录](docs/superpowers/acceptance/2026-09-08-run-comparison.md)
 
 ### 数据运行工作台
 
@@ -308,6 +310,7 @@ SectorPulse/
 | `/` | 运营总览与运行条件 |
 | `/runs/new` | 新建 Fixture 或 Live 分析 |
 | `/runs` | 分析运行历史 |
+| `/runs/compare` | 两次已结束数据运行的只读对比 |
 | `/data-runs/:runId` | 实时数据采集与候选板块工作台 |
 | `/runs/:runId` | 内容运行、草稿与治理结果 |
 | `/review` | 人工审核队列和草稿编辑 |

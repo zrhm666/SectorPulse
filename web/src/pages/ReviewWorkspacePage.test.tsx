@@ -23,7 +23,7 @@ beforeEach(() => {
 it('loads the review queue and edits only the latest draft version', async () => {
   render(<MemoryRouter><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
   expect(await screen.findByRole('heading', { name: '审核工作台' })).toBeVisible()
-  expect(screen.getByRole('region', { name: '审核队列' })).toBeVisible()
+  expect(await screen.findByRole('region', { name: '审核队列' })).toBeVisible()
   const evidence = await screen.findByRole('complementary', { name: '证据与治理' })
   const editor = screen.getByRole('main', { name: '草稿编辑区' })
   const workspace = screen.getByRole('region', { name: '审核主工作区' })

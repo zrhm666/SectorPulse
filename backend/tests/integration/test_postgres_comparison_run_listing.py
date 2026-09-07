@@ -52,3 +52,34 @@ def test_postgres_invalid_pagination(comparison_postgres, offset, limit) -> None
     repo = PostgresRealDataRunRepository(comparison_postgres)
     with pytest.raises(ValueError):
         repo.list_comparison_runs(offset=offset, limit=limit)
+
+
+def test_postgres_terminal_statuses_provider_and_mode_filters(comparison_postgres) -> None:
+    repo = PostgresRealDataRunRepository(comparison_postgres)
+    before = repo.list_comparison_runs(provider="fixture", mode="intraday")[1]
+    moment = datetime(2040, 1, 1, tzinfo=UTC)
+    expected = set()
+    excluded = set()
+    for status in RealDataRunStatus:
+        for provider, mode in (
+            ("fixture", "intraday"),
+            ("live", "intraday"),
+            ("fixture", "post_close"),
+        ):
+            run = RealDataRun(
+                provider=provider,
+                request=RealDataRunRequest(mode=mode, requested_at=moment),
+                status=status,
+            )
+            repo.insert(run)
+            target = (
+                expected
+                if status.is_terminal and provider == "fixture" and mode == "intraday"
+                else excluded
+            )
+            target.add(run.run_id)
+    page, total = repo.list_comparison_runs(provider="fixture", mode="intraday", limit=100)
+    listed = {run.run_id for run in page}
+    assert total == before + len(expected)
+    assert expected <= listed
+    assert not (excluded & listed)

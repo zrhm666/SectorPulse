@@ -6,6 +6,7 @@ describe('resolveRouteContext', () => {
     ['/', { group: '运营', label: '运营总览' }],
     ['/runs', { group: '运营', label: '分析运行' }],
     ['/runs/new', { group: '运营', label: '新建分析' }],
+    ['/runs/compare', { group: '运营', label: '运行对比' }],
     ['/runs/run-1', { group: '运营', label: '内容运行' }],
     ['/review', { group: '运营', label: '审核工作台' }],
     ['/data-runs/data-1', { group: '运营', label: '数据运行' }],

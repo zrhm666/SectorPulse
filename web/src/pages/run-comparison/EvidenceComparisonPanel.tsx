@@ -20,7 +20,7 @@ export default function EvidenceComparisonPanel({ pair }: { pair: ComparisonPair
         <ul className="comparison-evidence-list">{data.items.map((item) => <li key={`${item.kind}-${item.sector_id}-${item.event_id}`}>
           <header><strong>{kindLabel[item.kind]} · {item.sector_id}</strong><span>{membershipLabel[item.membership]}</span></header>
           <p>事件：{item.current_event_title ?? '事件元数据不可用'}</p>
-          <dl><dt>基准 A</dt><dd>{item.base ? `${item.base.relation_type} · ${item.base.mapping_confidence} · ${item.base.mapping_reason}` : '无留存关联'}</dd><dt>对照 B</dt><dd>{item.compare ? `${item.compare.relation_type} · ${item.compare.mapping_confidence} · ${item.compare.mapping_reason}` : '无留存关联'}</dd></dl>
+          <dl><dt>基准 A</dt><dd>{item.base ? <>{item.base.relation_type} · {item.base.mapping_confidence} · {item.base.mapping_reason}<small>规则版本：{item.base.rule_version || '未保存'}</small></> : '无留存关联'}</dd><dt>对照 B</dt><dd>{item.compare ? <>{item.compare.relation_type} · {item.compare.mapping_confidence} · {item.compare.mapping_reason}<small>规则版本：{item.compare.rule_version || '未保存'}</small></> : '无留存关联'}</dd></dl>
         </li>)}</ul>
         <ComparisonPagination offset={data.offset} limit={data.limit} total={data.total} busy={query.loading} onPage={setOffset} />
       </>}

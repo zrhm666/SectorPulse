@@ -9,7 +9,7 @@ it('keeps kind identity, known zero and null distinct and explains aligned chang
   expect(screen.getByText('人工智能')).toBeVisible()
   expect(screen.getByText('上升 3 位')).toBeVisible()
   expect(screen.getAllByText('0%')).toHaveLength(2)
-  expect(screen.getByText('仅对照入选')).toBeVisible()
+  expect(within(screen.getByRole('row', { name: /人工智能/ })).getByText('仅对照入选')).toBeVisible()
   const row = screen.getByRole('row', { name: /半导体/ })
   fireEvent.click(within(row).getByRole('button', { name: '查看详情' }))
   expect(screen.getByText('字段口径未知')).toBeVisible()
@@ -18,6 +18,19 @@ it('keeps kind identity, known zero and null distinct and explains aligned chang
   fireEvent.change(screen.getByLabelText('板块类型'), { target: { value: 'CONCEPT' } })
   expect(screen.queryByText('半导体')).not.toBeInTheDocument()
   expect(screen.getByText('人工智能')).toBeVisible()
+})
+it('filters membership and exposes saved context without disguising missing observations as percentages', () => {
+  const data = structuredClone(sectorComparison)
+  data.kinds[0].rows[0].pct_change = { ...data.kinds[0].rows[0].pct_change, base: null, base_reason: 'FIELD_UNDECLARED', delta: null }
+  render(<SectorComparisonPanel data={data} />)
+  expect(screen.getByText('字段口径未知')).toBeVisible()
+  expect(screen.queryByText('字段口径未知%')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByText('查看行业来源与字段口径'))
+  expect(screen.getAllByText('fixture-market').length).toBeGreaterThan(0)
+  fireEvent.change(screen.getByLabelText('入选关系'), { target: { value: 'ONLY_COMPARE' } })
+  expect(screen.queryByText('半导体')).not.toBeInTheDocument()
+  expect(screen.getByText('人工智能')).toBeVisible()
+  expect(data.candidates).toEqual(sectorComparison.candidates)
 })
 it('explains incompatible and missing categories instead of rendering matched codes', () => {
   render(<SectorComparisonPanel data={{ ...sectorComparison, kinds: sectorComparison.kinds.map((kind) => ({ ...kind, status: 'INCOMPATIBLE', rows: [] })) }} />)

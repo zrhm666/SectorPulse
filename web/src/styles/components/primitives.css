@@ -8,6 +8,7 @@
   border: 1px solid transparent;
   border-radius: var(--sp-radius-md);
   font-weight: 680;
+  text-decoration: none;
   line-height: 1;
   transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
@@ -31,7 +32,11 @@
 .page-header__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
 .panel { border-color: var(--sp-border); border-radius: var(--sp-radius-lg); background: var(--sp-surface); }
-.status-badge { min-height: 24px; font-size: 12px; }
+.status-badge { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 8px; border-radius: var(--sp-radius-sm); color: var(--sp-text-secondary); background: var(--sp-surface-soft); font-size: 12px; }
+.status-badge--info { color: var(--sp-primary); background: var(--sp-primary-soft); }
+.status-badge--success { background: var(--sp-success-soft); }
+.status-badge--warning { background: var(--sp-warning-soft); }
+.status-badge--danger { background: var(--sp-danger-soft); }
 .inline-alert { border-radius: var(--sp-radius-md); }
 .empty-state { border-radius: var(--sp-radius-lg); }
 

@@ -25,7 +25,7 @@
 
 ## 执行状态与准备
 
-创建日期：2026-09-07；规划核对基线 `main / bf8d953`，实现基线 `5099334`。用户已要求继续实施；Phase 1 已完成，Phase 2 正在执行，完整功能尚未交付。首版采用已确认的同来源、同场景约束。
+创建日期：2026-09-07；规划核对基线 `main / bf8d953`，实现基线 `5099334`。用户已要求继续实施；Phase 1–3 已完成，2026-09-08 补齐交互与验收缺口，功能在隔离分支交付，尚未合入 main。首版采用已确认的同来源、同场景约束。
 
 已从 main 创建隔离分支 `codex/run-comparison`，工作区 `.worktrees/run-comparison`；没有修改旧工作区、业务配置或主目录构建。后续继续在这个功能工作区执行。
 
@@ -398,7 +398,7 @@ export async function fetchRunComparison(pair: ComparisonPair, signal: AbortSign
 - `NewsComparisonPanel({ pair }: { pair: ComparisonPair })`：消费 fetchComparisonNews，局部 membership/offset 状态；pair 改变归零。
 - `EvidenceComparisonPanel({ pair }: { pair: ComparisonPair })`：消费 fetchComparisonEvidence；首版传整组关系，必要时由行内控件同时传 kind 和 sector_id，取消筛选时二者同时省略。
 
-- [ ] **1. 写红灯展示测试**。测试必须同时放入值为 "0" 和 null 的单元格、同码行业/概念，以及 metadata=null 的新闻，不使用标题当 key：
+- [x] **1. 写红灯展示测试**。测试必须同时放入值为 "0" 和 null 的单元格、同码行业/概念，以及 metadata=null 的新闻，不使用标题当 key：
 
 ```tsx
 expect(screen.getByText('上升 3 位')).toBeVisible()
@@ -411,8 +411,8 @@ expect(screen.queryByRole('link', { name: '查看原文' })).not.toBeInTheDocume
 
 把上面断言放在分别渲染行情和新闻面板的用例中，fixture 使用设计 §6 完整 DTO：排名5→2；单侧候选；FIELD_UNDECLARED；非法 citation_url 不产生 link。另写同一页新闻统计200、当前页20行的用例，确认不把分页长度显示为总量。
 
-- [ ] **2. 运行确认失败**：`npm test -- src/pages/run-comparison/SectorComparisonPanel.test.tsx src/pages/run-comparison/NewsComparisonPanel.test.tsx src/pages/run-comparison/EvidenceComparisonPanel.test.tsx`。
-- [ ] **3. 实现结果面板**。使用语义 table、caption、th scope；移动断点下保留每项 A/B 标签。unknown 的说明由 reason 映射，不靠颜色区别；数字仅做显示格式化，不参与计算。详情采用行内折叠：
+- [x] **2. 运行确认失败**：`npm test -- src/pages/run-comparison/SectorComparisonPanel.test.tsx src/pages/run-comparison/NewsComparisonPanel.test.tsx src/pages/run-comparison/EvidenceComparisonPanel.test.tsx`。
+- [x] **3. 实现结果面板**。使用语义 table、caption、th scope；移动断点下保留每项 A/B 标签。unknown 的说明由 reason 映射，不靠颜色区别；数字仅做显示格式化，不参与计算。详情采用行内折叠：
 
 ```tsx
 <button type="button" aria-expanded={expanded} aria-controls={detailsId}
@@ -429,7 +429,7 @@ expect(screen.queryByRole('link', { name: '查看原文' })).not.toBeInTheDocume
 expanded、detailsId 为行组件内部状态和 useId，row 为 SectorComparisonRow。新闻也原位展开摘要；只渲染纯文本，不使用 dangerouslySetInnerHTML。分页前按钮有边界 disabled，加载时 aria-busy；局部错误保留原 pair 和重试操作，不显示上一组合的数据。
 
 - [x] **4. 实现标签页与响应式**。三个 tab 具备 tablist/tab/tabpanel、方向键、Home/End 和 roving tabindex；切换 tab 更新 URL，卸载旧分页组件以清理请求。960px 选择区纵排，720px 以下逐板块显示；复用 var(--sp-*) 与 compact 间距，数字 font-variant-numeric: tabular-nums；不得整体修改 globals 或 token 来适配单页。
-- [x] **5. 验证绿灯和构建**：新页面及既有前端全套 58 个测试文件、209 项通过；构建通过；结果面板覆盖真实数据缺失、全类别不可比、旧新闻无 lineage、证据元数据丢失。
+- [x] **5. 验证绿灯和构建**：新页面及既有前端全套 58 个测试文件、211 项通过（2026-09-08 最终复验）；构建通过；结果面板覆盖真实数据缺失、全类别不可比、旧新闻无 lineage、证据元数据丢失。
 - [x] **6. 本地小提交**：在 Task 5 实现后提交 `feat: present sector news and evidence comparisons`。
 
 ## Phase 3：完整验收与交付
@@ -440,7 +440,7 @@ expanded、detailsId 为行组件内部状态和 useId，row 为 SectorCompariso
 
 **Interfaces:** HTTP 仍为设计四个 GET，不增加为验收专用的生产写接口。浏览器用已有 `web/e2e/fixtures.ts` 的请求泄漏防护；API 实库测试直接用 test storage 种子，不通过真实 Provider 获取数据。
 
-- [ ] **1. 先加系统级红灯用例**。SQLite 和专用 PostgreSQL 分别创建固定fixture对：共同候选、单侧候选、缺失字段、元数据更新、旧运行无lineage、超过50历史。种子完成后，对涉及的业务表做稳定内容摘要，调用四个 GET 后再比较摘要，断言无变化。排除连接会话/测试日志等非业务状态，不允许用仅运行行数一致代替全部写入检查。
+- [x] **1. 先加系统级红灯用例**。SQLite 和专用 PostgreSQL 分别创建固定fixture对：共同候选、单侧候选、缺失字段、元数据更新、旧运行无lineage、超过50历史。种子完成后，对涉及的业务表做稳定内容摘要，调用四个 GET 后再比较摘要，断言无变化。排除连接会话/测试日志等非业务状态，不允许用仅运行行数一致代替全部写入检查。
 
 PostgreSQL 测试变量使用专用 `SECTOR_PULSE_TEST_DATABASE_URL`，若未配置则 skip 并显式登记未验收；建立连接后检查 `current_database()`，必须为 `sector_pulse_run_comparison_test`。此检查在 initialize/seed 前完成，不读取 `.env` 的业务 URL。已有专用测试库若名字不同，先核对并明确更新测试白名单，不靠名称含 test 的模糊判断。
 
@@ -471,7 +471,7 @@ def comparison_postgres():
 
 上述 fixture 已在 Task 2 放入 `backend/tests/comparison_support.py`，本任务导入复用，不创建第二套守卫。不要在 fixture 中添加 TRUNCATE 或 DROP；种子使用本轮可追踪 UUID。需要清理专用测试库时另核对确切对象与恢复方式。所有新增 PostgreSQL 测试模块标记 `pytestmark = pytest.mark.postgres`。
 
-- [ ] **2. 写真实浏览器断言并先运行确认存在失败/覆盖缺口**。使用有两个运行及55条历史的拦截fixture，覆盖刷新、前进/返回、交换、第二页选择、news分页、错误恢复、dialog Esc/焦点返回以及旧响应延迟。新增页面 fixture 只允许 GET，未处理的请求必须失败；不得落到用户本地后端。
+- [x] **2. 写真实浏览器断言并先运行确认存在失败/覆盖缺口**。使用有两个运行及55条历史的拦截fixture，覆盖刷新、前进/返回、交换、第二页选择、news分页、错误恢复、dialog Esc/焦点返回以及旧响应延迟。新增页面 fixture 只允许 GET，未处理的请求必须失败；不得落到用户本地后端。
 
 ```typescript
 import { test, expect } from './fixtures'
@@ -486,7 +486,7 @@ test('comparison keeps the shared navigation active', async ({ page }) => {
 
 该用例不打开选择器、不请求新比较接口；其他用例在 page.route 中完整覆盖新 GET 返回。浏览器请求断言另记录所有方法，确认没有触发采集、写作、重试或其它 POST/PUT/DELETE。
 
-- [ ] **3. 修复门槛发现的问题，再运行全套验证**。以下逐条命令记录真实 exit code、通过/跳过/排除数量；不把历史343/185等数量复制为本轮结果：
+- [x] **3. 修复门槛发现的问题，再运行全套验证**。以下逐条命令记录真实 exit code、通过/跳过/排除数量；不把历史343/185等数量复制为本轮结果：
 
 ```powershell
 python -m pytest backend/tests -m "not live and not live_llm and not postgres" -q
@@ -509,9 +509,9 @@ npm run test:e2e:dev
 
 本轮不加 Live 标记、不开付费测试。E2E 启动的本地服务由现有 runner 收尾；不结束用户占用8000/9000端口的进程。4173被其他程序占用时先识别，不盲目杀进程。
 
-- [ ] **4. 可视化与可用性验收**。使用 impeccable 的实现后检查流程和浏览器查看1440×900、1024×768、390×844；确认侧栏固定、内容独立滚动、文字不挤压、没有整页横溢、局部表格滚动清楚、焦点可见。键盘逐一检查选择器、tab、分页、展开及返回焦点；运行生产和开发模式，不能只看静态HTML。
-- [ ] **5. 维护实际交付文档与截图**。README 新增“运行对比”使用路径与新闻元数据限制，截取生产构建中的fixture页面并标注示例数据，不伪装成真实行情；PROJECT_STATUS 把此小阶段更新为有证据的完成，不把整个Stage1标为完成。验收记录包括提交、环境、数据库身份（不含密码）、命令结果、只读摘要、浏览器截图、未做Live/影子/远端CI等边界。
-- [ ] **6. 本地审查与提交**。检查 git diff、接口定义与 TS 一致性、没有 `.env`/缓存/测试库入库；使用 verification-before-completion 核对本轮证据。提交 `test: verify and document run comparison workflow`。功能分支交付后按用户后续明确请求处理合并或推送，不擅自改远端。
+- [x] **4. 可视化与可用性验收**。使用 impeccable 的实现后检查流程和浏览器查看1440×900、1024×768、390×844；确认侧栏固定、内容独立滚动、文字不挤压、没有整页横溢、局部表格滚动清楚、焦点可见。键盘逐一检查选择器、tab、分页、展开及返回焦点；运行生产和开发模式，不能只看静态HTML。
+- [x] **5. 维护实际交付文档与截图**。README 新增“运行对比”使用路径与新闻元数据限制，截取生产构建中的fixture页面并标注示例数据，不伪装成真实行情；PROJECT_STATUS 把此小阶段更新为有证据的完成，不把整个Stage1标为完成。验收记录包括提交、环境、数据库身份（不含密码）、命令结果、只读摘要、浏览器截图、未做Live/影子/远端CI等边界。
+- [x] **6. 本地审查与提交**。检查 git diff、接口定义与 TS 一致性、没有 `.env`/缓存/测试库入库；使用 verification-before-completion 核对本轮证据。提交 `test: verify and document run comparison workflow`。功能分支交付后按用户后续明确请求处理合并或推送，不擅自改远端。
 
 ## 执行前自审记录
 
@@ -525,4 +525,4 @@ npm run test:e2e:dev
 | 统一外壳、URL恢复、竞态、窄屏、键盘 | Task 4、5、6 |
 | 不污染业务库、真实验收与文档 | Task 6 |
 
-文档编制只进行了源码核对、契约对照与计划检查；上方任务及代码样例尚未执行。实现时若与最新仓库代码冲突，先核实差异并更新设计/计划，不以旧接口名称硬套。
+执行已完成。上方代码块保留为设计示例，实际实现以仓库代码为准。最终证据见 [2026-09-08 验收](../acceptance/2026-09-08-run-comparison.md)：前端 211、后端普通回归 400、隔离 PostgreSQL 9、生产/开发浏览器各 50 项通过。9 月 7 日初版验收高估了交互覆盖，已在补充检查中纠正；并补齐来源说明、成员筛选、移动布局和共享外壳基础样式。

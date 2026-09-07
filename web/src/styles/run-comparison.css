@@ -38,16 +38,23 @@
 .comparison-sector-name, .comparison-table th small { display: block; }
 .comparison-table th small { margin-top: 4px; color: var(--sp-text-muted); font-weight: 400; }
 .comparison-membership { display: inline-block; color: var(--sp-text-secondary); font-size: .8125rem; white-space: nowrap; }
-.comparison-details-button { display: block; margin-top: 6px; border: 0; padding: 0; color: var(--sp-primary); background: transparent; cursor: pointer; }
+.comparison-details-button { display: block; min-height: 40px; margin-top: 6px; border: 0; padding: 6px 0; color: var(--sp-primary); background: transparent; cursor: pointer; }
 .comparison-detail-row td { background: var(--sp-surface-soft); }
 .comparison-detail-row dl, .comparison-evidence-list dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 0; }
 .comparison-detail-row dt, .comparison-evidence-list dt { color: var(--sp-text-secondary); }
-.comparison-detail-row dd, .comparison-evidence-list dd { margin: 0; }
+.comparison-detail-row dd, .comparison-evidence-list dd { margin: 0; overflow-wrap: anywhere; }
+.comparison-evidence-list dd small { display: block; margin-top: 6px; color: var(--sp-text-secondary); }
+.comparison-panel-toolbar { display: flex; gap: 16px; flex-wrap: wrap; }
+.comparison-snapshot-details { margin-bottom: 12px; }
+.comparison-snapshot-details summary { cursor: pointer; color: var(--sp-primary); min-height: 40px; padding-block: 10px; }
+.comparison-snapshot-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.comparison-snapshot-pair h4 { margin-block: 12px; }
 .comparison-news-counts { display: flex; justify-content: space-between; gap: 16px; margin: 16px 0; color: var(--sp-text-secondary); }
 .comparison-news-list, .comparison-evidence-list { list-style: none; margin: 0; padding: 0; }
 .comparison-news-item, .comparison-evidence-list li { padding: 16px 0; border-bottom: 1px solid var(--sp-border); }
 .comparison-news-item__header, .comparison-evidence-list li > header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.comparison-news-item__header > div { display: grid; gap: 5px; min-width: 0; }
+.comparison-news-item__header > div { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.comparison-news-item__header > button { flex-shrink: 0; }
 .comparison-news-item__meta, .comparison-news-item__summary { margin: 8px 0 0; line-height: 1.7; }
 .comparison-news-item a { display: inline-block; margin-top: 8px; }
 .comparison-evidence-list li > p { color: var(--sp-text-secondary); }
@@ -72,6 +79,20 @@
   .comparison-swap { justify-self: center; }
 }
 @media (max-width: 720px) {
+  .comparison-snapshot-pair { grid-template-columns: minmax(0, 1fr); }
+  .comparison-panel-toolbar label { flex-wrap: wrap; }
+  .comparison-panel-toolbar select, .comparison-details-button, .comparison-snapshot-details summary { min-height: 44px; }
+  .comparison-panel-toolbar select, .comparison-filters select { font-size: 1rem; }
+  .comparison-table { min-width: 0; }
+  .comparison-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .comparison-table tbody { display: block; }
+  .comparison-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 12px; border-bottom: 1px solid var(--sp-border); }
+  .comparison-table tbody tr:last-child { border-bottom: 0; }
+  .comparison-table th, .comparison-table td { display: block; padding: 8px; border: 0; overflow-wrap: anywhere; }
+  .comparison-table td[data-label]::before { content: attr(data-label); display: block; color: var(--sp-text-secondary); font-size: .875rem; margin-bottom: 4px; }
+  .comparison-table tbody th { background: var(--sp-surface-soft); border-radius: var(--sp-radius-sm); }
+  .comparison-detail-row dl, .comparison-evidence-list dl { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .comparison-detail-row dd, .comparison-evidence-list dd { margin-bottom: 12px; }
   .comparison-picker { padding: 16px; }
   .comparison-filters label { flex: 1; }
   .comparison-filters select { min-height: 44px; }

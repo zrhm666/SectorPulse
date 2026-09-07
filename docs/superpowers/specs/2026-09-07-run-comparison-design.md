@@ -2,7 +2,7 @@
 
 日期：2026-09-07。代码核对基线：本地 `main / bf8d953`。
 
-状态：设计稿已形成，功能尚未实现、尚未验收。本次授权是先写设计和实施计划；详细方案交付后再进入实现。按用户偏好使用当前会话连续执行，不使用子代理。
+状态：三阶段实现与本地验收已完成，补充验收于 2026-09-08 收尾；代码位于 `codex/run-comparison`，尚未合入 main。按用户偏好在当前会话连续执行，无子代理。最终证据见 [验收记录](../acceptance/2026-09-08-run-comparison.md)。
 
 关联：[实施计划](../plans/2026-09-07-run-comparison.md) · [项目进度](../../PROJECT_STATUS.md) · [项目视觉规范](../../design/sectorpulse-reference-ui-system.md)。这是功能增强路线图 Stage 1 中的一个小阶段，不代表整个 Stage 1 已启动或完成。
 
@@ -25,7 +25,7 @@
 
 ### 默认选择与假设
 
-首版只允许相同 `RealDataRun.provider`（fixture/live）、相同 `request.mode`（intraday/post_close）的不同运行。跨来源或跨场景比较暂不提供开关。此项是推荐默认值，已向用户提出问题、尚未收到单独选项回复，不记作已确认选择。
+首版只允许相同 `RealDataRun.provider`（fixture/live）、相同 `request.mode`（intraday/post_close）的不同运行。跨来源或跨场景比较暂不提供开关。此项作为获准继续执行的整体方案默认约束实现，不提供跨来源或跨场景比较。
 
 只能选择数据采集状态 `is_terminal=True` 的运行，包括 READY_FOR_ATTRIBUTION、DEGRADED、BLOCKED、FAILED、CANCELLED、INTERRUPTED。**终态不等于成功，也不要求内容生成已完成。** 失败运行可以展示仍然保存的部分数据；没有快照的类别显示不可比较。
 
@@ -211,4 +211,4 @@ CandidateCounts 只计 COMPARABLE 类别中的候选；无法比较的类别数�
 
 验收必须覆盖：两种分类使用相同 ID；A/B 交换；同一运行；超过 50 条历史；同时间分页；未知字段与真实 0；单侧未入选但行情存在；旧新闻无 lineage；重复文档；元数据被更新或删除；同标题不同 ID；source/classification 不一致；运行已失败但有部分快照；新闻分页失败和旧请求晚到。
 
-完成判据：所有约定能力实现并有新鲜验收结果，README 的功能与截图来自实际构建；不将当前设计稿标记为已交付功能。
+完成判据：所有约定能力实现并有新鲜验收结果，README 的功能与截图来自实际构建；是否交付以实际验收记录为准，不以设计稿存在代替实现证据。

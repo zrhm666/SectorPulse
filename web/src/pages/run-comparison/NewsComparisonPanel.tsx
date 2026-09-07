@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 import LoadingState from '../../components/ui/LoadingState'
 import Panel from '../../components/ui/Panel'
 import type { ComparisonPair, NewsComparisonPage } from '../../runComparisonsApi'
 import { fetchComparisonNews, type MembershipFilter } from '../../runComparisonsApi'
 import useComparisonRequest from '../../hooks/useComparisonRequest'
 import { ComparisonPagination, membershipLabel, QueryError } from './ComparisonShared'
+import { formatDate } from '../../runPresentation'
 
 export default function NewsComparisonPanel({ pair }: { pair: ComparisonPair }) {
   const [membership, setMembership] = useState<MembershipFilter>('ALL')
@@ -30,6 +31,16 @@ export default function NewsComparisonPanel({ pair }: { pair: ComparisonPair }) 
 }
 function NewsItem({ item }: { item: NewsComparisonPage['items'][number] }) {
   const [open, setOpen] = useState(false)
+  const summaryId = useId()
   const meta = item.metadata
-  return <li className="comparison-news-item"><div className="comparison-news-item__header"><div><strong>{meta?.title ?? item.document_id}</strong><span className="comparison-membership">{membershipLabel[item.membership]}</span></div><button type="button" className="comparison-details-button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? '收起摘要' : '查看摘要'}</button></div>{meta ? <><p className="comparison-news-item__meta">{meta.source_id}{meta.publisher ? ` · ${meta.publisher}` : ''} · 当前保存的新闻元数据，非历史正文快照</p>{open && <p className="comparison-news-item__summary">{meta.summary ?? '暂无摘要'}</p>}{meta.citation_url && /^https?:\/\//i.test(meta.citation_url) && <a href={meta.citation_url} target="_blank" rel="noopener noreferrer">查看原文</a>}</> : <p className="comparison-news-item__meta">新闻元数据不可用 · ID：{item.document_id}</p>}</li>
+  return <li className="comparison-news-item">
+    <div className="comparison-news-item__header"><div><strong>{meta?.title ?? '新闻元数据不可用'}</strong><span className="comparison-membership">{membershipLabel[item.membership]}</span></div>
+      {meta && <button type="button" className="comparison-details-button" aria-expanded={open} aria-controls={summaryId} onClick={() => setOpen((value) => !value)}>{open ? '收起摘要' : '查看摘要'}</button>}
+    </div>
+    {meta ? <>
+      <p className="comparison-news-item__meta">{meta.source_id}{meta.publisher ? ` · ${meta.publisher}` : ''} · {meta.published_at ? <time dateTime={meta.published_at}>{formatDate(meta.published_at)}</time> : '发布时间未保存'} · 当前保存的新闻元数据，非历史正文快照</p>
+      <p id={summaryId} className="comparison-news-item__summary" hidden={!open}>{meta.summary ?? '暂无摘要'}</p>
+      {meta.citation_url && /^https?:\/\//i.test(meta.citation_url) && <a href={meta.citation_url} target="_blank" rel="noopener noreferrer">查看原文</a>}
+    </> : <p className="comparison-news-item__meta">ID：{item.document_id}</p>}
+  </li>
 }

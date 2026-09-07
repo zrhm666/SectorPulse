@@ -9,6 +9,7 @@ const EXACT_CONTEXTS: Record<string, RouteContext> = {
   '/': { group: '运营', label: '运营总览' },
   '/runs': { group: '运营', label: '分析运行' },
   '/runs/new': { group: '运营', label: '新建分析' },
+  '/runs/compare': { group: '运营', label: '运行对比' },
   '/review': { group: '运营', label: '审核工作台' },
   '/schedules': { group: '管理', label: '定时任务' },
   '/system': { group: '管理', label: '系统状态' },
