@@ -94,7 +94,7 @@ async def test_retry_workflow_persists_lineage_after_provider_failure(tmp_path, 
         raise RuntimeError("provider unavailable")
 
     monkeypatch.setattr(
-        "sector_pulse.application.real_data_orchestrator.run_phase1a2_probe",
+        "sector_pulse.application.data_runs.real_data_orchestrator.run_phase1a2_probe",
         unavailable_provider,
     )
     service = DataRunService(

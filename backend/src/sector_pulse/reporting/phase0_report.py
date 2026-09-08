@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sector_pulse.application.phase0_probe import Phase0ProbeReport
+    from sector_pulse.application.diagnostics.phase0_probe import Phase0ProbeReport
 
 
 def write_utf8_atomic(path: Path, content: str) -> None:

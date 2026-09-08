@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
-from sector_pulse.application.phase1a2_probe import Phase1A2Request, run_phase1a2_probe
+from sector_pulse.application.data_runs.phase1a2_probe import Phase1A2Request, run_phase1a2_probe
 from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
 from sector_pulse.domain.news import NewsDocument, SourceGrade
 from sector_pulse.domain.provider import (

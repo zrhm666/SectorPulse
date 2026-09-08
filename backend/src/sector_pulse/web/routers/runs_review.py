@@ -11,10 +11,10 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import ValidationError
 
-from sector_pulse.application.evidence_decision_service import EvidenceDecisionService
-from sector_pulse.application.governance_service import GovernanceService
-from sector_pulse.application.run_commands import RunCommandService
-from sector_pulse.application.run_queries import RunQueryService
+from sector_pulse.application.review.evidence_decision_service import EvidenceDecisionService
+from sector_pulse.application.review.governance_service import GovernanceService
+from sector_pulse.application.runs.run_commands import RunCommandService
+from sector_pulse.application.runs.run_queries import RunQueryService
 from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.release_audit import DraftApproval, DraftExport
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_input

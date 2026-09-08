@@ -2,7 +2,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from sector_pulse.application.phase1b_pipeline import Phase1BRunResult
+from sector_pulse.application.writing.phase1b_pipeline import Phase1BRunResult
 from sector_pulse.domain.article import ArticleDraft, ArticleSection, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import MoneyCny
 from sector_pulse.domain.review import ReviewDecision, ReviewReport

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 
-from sector_pulse.application.run_comparison_models import (
+from sector_pulse.application.comparison.run_comparison_models import (
     EvidenceComparisonPage,
     MembershipFilter,
     NewsComparisonPage,
@@ -12,7 +12,7 @@ from sector_pulse.application.run_comparison_models import (
     RunMode,
     RunOptionPage,
 )
-from sector_pulse.application.run_comparison_queries import (
+from sector_pulse.application.comparison.run_comparison_queries import (
     ComparisonConflictError,
     ComparisonInputError,
     ComparisonNotFoundError,

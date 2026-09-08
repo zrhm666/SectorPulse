@@ -8,13 +8,13 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4, uuid5
 
-from sector_pulse.application.phase1b_pipeline import (
+from sector_pulse.application.tasks.task_registry import RunTaskRegistry
+from sector_pulse.application.writing.phase1b_pipeline import (
     Phase1BDependencies,
     Phase1BRequest,
     run_phase1b_pipeline,
 )
-from sector_pulse.application.progress import ProgressSink
-from sector_pulse.application.task_registry import RunTaskRegistry
+from sector_pulse.application.writing.progress import ProgressSink
 from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
@@ -449,7 +449,7 @@ class RunService:
             return None
         from decimal import Decimal
 
-        from sector_pulse.application.phase1b_pipeline import Phase1BRunResult
+        from sector_pulse.application.writing.phase1b_pipeline import Phase1BRunResult
         from sector_pulse.domain.llm import MoneyCny
         from sector_pulse.reporting.phase1b_report import render_phase1b_markdown
 
@@ -470,7 +470,7 @@ class RunService:
             return None
         from decimal import Decimal
 
-        from sector_pulse.application.phase1b_pipeline import Phase1BRunResult
+        from sector_pulse.application.writing.phase1b_pipeline import Phase1BRunResult
         from sector_pulse.domain.llm import MoneyCny
         from sector_pulse.reporting.phase1b_report import render_phase1b_text
 

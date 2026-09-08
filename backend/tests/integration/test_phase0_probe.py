@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sector_pulse.application.phase0_probe import run_phase0_probe
+from sector_pulse.application.diagnostics.phase0_probe import run_phase0_probe
 from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
 from sector_pulse.domain.provider import (
     AuthorizationStatus,

@@ -1,7 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 
-from sector_pulse.application.phase1b_pipeline import Phase1BRequest, run_phase1b_pipeline
+from sector_pulse.application.writing.phase1b_pipeline import Phase1BRequest, run_phase1b_pipeline
 
 from backend.tests.integration.test_phase1b_pipeline import (
     RUN_ID,

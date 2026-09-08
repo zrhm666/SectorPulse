@@ -5,8 +5,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Header, HTTPException
 
-from sector_pulse.application.run_coordinator import RunCoordinator
-from sector_pulse.application.schedule_service import ScheduleCreate, ScheduleService
+from sector_pulse.application.tasks.run_coordinator import RunCoordinator
+from sector_pulse.application.tasks.schedule_service import ScheduleCreate, ScheduleService
 from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
 from sector_pulse.web.task_schemas import ScheduleCreateRequest, ScheduleResponse
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sector_pulse.application.operations_summary import OperationalRun
+from sector_pulse.application.operations.operations_summary import OperationalRun
 from sector_pulse.storage.sqlite import SQLiteDatabase
 
 _UNIFIED_OPERATIONS_SQL = """

@@ -4,14 +4,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 
-from sector_pulse.application.candidate_selection_service import (
+from sector_pulse.application.data_runs.candidate_selection_service import (
     CandidateSelectionInvalid,
     CandidateSelectionNotFound,
     CandidateSelectionRequired,
     CandidateSelectionService,
 )
-from sector_pulse.application.data_run_workbench_queries import DataRunWorkbenchQueries
-from sector_pulse.application.real_data_queries import RealDataRunQueries
+from sector_pulse.application.data_runs.data_run_workbench_queries import DataRunWorkbenchQueries
+from sector_pulse.application.data_runs.real_data_queries import RealDataRunQueries
 from sector_pulse.domain.candidate_selection import CandidateSelectionVersionConflict
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.provider import DataStatus

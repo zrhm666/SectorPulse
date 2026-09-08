@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import text
 
-from sector_pulse.application.operations_summary import OperationalRun
+from sector_pulse.application.operations.operations_summary import OperationalRun
 from sector_pulse.storage.operations_query import (
     _UNIFIED_OPERATIONS_SQL,
     _row_to_operational_run,

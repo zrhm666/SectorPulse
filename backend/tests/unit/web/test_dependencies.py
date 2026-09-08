@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-from sector_pulse.application.run_comparison_queries import RunComparisonQueries
+from sector_pulse.application.comparison.run_comparison_queries import RunComparisonQueries
 from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
 from sector_pulse.storage.postgres import PostgresDatabase

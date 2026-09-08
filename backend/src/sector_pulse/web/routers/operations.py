@@ -7,12 +7,12 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter
 
-from sector_pulse.application.operations_summary import (
+from sector_pulse.application.operations.operations_summary import (
     OperationsSummaryQueryPort,
     build_operations_snapshot,
 )
-from sector_pulse.application.run_queries import RunQueryService
-from sector_pulse.application.scheduler import EmbeddedScheduler
+from sector_pulse.application.runs.run_queries import RunQueryService
+from sector_pulse.application.tasks.scheduler import EmbeddedScheduler
 from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.database_runtime import Database

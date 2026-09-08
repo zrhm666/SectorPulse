@@ -3,10 +3,10 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
-from sector_pulse.application.run_coordinator import RunCoordinator
-from sector_pulse.application.schedule_service import ScheduleService
-from sector_pulse.application.scheduler import EmbeddedScheduler
-from sector_pulse.application.task_run_service import TaskRunService
+from sector_pulse.application.tasks.run_coordinator import RunCoordinator
+from sector_pulse.application.tasks.schedule_service import ScheduleService
+from sector_pulse.application.tasks.scheduler import EmbeddedScheduler
+from sector_pulse.application.tasks.task_run_service import TaskRunService
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.domain.task import TaskRunKey, TaskRunStatus
 from sector_pulse.storage.phase1b_runs_repository import Phase1BRunRow, SQLitePhase1BRunsRepository

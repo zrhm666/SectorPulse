@@ -4,7 +4,9 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-from sector_pulse.application.candidate_selection_service import CandidateSelectionRequired
+from sector_pulse.application.data_runs.candidate_selection_service import (
+    CandidateSelectionRequired,
+)
 from sector_pulse.domain.candidate_selection import CandidateSelectionMethod
 from sector_pulse.web.app import create_app
 

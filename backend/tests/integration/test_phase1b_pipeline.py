@@ -4,7 +4,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
-from sector_pulse.application.phase1b_pipeline import (
+from sector_pulse.application.writing.phase1b_pipeline import (
     Phase1BRequest,
     run_phase1b_pipeline,
 )

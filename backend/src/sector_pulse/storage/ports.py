@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Literal, Protocol, runtime_checkable
 from uuid import UUID
 
-from sector_pulse.application.operations_summary import OperationalRun
+from sector_pulse.application.operations.operations_summary import OperationalRun
 from sector_pulse.domain.article import ArticleDraft, ArticleOutline
 from sector_pulse.domain.attribution import (
     AttributionContext,

@@ -5,14 +5,14 @@ from uuid import UUID
 
 import typer
 
-from sector_pulse.application.phase0_probe import Phase0ProbeReport, run_phase0_probe
-from sector_pulse.application.phase1a2_probe import (
+from sector_pulse.application.data_runs.phase1a2_probe import (
     Phase1A2Dependencies,
     Phase1A2Request,
     run_phase1a2_probe,
 )
-from sector_pulse.application.phase1a_probe import run_phase1a_probe
-from sector_pulse.application.phase1b_pipeline import (
+from sector_pulse.application.diagnostics.phase0_probe import Phase0ProbeReport, run_phase0_probe
+from sector_pulse.application.diagnostics.phase1a_probe import run_phase1a_probe
+from sector_pulse.application.writing.phase1b_pipeline import (
     Phase1BRequest,
     run_phase1b_pipeline,
 )

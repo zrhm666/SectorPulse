@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from sector_pulse.application.phase1a2_probe import Phase1A2Report
+from sector_pulse.application.data_runs.phase1a2_probe import Phase1A2Report
 
 
 def render_phase1a2_markdown(report: Phase1A2Report) -> str:

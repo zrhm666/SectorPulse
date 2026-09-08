@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sector_pulse.application.phase1b_pipeline import Phase1BRequest
+from sector_pulse.application.writing.phase1b_pipeline import Phase1BRequest
 from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry

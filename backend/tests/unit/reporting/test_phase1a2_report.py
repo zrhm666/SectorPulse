@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
-from sector_pulse.application.news_quality import NewsQualityReport
-from sector_pulse.application.phase1a2_probe import Phase1A2Report, SourceMetricSummary
+from sector_pulse.application.data_runs.phase1a2_probe import Phase1A2Report, SourceMetricSummary
+from sector_pulse.application.news.news_quality import NewsQualityReport
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.quality import QualityReport, QualityStatus
 from sector_pulse.domain.time import AnalysisRun

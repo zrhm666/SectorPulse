@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from sector_pulse.application.phase1b_pipeline import Phase1BRunResult
+from sector_pulse.application.writing.phase1b_pipeline import Phase1BRunResult
 
 
 def _require_ready(result: Phase1BRunResult) -> None:

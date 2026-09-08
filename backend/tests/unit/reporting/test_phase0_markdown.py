@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sector_pulse.application.phase0_probe import Phase0ProbeReport
+from sector_pulse.application.diagnostics.phase0_probe import Phase0ProbeReport
 from sector_pulse.domain.provider import AuthorizationStatus
 from sector_pulse.domain.quality import QualityReport, QualityStatus
 from sector_pulse.domain.time import AnalysisRun
