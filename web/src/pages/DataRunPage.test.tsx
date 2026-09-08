@@ -86,6 +86,14 @@ function renderPage() {
   )
 }
 
+it('shows a persisted zero candidate count as zero rather than not produced', async () => {
+  renderPage()
+  const summary = await screen.findByRole('region', { name: '数据运行摘要' })
+  await waitFor(() => expect(within(summary).getByText('0')).toBeVisible())
+  expect(within(summary).getByText('数据来源')).toBeVisible()
+  expect(within(summary).getByText('数据截止时间')).toBeVisible()
+})
+
 it('offers a comparison base only for terminal data runs', async () => {
   const view = renderPage()
   expect(await screen.findByRole('link', { name: '以此为基准对比' })).toHaveAttribute('href', '/runs/compare?base=run-1')
@@ -94,6 +102,31 @@ it('offers a comparison base only for terminal data runs', async () => {
   renderPage()
   await screen.findByRole('heading', { name: '盘中数据运行' })
   expect(screen.queryByRole('link', { name: '以此为基准对比' })).not.toBeInTheDocument()
+})
+
+it('collapses completed processing while leaving downgrade alerts visible', async () => {
+  vi.mocked(api.fetchDataRun).mockResolvedValue({ ...READY_RUN, downgrade_reasons: ['NEWS_SOURCE_PARTIAL'] })
+  renderPage()
+  const toggle = await screen.findByText('处理与采集详情')
+  expect(toggle.closest('details')).not.toHaveAttribute('open')
+  expect(screen.getByRole('alert')).toHaveTextContent('NEWS_SOURCE_PARTIAL')
+  await userEvent.click(toggle)
+  expect(toggle.closest('details')).toHaveAttribute('open')
+  expect(screen.getByText('数据处理进度')).toBeVisible()
+})
+
+it('expands active processing and supports keyboard tab navigation', async () => {
+  vi.mocked(api.fetchDataRun).mockResolvedValue({ ...READY_RUN, status: 'FETCHING_MARKET' })
+  renderPage()
+  expect((await screen.findByText('处理与采集详情')).closest('details')).toHaveAttribute('open')
+  const market = screen.getByRole('tab', { name: '行情板块' })
+  market.focus()
+  await userEvent.keyboard('{ArrowRight}')
+  expect(screen.getByRole('tab', { name: '候选板块' })).toHaveFocus()
+  expect(screen.getByRole('tab', { name: '候选板块' })).toHaveAttribute('aria-selected', 'true')
+  expect(market).toHaveAttribute('tabindex', '-1')
+  await userEvent.keyboard('{End}')
+  expect(screen.getByRole('tab', { name: '质量报告' })).toHaveFocus()
 })
 
 beforeEach(() => {
@@ -167,7 +200,7 @@ it('keeps cancelling state until persisted CANCELLED arrives', async () => {
 it('renders metadata and workbench tabs as named regions', async () => {
   renderPage()
   const summary = await screen.findByRole('region', { name: '数据运行摘要' })
-  expect(summary).toHaveTextContent('Provider')
+  expect(summary).toHaveTextContent('数据来源')
   expect(summary).toHaveTextContent('完成时间')
   const tabs = screen.getByRole('tablist', { name: '数据运行详情' })
   expect(within(tabs).getAllByRole('tab')).toHaveLength(5)
@@ -373,11 +406,13 @@ it('shows what providers actually returned and the three processing counts', asy
 
   renderPage()
 
-  expect(await screen.findByText('本次实际获取')).toBeVisible()
+  await userEvent.click(await screen.findByText('处理与采集详情'))
+  expect(screen.getByText('本次实际获取')).toBeVisible()
   expect(screen.getByText('akshare-ths')).toBeVisible()
   expect(screen.getByText('实际字段：板块代码、板块名称')).toBeVisible()
   expect(screen.getByText('eastmoney-search')).toBeVisible()
-  expect(screen.getByText('Provider 返回')).toBeVisible()
+  expect(screen.getByText('数据源返回')).toBeVisible()
+  expect(screen.getByText('成功')).toBeVisible()
   expect(screen.getByText('240')).toBeVisible()
   expect(screen.getByText('规范化保存')).toBeVisible()
   expect(screen.getByText('182')).toBeVisible()

@@ -172,8 +172,25 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 1440, height: 90
     await openWorkbench(page, viewport)
     await expect(page.getByRole('heading', { name: '盘后数据运行' })).toBeVisible()
     await expect(page.getByRole('tablist', { name: '数据运行详情' })).toBeVisible()
+    await expect(page.getByText('数据处理进度')).toBeHidden()
+    await page.getByText('处理与采集详情', { exact: true }).click()
     await expect(page.getByText('数据处理进度')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+for (const width of [1440, 1024, 390]) {
+  test(`results-first data layout at ${width}`, async ({ page }) => {
+    await openWorkbench(page, { width, height: 900 })
+    await expect(page.locator('.data-processing-details')).not.toHaveAttribute('open')
+    const market = page.getByRole('tab', { name: '行情板块' })
+    await market.focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByRole('tab', { name: '候选板块' })).toBeFocused()
+    await expect(page.getByRole('tab', { name: '候选板块' })).toHaveAttribute('aria-selected', 'true')
+    await page.getByRole('tab', { name: '行情板块' }).click()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: test.info().outputPath(`data-${width}.png`) })
   })
 }
 

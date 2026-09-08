@@ -1,5 +1,6 @@
+import { registryReturnTo } from './run-registry/registryModel'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import {
   type DataRunCandidateView,
@@ -37,7 +38,7 @@ import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
 import StatusBadge from '../components/ui/StatusBadge'
 import SummaryStrip from '../components/ui/SummaryStrip'
-import { formatDate } from '../runPresentation'
+import { downgradeLabel, formatDate, providerLabel } from '../runPresentation'
 import CandidatesPanel from './data-run/CandidatesPanel'
 import CandidateSelectionBar from './data-run/CandidateSelectionBar'
 import AcquisitionSummary from './data-run/AcquisitionSummary'
@@ -58,10 +59,12 @@ function message(reason: unknown, fallback: string): string {
 }
 
 export default function DataRunPage() {
+  const returnTo = registryReturnTo(useLocation().state)
   const { runId = '' } = useParams()
   const navigate = useNavigate()
   const workbench = useDataRunWorkbench(runId)
   const run = workbench.run
+  const terminal = Boolean(run && terminalDataStatuses.has(run.status))
   const [activeTab, setActiveTab] = useState<WorkbenchTab>('market')
   const [candidates, setCandidates] = useState<DataRunCandidateView[]>([])
   const [candidatePage, setCandidatePage] = useState<DataRunCandidatePageView | null>(null)
@@ -364,21 +367,31 @@ export default function DataRunPage() {
   ]
 
   return <section className="data-run-page density-compact">
-    <PageHeader title={run.mode === 'post_close' ? '盘后数据运行' : '盘中数据运行'} description={`运行 ${run.run_id.slice(0, 8)} · ${formatDate(run.requested_at)}`} actions={<>{terminalDataStatuses.has(run.status) && <Link className="button button-secondary" to={`/runs/compare?base=${run.run_id}`}>以此为基准对比</Link>}<Link className="button button-secondary" to="/runs">返回运行历史</Link></>} />
+    <PageHeader title={run.mode === 'post_close' ? '盘后数据运行' : '盘中数据运行'} description={`运行 ${run.run_id.slice(0, 8)} · ${formatDate(run.requested_at)}`} actions={<>{terminalDataStatuses.has(run.status) && <Link className="button button-secondary" to={`/runs/compare?base=${run.run_id}`}>以此为基准对比</Link>}<Link className="button button-secondary" to={returnTo}>返回运行历史</Link></>} />
     <SummaryStrip label="数据运行摘要" className="data-run-summary" items={[
       { label: '状态', value: <StatusBadge status={run.status} /> },
       { label: '场景', value: run.mode === 'post_close' ? '盘后复盘' : '盘中分析' },
-      { label: 'Provider', value: run.provider ?? '尚未记录' },
-      { label: 'Cutoff', value: run.cutoff_at ? formatDate(run.cutoff_at) : '尚未产生' },
-      { label: '候选板块', value: candidatesLoading ? '加载中' : candidatePage?.total || '尚未产生' },
+      { label: '数据来源', value: providerLabel(run.provider) },
+      { label: '数据截止时间', value: run.cutoff_at ? formatDate(run.cutoff_at) : '尚未记录' },
+      { label: '候选板块', value: candidatesLoading ? '加载中' : candidatePage?.total ?? '未记录' },
       { label: '完成时间', value: run.finished_at ? formatDate(run.finished_at) : '尚未完成' },
     ]} />
     {workbench.stale && <InlineAlert tone="warning" title="显示最近一次成功数据">{cancelling ? '取消请求已接收，但状态刷新暂时失败；系统会自动重试。' : workbench.error}</InlineAlert>}
-    {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineAlert>}
-    <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
-    <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={acquisitionError} />
+    {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{downgradeLabel(reason)}{downgradeLabel(reason) !== reason && <details><summary>查看原始代码</summary><code>{reason}</code></details>}</li>)}</ul></InlineAlert>}
+    {acquisitionError && <InlineAlert tone="warning" title="采集摘要加载失败">{acquisitionError}，可展开详情核对已保存的处理记录。</InlineAlert>}
+    <details className="data-processing-details" key={`${run.run_id}-${terminal}`} open={!terminal}>
+      <summary>处理与采集详情</summary>
+      <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
+      <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={null} />
+    </details>
     <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} selectionConfirmed={Boolean(selection?.confirmed)} selectionDirty={selectionDirty} onGenerate={() => void generate()} onRetry={() => void retry()} onCancel={() => void cancel()} cancelling={cancelling} />
-    <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>)}</div>
+    <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab, index) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" tabIndex={activeTab === tab.id ? 0 : -1} aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)} onKeyDown={event => {
+      const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1
+      if (next < 0) return
+      event.preventDefault()
+      setActiveTab(tabs[next].id)
+      document.getElementById(`tab-${tabs[next].id}`)?.focus()
+    }}>{tab.label}</button>)}</div>
     <Panel className="data-workbench-panel" density="compact"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
       {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} onOpenDetail={setMarketDetail} />}
       {activeTab === 'candidates' && <CandidatesPanel

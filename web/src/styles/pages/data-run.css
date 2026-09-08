@@ -156,3 +156,8 @@
 .quality-metrics strong { padding: 12px; background: var(--sp-surface-soft); border-radius: var(--sp-radius-sm); font-size: .875rem; }
 .quality-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .quality-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--sp-border); }
+.data-processing-details { min-width: 0; border: 1px solid var(--sp-border); border-radius: var(--sp-radius-lg); background: var(--sp-surface); }
+.data-processing-details > summary { padding: 14px 18px; cursor: pointer; color: var(--sp-text-secondary); font-weight: 650; }
+.data-processing-details[open] > summary { margin-bottom: 12px; border-bottom: 1px solid var(--sp-border-soft); }
+.data-processing-details > .panel { margin: 0 18px 16px; }
+.data-processing-details > .acquisition-summary { margin: 0 18px 18px; }
