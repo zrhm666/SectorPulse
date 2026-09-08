@@ -47,6 +47,8 @@
   .page-header__actions > .button { flex: 1 1 auto; min-height: 44px; }
 }
 @media (max-width: 768px) {
+  .button, .button--compact { min-height: 44px; }
+  .panel { padding: 18px; }
   .choice-grid { grid-template-columns: 1fr; }
   .flow-note { order: -1; }
   .timeline { grid-template-columns: repeat(2, 1fr); gap: 16px; }

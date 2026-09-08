@@ -13,18 +13,18 @@ SectorPulse 使用面向高频运营与研究工作的柔和蓝白视觉世界�
 
 ## Palette
 
-- Page background: `#f7f9fc`，带极轻暖意的蓝白。
+- Page background: `#f5f8fd`，柔和蓝白。
 - Surface: `#ffffff`。
-- Subtle surface: `#f2f6fd`。
-- Primary: `#1769f2`。
-- Primary hover: `#0e57d5`。
+- Subtle surface: `#f8faff`。
+- Primary: `#1768f2`。
+- Primary hover: `#0e5de0`。
 - Primary soft: `#eaf2ff`。
-- Text: `#0d1b32`。
-- Secondary text: `#53657f`。
-- Muted text: `#77879d`。
-- Border: `#d8e2f0`。
-- Strong border: `#bdcce0`。
-- Success: `#168454`；Warning: `#b77409`；Danger: `#c63a47`。
+- Text: `#10213d`。
+- Secondary text: `#455873`。
+- Muted text: `#596b85`（普通辅助文字在页面背景上至少 4.5:1）。
+- Border: `#dbe5f3`。
+- Strong border: `#cbd9ed`。
+- Success: `#159a63`；Warning: `#d98200`；Danger: `#bf3345`。成功/警告色用于图标与语义背景；小号正文优先深色文字，不能仅靠颜色表达状态。
 
 状态色只承担语义，不替代文本标签。除状态色外，全站只有蓝色作为交互强调色。
 
@@ -35,7 +35,7 @@ SectorPulse 使用面向高频运营与研究工作的柔和蓝白视觉世界�
 ## Shape and Depth
 
 - Inputs and small controls: 10–12px radius。
-- Panels and cards: 18px radius。
+- Panels and cards: 16px radius；comfortable 内边距 24px，compact 18px。
 - Dialogs: 22px radius。
 - Status badges: pill radius。
 - Cards rely on 1px borders; shadow is optional and always blue-tinted, never heavy black.
@@ -43,7 +43,7 @@ SectorPulse 使用面向高频运营与研究工作的柔和蓝白视觉世界�
 
 ## Application Shell
 
-Desktop sidebar is approximately 240px with grouped navigation and one consistent outline icon family. Top bar is 64px and does not repeat unnecessary brand content. Main content is centered with a 1480px maximum width and 32–40px desktop gutters. Below 960px the sidebar becomes an accessible off-canvas navigation.
+Desktop sidebar is 232px with grouped navigation and one consistent outline icon family. Top bar is 68px and does not repeat unnecessary brand content. Retain the existing independent navigation/content scroll regions and responsive shell.
 
 ## Components
 
@@ -53,6 +53,9 @@ Desktop sidebar is approximately 240px with grouped navigation and one consisten
 - `SummaryStrip`: 4–6 metadata cells in one continuous bordered surface.
 - `StatusBadge`: Chinese label plus stable semantic tone.
 - `InlineAlert`: object, reason and recovery action in one alert region.
+- `InlineAlert` uses a 20px icon column, flexible text column and semantic tinted background; recovery actions stay next to the message.
+- Runtime values distinguish recorded zero, missing data, inapplicable metrics and pending metrics. Unknown provider/status/error codes remain inspectable; never invent a successful result.
+- Recent-run filters live in the URL, with explicit loaded-record scope. Finished data collection details default closed while warnings remain outside. Review focus mode hides panes without unmounting the editor; chapter navigation and return-reason disclosure preserve draft safeguards.
 - Tables: light header, horizontal separators, 44–56px rows and horizontal scrolling on narrow screens.
 - Tabs: real `tablist`/`tab`/`tabpanel` semantics and visible selected/focus states.
 

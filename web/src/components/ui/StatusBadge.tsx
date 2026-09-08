@@ -1,3 +1,5 @@
+import { isActiveRun, statusLabel } from '../../runPresentation'
+
 export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 
 export type StatusBadgeProps = {
@@ -34,8 +36,8 @@ const STATUS_DETAILS: Record<string, { label: string; tone: StatusTone }> = {
 
 export default function StatusBadge({ status, label, tone }: StatusBadgeProps) {
   const detail = STATUS_DETAILS[status]
-  const resolvedTone = tone ?? detail?.tone ?? 'neutral'
-  const resolvedLabel = label ?? detail?.label ?? status
+  const resolvedTone = tone ?? detail?.tone ?? (isActiveRun(status) ? 'info' : 'neutral')
+  const resolvedLabel = label ?? detail?.label ?? statusLabel(status)
 
   return (
     <span className={`status-badge status-badge--${resolvedTone}`} data-status={status} data-tone={resolvedTone}>

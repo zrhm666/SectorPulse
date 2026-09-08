@@ -5,7 +5,7 @@
   --sp-surface-selected: #eaf2ff;
   --sp-text: #10213d;
   --sp-text-secondary: #455873;
-  --sp-text-muted: #6f7f99;
+  --sp-text-muted: #596b85;
   --sp-text-disabled: #9aa8bb;
   --sp-primary: #1768f2;
   --sp-primary-hover: #0e5de0;
@@ -19,7 +19,7 @@
   --sp-success-soft: #e7f7ef;
   --sp-warning: #d98200;
   --sp-warning-soft: #fff3dd;
-  --sp-danger: #e34a58;
+  --sp-danger: #bf3345;
   --sp-danger-soft: #ffeaed;
   --sp-font-sans: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --sp-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
