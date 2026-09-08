@@ -11,7 +11,7 @@ from sector_pulse.application.data_runs.real_data_orchestrator import run_real_d
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.ports import RealDataRunRepositoryPort
-from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.events.progress_bus import ProgressBus
 
 
 class DataRunService:

@@ -16,7 +16,7 @@ from sector_pulse.domain.candidate_selection import CandidateSelectionVersionCon
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.real_data_run import RealDataRunRequest
-from sector_pulse.web.data_run_schemas import (
+from sector_pulse.web.schemas.data_run import (
     CandidateSelectionConfirmRequest,
     CandidateSelectionResponse,
     DataRunCandidatePageResponse,
@@ -25,8 +25,8 @@ from sector_pulse.web.data_run_schemas import (
     GenerateDataRunRequest,
     NewDataRunRequest,
 )
-from sector_pulse.web.data_run_service import DataRunService
-from sector_pulse.web.data_run_writing_service import DataRunWritingService
+from sector_pulse.web.services.data_run_service import DataRunService
+from sector_pulse.web.services.data_run_writing_service import DataRunWritingService
 
 
 def build_data_runs_router(

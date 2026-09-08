@@ -6,7 +6,7 @@ from sector_pulse.web.app import create_app
 
 
 def test_fixture_run_end_to_end(tmp_path) -> None:
-    from backend.tests.unit.web.test_run_service import _input_json, _service
+    from backend.tests.unit.web.services.test_run_service import _input_json, _service
 
     client = TestClient(create_app(overrides={"service": _service(tmp_path)}))
     resp = client.post("/api/runs", json={"input_json": _input_json(), "provider": "fixture"})

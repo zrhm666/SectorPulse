@@ -4,7 +4,7 @@ import time
 from fastapi.testclient import TestClient
 from sector_pulse.web.app import create_app
 
-from backend.tests.unit.web.test_run_service import _input_json, _service
+from backend.tests.unit.web.services.test_run_service import _input_json, _service
 
 
 def _client(tmp_path):
@@ -30,7 +30,9 @@ def test_invalid_input_json_returns_422(tmp_path) -> None:
 
 
 def test_live_preflight_returns_409_without_persisting_run(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("sector_pulse.web.live_provider.check_live_consent", lambda: False)
+    monkeypatch.setattr(
+        "sector_pulse.web.providers.live_provider.check_live_consent", lambda: False
+    )
     client = _client(tmp_path)
     resp = client.post("/api/runs", json={"input_json": _input_json(), "provider": "live"})
     assert resp.status_code == 409

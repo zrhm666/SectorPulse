@@ -40,11 +40,11 @@ from sector_pulse.storage.runtime_bundle import (
     build_postgres_storage,
     build_sqlite_storage,
 )
-from sector_pulse.web.data_run_service import DataRunService
-from sector_pulse.web.data_run_writing_service import DataRunWritingService
-from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.events.progress_bus import ProgressBus
 from sector_pulse.web.routers.runs_review import ReviewRouterDependencies
-from sector_pulse.web.run_service import RunService
+from sector_pulse.web.services.data_run_service import DataRunService
+from sector_pulse.web.services.data_run_writing_service import DataRunWritingService
+from sector_pulse.web.services.run_service import RunService
 
 
 @dataclass(frozen=True)

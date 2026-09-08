@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sector_pulse.web.app import create_app
 
-from backend.tests.unit.web.test_run_service import _service
+from backend.tests.unit.web.services.test_run_service import _service
 
 
 class FakeDataRuns:

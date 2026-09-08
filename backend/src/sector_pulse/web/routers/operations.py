@@ -18,7 +18,7 @@ from sector_pulse.infrastructure.providers.real_data_factory import RealDataProv
 from sector_pulse.storage.database_runtime import Database
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
-from sector_pulse.web.operations_schemas import (
+from sector_pulse.web.schemas.operations import (
     OperationsConsentStatus,
     OperationsCoreSummary,
     OperationsDatabaseStatus,

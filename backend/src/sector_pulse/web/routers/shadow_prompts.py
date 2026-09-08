@@ -13,8 +13,8 @@ from sector_pulse.domain.shadow_acceptance import (
     ShadowRunStatus,
 )
 from sector_pulse.storage.ports import PromptGoldenRepositoryPort, ShadowAcceptanceRepositoryPort
-from sector_pulse.web.prompt_golden_schemas import PromptGoldenRequest, PromptGoldenResponse
-from sector_pulse.web.shadow_schemas import (
+from sector_pulse.web.schemas.prompt_golden import PromptGoldenRequest, PromptGoldenResponse
+from sector_pulse.web.schemas.shadow import (
     ComplianceRecordRequest,
     RecoveryDrillRequest,
     ShadowProgressResponse,

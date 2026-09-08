@@ -14,8 +14,8 @@ from sector_pulse.storage.sqlite.news_evidence_repository import SQLiteNewsEvide
 from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
 from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.storage.sqlite.phase1b_runs_repository import SQLitePhase1BRunsRepository
-from sector_pulse.web.progress_bus import ProgressBus
-from sector_pulse.web.run_service import RunService
+from sector_pulse.web.events.progress_bus import ProgressBus
+from sector_pulse.web.services.run_service import RunService
 
 from backend.tests.integration.test_phase1b_pipeline import contexts, fixture_responses, gate
 

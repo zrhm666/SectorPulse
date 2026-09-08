@@ -2,7 +2,7 @@
 import asyncio
 from uuid import uuid4
 
-from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.events.progress_bus import ProgressBus
 
 
 def test_emit_and_subscribe() -> None:

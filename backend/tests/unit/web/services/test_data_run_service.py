@@ -12,8 +12,8 @@ from sector_pulse.domain.real_data_run import (
 )
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.web.data_run_service import DataRunService
-from sector_pulse.web.progress_bus import ProgressBus
+from sector_pulse.web.events.progress_bus import ProgressBus
+from sector_pulse.web.services.data_run_service import DataRunService
 
 
 class RunRepository:
@@ -164,7 +164,7 @@ async def test_cancelled_data_run_is_persisted(
         await asyncio.Event().wait()
 
     monkeypatch.setattr(
-        "sector_pulse.web.data_run_service.run_real_data_workflow", slow_workflow
+        "sector_pulse.web.services.data_run_service.run_real_data_workflow", slow_workflow
     )
     service = DataRunService(
         repository,

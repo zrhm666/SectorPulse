@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from sector_pulse.web.schemas import RunSummary
+from sector_pulse.web.schemas.runs import RunSummary
 
 
 class OperationsDatabaseStatus(BaseModel):

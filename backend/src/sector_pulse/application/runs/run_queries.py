@@ -6,7 +6,7 @@
 from typing import Any, Protocol
 from uuid import UUID
 
-from sector_pulse.web.schemas import RunDetail, RunSummary
+from sector_pulse.web.schemas.runs import RunDetail, RunSummary
 
 
 class _RunQueryPort(Protocol):

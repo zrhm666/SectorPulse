@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from sector_pulse.web.live_provider import (
+from sector_pulse.web.providers.live_provider import (
     build_live_provider,
     check_live_consent,
     get_live_config,
@@ -8,12 +8,12 @@ from sector_pulse.web.live_provider import (
 
 
 def test_check_live_consent_missing() -> None:
-    with patch("sector_pulse.web.live_provider.Path.is_file", return_value=False):
+    with patch("sector_pulse.web.providers.live_provider.Path.is_file", return_value=False):
         assert check_live_consent() is False
 
 
 def test_check_live_consent_present() -> None:
-    with patch("sector_pulse.web.live_provider.Path.is_file", return_value=True):
+    with patch("sector_pulse.web.providers.live_provider.Path.is_file", return_value=True):
         assert check_live_consent() is True
 
 

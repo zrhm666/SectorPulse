@@ -26,22 +26,22 @@ from sector_pulse.storage.ports import (
     ReviewAnalyticsPort,
 )
 from sector_pulse.storage.sqlite.draft_edit_repository import DraftVersionConflict
-from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
-from sector_pulse.web.editing_schemas import (
+from sector_pulse.web.events.progress_bus import ProgressBus
+from sector_pulse.web.schemas.analytics import ReviewMetricsResponse, ReviewSummaryResponse
+from sector_pulse.web.schemas.editing import (
     DraftPatchRequest,
     DraftPatchResponse,
     GovernanceResponse,
 )
-from sector_pulse.web.progress_bus import ProgressBus
-from sector_pulse.web.release_audit_schemas import ApprovalResponse, AuditEventResponse
-from sector_pulse.web.review_schemas import (
+from sector_pulse.web.schemas.release_audit import ApprovalResponse, AuditEventResponse
+from sector_pulse.web.schemas.review import (
     EvidenceDecisionRequest,
     EvidenceDecisionResponse,
     ReturnDraftRequest,
     ReturnDraftResponse,
 )
-from sector_pulse.web.run_service import ProviderUnavailable
-from sector_pulse.web.schemas import NewRunRequest, NewRunResponse
+from sector_pulse.web.schemas.runs import NewRunRequest, NewRunResponse
+from sector_pulse.web.services.run_service import ProviderUnavailable
 
 
 def build_runs_review_router(

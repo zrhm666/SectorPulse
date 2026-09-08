@@ -28,8 +28,8 @@ from sector_pulse.storage.ports import (
 from sector_pulse.storage.sqlite.phase1b_runs_repository import (
     Phase1BRunRow,
 )
-from sector_pulse.web.progress_bus import ProgressBus
-from sector_pulse.web.schemas import RunDetail, RunSummary
+from sector_pulse.web.events.progress_bus import ProgressBus
+from sector_pulse.web.schemas.runs import RunDetail, RunSummary
 
 
 class ProviderUnavailable(ValueError):
@@ -229,7 +229,7 @@ class RunService:
         if provider == "fixture":
             return
         if provider == "live":
-            from sector_pulse.web.live_provider import check_live_consent, get_live_config
+            from sector_pulse.web.providers.live_provider import check_live_consent, get_live_config
 
             if not check_live_consent():
                 raise ProviderUnavailable("缺少 .live-llm-consent，真实模型被禁用")
@@ -246,7 +246,7 @@ class RunService:
         """Live 使用环境变量模型覆盖各阶段路由，Fixture 保持配置文件路由。"""
         if provider != "live":
             return self._config
-        from sector_pulse.web.live_provider import get_live_config
+        from sector_pulse.web.providers.live_provider import get_live_config
 
         live_config = get_live_config()
         if live_config is None:
@@ -264,7 +264,7 @@ class RunService:
 
             return FixtureLLMProvider(self._rebind_run_id(self._fixture_responses, run_id))
         if provider == "live":
-            from sector_pulse.web.live_provider import (
+            from sector_pulse.web.providers.live_provider import (
                 build_live_provider,
                 check_live_consent,
                 get_live_config,
