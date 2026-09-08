@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ReviewApiError, type DraftPatchInput, type DraftPatchResponse } from '../editingApi'
@@ -21,7 +21,6 @@ afterEach(() => {
 })
 
 it.each(['saved', 'failed', 'conflict'] as const)('keeps StrictMode edits visible with %s save state', async (status) => {
-  vi.useFakeTimers()
   const onSave = vi.fn().mockResolvedValue({ draft_id: 'draft-1', version: 2, status: 'READY_FOR_HUMAN_REVIEW', content: {} })
   if (status === 'failed') onSave.mockRejectedValue(new Error('offline'))
   if (status === 'conflict') onSave.mockRejectedValue(new ReviewApiError('conflict', 409, 'CONFLICT'))
@@ -30,7 +29,7 @@ it.each(['saved', 'failed', 'conflict'] as const)('keeps StrictMode edits visibl
   fireEvent.change(screen.getByLabelText('导语'), { target: { value: '开发模式不能丢失' } })
   expect(screen.getByLabelText('导语')).toHaveValue('开发模式不能丢失')
   expect(screen.getByLabelText('保存状态')).toHaveTextContent('dirty')
-  await act(() => vi.advanceTimersByTimeAsync(800))
+  await waitFor(() => expect(screen.getByLabelText('保存状态')).toHaveTextContent(status), { timeout: 3000 })
   expect(screen.getByLabelText('导语')).toHaveValue('开发模式不能丢失')
   expect(screen.getByLabelText('保存状态')).toHaveTextContent(status)
 })
@@ -44,24 +43,25 @@ it('saves 800ms after the last change and skips unchanged text', async () => {
   await act(() => vi.advanceTimersByTimeAsync(799))
   expect(onSave).not.toHaveBeenCalled()
   await act(() => vi.advanceTimersByTimeAsync(1))
+  // Fake timers control debounce only; native Web Crypto completes independently.
+  vi.useRealTimers()
+  await waitFor(() => expect(screen.getByLabelText('保存状态')).toHaveTextContent('saved'))
   expect(onSave).toHaveBeenCalledTimes(1)
   expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ base_version: 1, path: 'introduction', value: '新导语' }))
 })
 
 it('flushes the newest value when change and blur happen in one turn', async () => {
-  vi.useFakeTimers()
   const onSave = vi.fn().mockResolvedValue({ draft_id: 'draft-1', version: 2, status: 'READY_FOR_HUMAN_REVIEW', content: {} })
   render(<Harness onSave={onSave} />)
 
   fireEvent.change(screen.getByLabelText('导语'), { target: { value: '失焦保存' } })
   fireEvent.blur(screen.getByLabelText('导语'))
-  await act(async () => undefined)
+  await waitFor(() => expect(screen.getByLabelText('保存状态')).toHaveTextContent('saved'))
   expect(onSave).toHaveBeenCalledTimes(1)
   expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ value: '失焦保存' }))
 })
 
 it('queues newer text behind the in-flight save and rebases it on the returned version', async () => {
-  vi.useFakeTimers()
   let resolveFirst: ((value: DraftPatchResponse) => void) | undefined
   const first = new Promise<DraftPatchResponse>((resolve) => { resolveFirst = resolve })
   const onSave = vi.fn()
@@ -70,22 +70,23 @@ it('queues newer text behind the in-flight save and rebases it on the returned v
   render(<Harness onSave={onSave} />)
 
   fireEvent.change(screen.getByLabelText('导语'), { target: { value: '第一版' } })
-  await act(() => vi.advanceTimersByTimeAsync(800))
+  fireEvent.blur(screen.getByLabelText('导语'))
+  await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
   fireEvent.change(screen.getByLabelText('导语'), { target: { value: '第二版' } })
-  await act(() => vi.advanceTimersByTimeAsync(800))
+  fireEvent.blur(screen.getByLabelText('导语'))
   expect(onSave).toHaveBeenCalledTimes(1)
 
   await act(async () => resolveFirst?.({ draft_id: 'draft-1', version: 2, status: 'READY_FOR_HUMAN_REVIEW', content: {} }))
+  await waitFor(() => expect(screen.getByLabelText('保存状态')).toHaveTextContent('saved'))
   expect(onSave).toHaveBeenCalledTimes(2)
   expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ base_version: 2, value: '第二版' }))
 })
 
 it('retains local text and exposes conflict and failed states for retry', async () => {
-  vi.useFakeTimers()
   const conflict = vi.fn().mockRejectedValue(new ReviewApiError('conflict', 409, 'CONFLICT'))
   const view = render(<Harness onSave={conflict} />)
   fireEvent.change(screen.getByLabelText('导语'), { target: { value: '不能丢失' } })
-  await act(() => vi.advanceTimersByTimeAsync(800))
+  await waitFor(() => expect(screen.getByLabelText('保存状态')).toHaveTextContent('conflict'), { timeout: 3000 })
   expect(screen.getByLabelText('保存状态')).toHaveTextContent('conflict')
   expect(screen.getByLabelText('导语')).toHaveValue('不能丢失')
 
@@ -93,7 +94,7 @@ it('retains local text and exposes conflict and failed states for retry', async 
   const failed = vi.fn().mockRejectedValue(new Error('offline'))
   render(<Harness onSave={failed} />)
   fireEvent.change(screen.getByLabelText('导语'), { target: { value: '离线文本' } })
-  await act(() => vi.advanceTimersByTimeAsync(800))
+  await waitFor(() => expect(screen.getByLabelText('保存状态')).toHaveTextContent('failed'), { timeout: 3000 })
   expect(screen.getByLabelText('保存状态')).toHaveTextContent('failed')
   expect(screen.getByLabelText('导语')).toHaveValue('离线文本')
 })
