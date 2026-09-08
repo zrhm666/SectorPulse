@@ -1,9 +1,9 @@
 from typing import Protocol
 from uuid import UUID
 
-from sector_pulse.domain.market import SectorKind, SectorUniverseSnapshot
+from sector_pulse.domain.market.market import SectorKind, SectorUniverseSnapshot
 from sector_pulse.domain.provider import ProviderResult
-from sector_pulse.domain.time import AnalysisRun
+from sector_pulse.domain.runs.time import AnalysisRun
 
 
 class SnapshotAfterCutoffError(ValueError):

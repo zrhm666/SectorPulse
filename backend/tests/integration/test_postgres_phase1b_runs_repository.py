@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.phase1b_runs_repository import PostgresPhase1BRunsRepository
-from sector_pulse.storage.sqlite.phase1b_runs_repository import Phase1BRunRow
+from sector_pulse.storage.postgres.runs.phase1b_runs_repository import PostgresPhase1BRunsRepository
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import Phase1BRunRow
 from sqlalchemy import text
 
 

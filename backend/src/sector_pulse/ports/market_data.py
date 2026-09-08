@@ -1,8 +1,8 @@
 from typing import Protocol
 
-from sector_pulse.domain.market import SectorKind, SectorUniverseSnapshot
+from sector_pulse.domain.market.market import SectorKind, SectorUniverseSnapshot
 from sector_pulse.domain.provider import ProviderManifest, ProviderResult
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 
 
 class MarketDataPort(Protocol):

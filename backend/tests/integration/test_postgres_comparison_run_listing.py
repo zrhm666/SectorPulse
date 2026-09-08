@@ -1,8 +1,14 @@
 from datetime import UTC, datetime
 
 import pytest
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
-from sector_pulse.storage.postgres.real_data_run_repository import PostgresRealDataRunRepository
+from sector_pulse.domain.runs.real_data_run import (
+    RealDataRun,
+    RealDataRunRequest,
+    RealDataRunStatus,
+)
+from sector_pulse.storage.postgres.runs.real_data_run_repository import (
+    PostgresRealDataRunRepository,
+)
 
 from backend.tests.comparison_support import (
     comparison_postgres as comparison_postgres_fixture,  # noqa: F401

@@ -1,76 +1,96 @@
 # ruff: noqa: E501
 from dataclasses import dataclass
 
-from sector_pulse.storage.ports import (
-    AgentInvocationRepositoryPort,
+from sector_pulse.storage.ports.evaluation import (
+    PromptGoldenRepositoryPort,
+    ShadowAcceptanceRepositoryPort,
+)
+from sector_pulse.storage.ports.market import (
     CandidateSelectionRepositoryPort,
-    DraftEditRepositoryPort,
-    EvidenceRepositoryPort,
-    GovernanceRepositoryPort,
     MarketSnapshotRepositoryPort,
+)
+from sector_pulse.storage.ports.news import (
+    EvidenceRepositoryPort,
     NewsEvidenceRepositoryPort,
     NewsRepositoryPort,
     NewsRetrievalRepositoryPort,
-    OperationsQueryPort,
-    Phase1BRepositoryPort,
-    Phase1BRunsRepositoryPort,
-    PromptGoldenRepositoryPort,
-    RealDataRunRepositoryPort,
+)
+from sector_pulse.storage.ports.operations import OperationsQueryPort
+from sector_pulse.storage.ports.review import (
+    DraftEditRepositoryPort,
+    GovernanceRepositoryPort,
     ReleaseAuditRepositoryPort,
     ReviewAnalyticsPort,
-    RuntimeTaskRepositoryPort,
-    ShadowAcceptanceRepositoryPort,
 )
-from sector_pulse.storage.postgres.agent_invocation_repository import (
-    PostgresAgentInvocationRepository,
-)
-from sector_pulse.storage.postgres.candidate_selection_repository import (
-    PostgresCandidateSelectionRepository,
-)
+from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort, RealDataRunRepositoryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
+from sector_pulse.storage.ports.writing import AgentInvocationRepositoryPort, Phase1BRepositoryPort
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.draft_edit_repository import PostgresDraftEditRepository
-from sector_pulse.storage.postgres.evidence_repository import PostgresEvidenceRepository
-from sector_pulse.storage.postgres.governance_repository import PostgresGovernanceRepository
-from sector_pulse.storage.postgres.market_snapshot_repository import (
-    PostgresMarketSnapshotRepository,
+from sector_pulse.storage.postgres.evaluation.prompt_golden_repository import (
+    PostgresPromptGoldenRepository,
 )
-from sector_pulse.storage.postgres.news_evidence_repository import PostgresNewsEvidenceRepository
-from sector_pulse.storage.postgres.news_repository import PostgresNewsRepository
-from sector_pulse.storage.postgres.news_retrieval_repository import PostgresNewsRetrievalRepository
-from sector_pulse.storage.postgres.operations_query import PostgresOperationsQuery
-from sector_pulse.storage.postgres.phase1b_repository import PostgresPhase1BRepository
-from sector_pulse.storage.postgres.phase1b_runs_repository import PostgresPhase1BRunsRepository
-from sector_pulse.storage.postgres.prompt_golden_repository import PostgresPromptGoldenRepository
-from sector_pulse.storage.postgres.real_data_run_repository import PostgresRealDataRunRepository
-from sector_pulse.storage.postgres.release_audit_repository import PostgresReleaseAuditRepository
-from sector_pulse.storage.postgres.review_analytics import PostgresReviewAnalyticsQueries
-from sector_pulse.storage.postgres.shadow_acceptance_repository import (
+from sector_pulse.storage.postgres.evaluation.shadow_acceptance_repository import (
     PostgresShadowAcceptanceRepository,
 )
-from sector_pulse.storage.postgres.task_repository import PostgresTaskRepository
-from sector_pulse.storage.sqlite.agent_invocation_repository import SQLiteAgentInvocationRepository
-from sector_pulse.storage.sqlite.candidate_selection_repository import (
-    SQLiteCandidateSelectionRepository,
+from sector_pulse.storage.postgres.market.candidate_selection_repository import (
+    PostgresCandidateSelectionRepository,
 )
+from sector_pulse.storage.postgres.market.market_snapshot_repository import (
+    PostgresMarketSnapshotRepository,
+)
+from sector_pulse.storage.postgres.news.evidence_repository import PostgresEvidenceRepository
+from sector_pulse.storage.postgres.news.news_evidence_repository import (
+    PostgresNewsEvidenceRepository,
+)
+from sector_pulse.storage.postgres.news.news_repository import PostgresNewsRepository
+from sector_pulse.storage.postgres.news.news_retrieval_repository import (
+    PostgresNewsRetrievalRepository,
+)
+from sector_pulse.storage.postgres.operations_query import PostgresOperationsQuery
+from sector_pulse.storage.postgres.review.draft_edit_repository import PostgresDraftEditRepository
+from sector_pulse.storage.postgres.review.governance_repository import PostgresGovernanceRepository
+from sector_pulse.storage.postgres.review.release_audit_repository import (
+    PostgresReleaseAuditRepository,
+)
+from sector_pulse.storage.postgres.review.review_analytics import PostgresReviewAnalyticsQueries
+from sector_pulse.storage.postgres.runs.phase1b_runs_repository import PostgresPhase1BRunsRepository
+from sector_pulse.storage.postgres.runs.real_data_run_repository import (
+    PostgresRealDataRunRepository,
+)
+from sector_pulse.storage.postgres.runs.task_repository import PostgresTaskRepository
+from sector_pulse.storage.postgres.writing.agent_invocation_repository import (
+    PostgresAgentInvocationRepository,
+)
+from sector_pulse.storage.postgres.writing.phase1b_repository import PostgresPhase1BRepository
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.draft_edit_repository import SQLiteDraftEditRepository
-from sector_pulse.storage.sqlite.evidence_repository import SQLiteEvidenceRepository
-from sector_pulse.storage.sqlite.governance_repository import SQLiteGovernanceRepository
-from sector_pulse.storage.sqlite.market_snapshot_repository import SQLiteMarketSnapshotRepository
-from sector_pulse.storage.sqlite.news_evidence_repository import SQLiteNewsEvidenceRepository
-from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
-from sector_pulse.storage.sqlite.news_retrieval_repository import SQLiteNewsRetrievalRepository
-from sector_pulse.storage.sqlite.operations_query import SQLiteOperationsQuery
-from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
-from sector_pulse.storage.sqlite.phase1b_runs_repository import SQLitePhase1BRunsRepository
-from sector_pulse.storage.sqlite.prompt_golden_repository import SQLitePromptGoldenRepository
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite.release_audit_repository import SQLiteReleaseAuditRepository
-from sector_pulse.storage.sqlite.review_analytics import ReviewAnalyticsQueries
-from sector_pulse.storage.sqlite.shadow_acceptance_repository import (
+from sector_pulse.storage.sqlite.evaluation.prompt_golden_repository import (
+    SQLitePromptGoldenRepository,
+)
+from sector_pulse.storage.sqlite.evaluation.shadow_acceptance_repository import (
     SQLiteShadowAcceptanceRepository,
 )
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.market.candidate_selection_repository import (
+    SQLiteCandidateSelectionRepository,
+)
+from sector_pulse.storage.sqlite.market.market_snapshot_repository import (
+    SQLiteMarketSnapshotRepository,
+)
+from sector_pulse.storage.sqlite.news.evidence_repository import SQLiteEvidenceRepository
+from sector_pulse.storage.sqlite.news.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.sqlite.news.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.news.news_retrieval_repository import SQLiteNewsRetrievalRepository
+from sector_pulse.storage.sqlite.operations_query import SQLiteOperationsQuery
+from sector_pulse.storage.sqlite.review.draft_edit_repository import SQLiteDraftEditRepository
+from sector_pulse.storage.sqlite.review.governance_repository import SQLiteGovernanceRepository
+from sector_pulse.storage.sqlite.review.release_audit_repository import SQLiteReleaseAuditRepository
+from sector_pulse.storage.sqlite.review.review_analytics import ReviewAnalyticsQueries
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import SQLitePhase1BRunsRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.writing.agent_invocation_repository import (
+    SQLiteAgentInvocationRepository,
+)
+from sector_pulse.storage.sqlite.writing.phase1b_repository import SQLitePhase1BRepository
 
 
 @dataclass(frozen=True)

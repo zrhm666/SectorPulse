@@ -2,19 +2,19 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import (
     RealDataCandidate,
     RealDataRun,
     RealDataRunRequest,
 )
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.storage.sqlite.operations_query import SQLiteOperationsQuery
-from sector_pulse.storage.sqlite.phase1b_runs_repository import (
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
     SQLitePhase1BRunsRepository,
 )
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 
 
 def test_sqlite_operations_query_unifies_real_persisted_runs(tmp_path) -> None:

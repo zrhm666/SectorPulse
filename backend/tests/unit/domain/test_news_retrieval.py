@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
-from sector_pulse.domain.news_retrieval import (
+from sector_pulse.domain.news.news_retrieval import (
     MappingConfidence,
     NewsQuery,
     QueryType,

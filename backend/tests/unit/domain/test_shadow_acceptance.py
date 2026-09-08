@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from uuid import uuid4
 
-from sector_pulse.domain.shadow_acceptance import ShadowRun, ShadowRunStatus
+from sector_pulse.domain.evaluation.shadow_acceptance import ShadowRun, ShadowRunStatus
 
 
 def test_shadow_run_keeps_trading_date_and_status() -> None:

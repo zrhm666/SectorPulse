@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.news.news_repository import SQLiteNewsRepository
 
 
 def test_news_repository_persists_event_documents(tmp_path: Path) -> None:

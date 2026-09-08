@@ -1,8 +1,8 @@
 import hashlib
 
 import pytest
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataRunStatus
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import RealDataRunStatus
 from sector_pulse.storage.runtime_bundle import build_postgres_storage
 from sqlalchemy import inspect
 

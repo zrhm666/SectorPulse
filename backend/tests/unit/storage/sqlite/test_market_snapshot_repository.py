@@ -3,12 +3,14 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
 from sector_pulse.domain.provider import DataStatus, ProviderResult
-from sector_pulse.domain.time import AnalysisRun
+from sector_pulse.domain.runs.time import AnalysisRun
 from sector_pulse.ports.market_snapshot import SnapshotAfterCutoffError
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.market_snapshot_repository import SQLiteMarketSnapshotRepository
+from sector_pulse.storage.sqlite.market.market_snapshot_repository import (
+    SQLiteMarketSnapshotRepository,
+)
 
 
 def build_result(observed_at: datetime) -> ProviderResult[SectorUniverseSnapshot]:

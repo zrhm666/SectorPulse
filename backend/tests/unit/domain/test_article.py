@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
 
 
 def test_ready_draft_requires_three_to_six_sections() -> None:

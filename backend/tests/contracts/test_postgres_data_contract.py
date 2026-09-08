@@ -1,18 +1,18 @@
 import inspect
 
 import pytest
-from sector_pulse.storage.postgres.candidate_selection_repository import (
+from sector_pulse.storage.postgres.market.candidate_selection_repository import (
     PostgresCandidateSelectionRepository,
 )
-from sector_pulse.storage.postgres.evidence_repository import PostgresEvidenceRepository
-from sector_pulse.storage.postgres.market_snapshot_repository import (
+from sector_pulse.storage.postgres.market.market_snapshot_repository import (
     PostgresMarketSnapshotRepository,
 )
-from sector_pulse.storage.postgres.news_repository import PostgresNewsRepository
-from sector_pulse.storage.postgres.news_retrieval_repository import (
+from sector_pulse.storage.postgres.news.evidence_repository import PostgresEvidenceRepository
+from sector_pulse.storage.postgres.news.news_repository import PostgresNewsRepository
+from sector_pulse.storage.postgres.news.news_retrieval_repository import (
     PostgresNewsRetrievalRepository,
 )
-from sector_pulse.storage.postgres.real_data_run_repository import (
+from sector_pulse.storage.postgres.runs.real_data_run_repository import (
     PostgresRealDataRunRepository,
 )
 

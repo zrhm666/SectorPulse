@@ -3,8 +3,8 @@ from __future__ import annotations
 import builtins
 from uuid import UUID
 
-from sector_pulse.domain.real_data_run import RealDataRun
-from sector_pulse.storage.ports import RealDataRunRepositoryPort
+from sector_pulse.domain.runs.real_data_run import RealDataRun
+from sector_pulse.storage.ports.runs import RealDataRunRepositoryPort
 
 
 class RealDataRunQueries:

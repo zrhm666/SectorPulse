@@ -3,9 +3,14 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.application.writing.phase1b_pipeline import Phase1BRunResult
-from sector_pulse.domain.article import ArticleDraft, ArticleSection, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import MoneyCny
-from sector_pulse.domain.review import ReviewDecision, ReviewReport
+from sector_pulse.domain.review.review import ReviewDecision, ReviewReport
+from sector_pulse.domain.writing.article import (
+    ArticleDraft,
+    ArticleSection,
+    ArticleSource,
+    DraftStatus,
+)
 from sector_pulse.reporting.phase1b_report import render_phase1b_markdown, render_phase1b_text
 
 

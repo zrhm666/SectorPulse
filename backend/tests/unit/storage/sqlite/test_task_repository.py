@@ -2,9 +2,9 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.task import TaskRunKey, TaskRunStatus, TaskStage
+from sector_pulse.domain.runs.task import TaskRunKey, TaskRunStatus, TaskStage
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
 
 
 def test_phase2a_migration_creates_task_tables(tmp_path):

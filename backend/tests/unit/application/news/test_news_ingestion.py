@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from sector_pulse.application.news.news_ingestion import deduplicate_documents
-from sector_pulse.domain.news import NewsDocument, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, SourceGrade
 
 
 def document(document_id: str, title: str, content_hash: str, minutes: int) -> NewsDocument:

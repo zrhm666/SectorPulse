@@ -12,10 +12,10 @@ from sector_pulse.application.data_runs.candidate_selection_service import (
 )
 from sector_pulse.application.data_runs.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.application.data_runs.real_data_queries import RealDataRunQueries
-from sector_pulse.domain.candidate_selection import CandidateSelectionVersionConflict
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.candidate_selection import CandidateSelectionVersionConflict
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.real_data_run import RealDataRunRequest
+from sector_pulse.domain.runs.real_data_run import RealDataRunRequest
 from sector_pulse.web.schemas.data_run import (
     CandidateSelectionConfirmRequest,
     CandidateSelectionResponse,

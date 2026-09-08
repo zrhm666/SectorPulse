@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Protocol
 
-from sector_pulse.domain.news import NewsDocument
+from sector_pulse.domain.news.news import NewsDocument
 from sector_pulse.domain.provider import ProviderResult
 
 

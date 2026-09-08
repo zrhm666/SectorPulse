@@ -1,6 +1,6 @@
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 from sector_pulse.infrastructure.providers.akshare.adapter import (
     AkShareMarketDataAdapter,
     AkShareThsMarketDataAdapter,

@@ -2,16 +2,16 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from decimal import Decimal
 
-from sector_pulse.domain.attribution import (
+from sector_pulse.domain.market.market import SectorSnapshot
+from sector_pulse.domain.news.evidence import EvidenceLevel, EvidencePack
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, NewsUse, SourceGrade
+from sector_pulse.domain.news.news_retrieval import SectorEventLink
+from sector_pulse.domain.runs.time import AnalysisRun
+from sector_pulse.domain.writing.attribution import (
     LEVEL_RANK,
     AttributionContext,
     AttributionGateResult,
 )
-from sector_pulse.domain.evidence import EvidenceLevel, EvidencePack
-from sector_pulse.domain.market import SectorSnapshot
-from sector_pulse.domain.news import NewsDocument, NewsEvent, NewsUse, SourceGrade
-from sector_pulse.domain.news_retrieval import SectorEventLink
-from sector_pulse.domain.time import AnalysisRun
 
 
 def build_attribution_context(

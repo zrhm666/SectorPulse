@@ -1,13 +1,11 @@
 import inspect
 
 import sector_pulse.storage.runtime_bundle as runtime_bundle
-from sector_pulse.storage.ports import (
-    OperationsQueryPort,
-    RuntimeTaskRepositoryPort,
-)
+from sector_pulse.storage.ports.operations import OperationsQueryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.postgres.operations_query import PostgresOperationsQuery
-from sector_pulse.storage.postgres.task_repository import PostgresTaskRepository
+from sector_pulse.storage.postgres.runs.task_repository import PostgresTaskRepository
 from sector_pulse.storage.runtime_bundle import build_postgres_storage
 
 

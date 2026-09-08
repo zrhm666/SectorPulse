@@ -2,9 +2,9 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 from sector_pulse.infrastructure.news.akshare_adapters import (
     AkShareClsAdapter,
     AkShareEastmoneyNewsAdapter,

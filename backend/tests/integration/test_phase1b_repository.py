@@ -1,9 +1,9 @@
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.phase1b_repository import (
+from sector_pulse.storage.sqlite.writing.phase1b_repository import (
     ImmutableDraftVersionError,
     SQLitePhase1BRepository,
 )

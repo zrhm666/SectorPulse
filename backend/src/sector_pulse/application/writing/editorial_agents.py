@@ -9,16 +9,16 @@ from sector_pulse.application.writing.invocations import (
     build_invocation,
     noop_invocation_sink,
 )
-from sector_pulse.domain.article import (
+from sector_pulse.domain.llm import LLMRequest, LLMStatus
+from sector_pulse.domain.review.review import ReviewReport
+from sector_pulse.domain.writing.article import (
     ArticleDraft,
     ArticleOutline,
     ArticleSection,
     ArticleSource,
     DraftStatus,
 )
-from sector_pulse.domain.attribution import SectorAnalysisCard
-from sector_pulse.domain.llm import LLMRequest, LLMStatus
-from sector_pulse.domain.review import ReviewReport
+from sector_pulse.domain.writing.attribution import SectorAnalysisCard
 from sector_pulse.ports.llm import LLMPort
 
 

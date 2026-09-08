@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from sector_pulse.domain.candidate_selection import CandidateSelectionMethod
+from sector_pulse.domain.market.candidate_selection import CandidateSelectionMethod
 
 
 class NewDataRunRequest(BaseModel):

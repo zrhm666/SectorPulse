@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sector_pulse.domain.news import NewsDocument, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, SourceGrade
 from sector_pulse.domain.provider import (
     AuthorizationStatus,
     DataStatus,

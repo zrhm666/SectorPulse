@@ -7,8 +7,8 @@ from sector_pulse.application.tasks.run_coordinator import RunCoordinator
 from sector_pulse.application.tasks.schedule_service import ScheduleCreate, ScheduleService
 from sector_pulse.application.tasks.task_run_service import TaskRunService
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
 
 
 class FakeBridge:

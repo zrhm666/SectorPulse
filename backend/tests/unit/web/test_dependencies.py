@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 from sector_pulse.application.comparison.run_comparison_queries import RunComparisonQueries
 from sector_pulse.config.settings import ApplicationSettings
-from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.web.dependencies import build_runtime_dependencies, build_web_router_dependencies

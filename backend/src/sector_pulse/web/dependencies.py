@@ -21,7 +21,7 @@ from sector_pulse.application.tasks.task_run_service import TaskRunService
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings
-from sector_pulse.domain.news_retrieval import SectorEntityConfig
+from sector_pulse.domain.news.news_retrieval import SectorEntityConfig
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
@@ -33,7 +33,7 @@ from sector_pulse.ports.news_sources import (
     SectorConstituentPort,
 )
 from sector_pulse.storage.database_runtime import Database, build_database
-from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import (
     RuntimeStorageBundle,
@@ -41,7 +41,7 @@ from sector_pulse.storage.runtime_bundle import (
     build_sqlite_storage,
 )
 from sector_pulse.web.events.progress_bus import ProgressBus
-from sector_pulse.web.routers.runs_review import ReviewRouterDependencies
+from sector_pulse.web.routers.review import ReviewRouterDependencies
 from sector_pulse.web.services.data_run_service import DataRunService
 from sector_pulse.web.services.data_run_writing_service import DataRunWritingService
 from sector_pulse.web.services.run_service import RunService

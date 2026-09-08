@@ -2,10 +2,10 @@ from hashlib import sha256
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
-from sector_pulse.domain.editing import DraftPatch
+from sector_pulse.domain.review.editing import DraftPatch
+from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.draft_edit_repository import (
+from sector_pulse.storage.sqlite.review.draft_edit_repository import (
     DraftVersionConflict,
     SQLiteDraftEditRepository,
 )

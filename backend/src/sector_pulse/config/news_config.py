@@ -3,7 +3,7 @@ from typing import Any
 
 import yaml
 
-from sector_pulse.domain.news_retrieval import NewsSourceDefinition, SectorEntityConfig
+from sector_pulse.domain.news.news_retrieval import NewsSourceDefinition, SectorEntityConfig
 
 
 def load_news_config(

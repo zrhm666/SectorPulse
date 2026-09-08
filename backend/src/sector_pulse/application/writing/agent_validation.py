@@ -2,7 +2,7 @@ import re
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 
-from sector_pulse.domain.attribution import (
+from sector_pulse.domain.writing.attribution import (
     LEVEL_RANK,
     AttributionContext,
     AttributionGateResult,

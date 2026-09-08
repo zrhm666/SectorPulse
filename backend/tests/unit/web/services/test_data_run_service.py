@@ -5,13 +5,13 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.runs.real_data_run import (
     RealDataRun,
     RealDataRunRequest,
     RealDataRunStatus,
 )
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.web.events.progress_bus import ProgressBus
 from sector_pulse.web.services.data_run_service import DataRunService
 

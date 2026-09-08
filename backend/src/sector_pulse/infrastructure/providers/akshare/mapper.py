@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
 
 FIELD = {
     "name": "板块名称",

@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
-from sector_pulse.storage.postgres.news_repository import PostgresNewsRepository
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, SourceGrade
+from sector_pulse.storage.postgres.news.news_repository import PostgresNewsRepository
 
 from backend.tests.comparison_support import (
     comparison_postgres as comparison_postgres_fixture,  # noqa: F401

@@ -4,12 +4,12 @@ from uuid import UUID
 
 from sector_pulse.application.data_runs.candidate_selection import build_evidence_pack
 from sector_pulse.application.news.entity_resolution import resolve_sector_links
-from sector_pulse.domain.candidate import SectorCandidate
-from sector_pulse.domain.evidence import EvidenceLevel
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news import NewsEvent
-from sector_pulse.domain.news_retrieval import MappingConfidence, SectorEntityConfig
-from sector_pulse.domain.quality import QualityStatus
+from sector_pulse.domain.market.candidate import SectorCandidate
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.news.evidence import EvidenceLevel
+from sector_pulse.domain.news.news import NewsEvent
+from sector_pulse.domain.news.news_retrieval import MappingConfidence, SectorEntityConfig
 
 RUN_ID = UUID("00000000-0000-0000-0000-000000000001")
 ENTITY_CONFIG = SectorEntityConfig(

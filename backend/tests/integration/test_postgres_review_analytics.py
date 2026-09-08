@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.review_analytics import PostgresReviewAnalyticsQueries
+from sector_pulse.storage.postgres.review.review_analytics import PostgresReviewAnalyticsQueries
 from sqlalchemy import text
 
 

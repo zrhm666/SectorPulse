@@ -1,5 +1,5 @@
 from sector_pulse.application.data_runs.real_data_orchestrator import decide_terminal_status
-from sector_pulse.domain.quality import QualityReport, QualityStatus
+from sector_pulse.domain.market.quality import QualityReport, QualityStatus
 
 
 class Report:

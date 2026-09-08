@@ -1,34 +1,34 @@
 import inspect
 
 import pytest
-from sector_pulse.storage.postgres.agent_invocation_repository import (
-    PostgresAgentInvocationRepository,
-)
-from sector_pulse.storage.postgres.draft_edit_repository import (
-    PostgresDraftEditRepository,
-)
-from sector_pulse.storage.postgres.governance_repository import (
-    PostgresGovernanceRepository,
-)
-from sector_pulse.storage.postgres.news_evidence_repository import (
-    PostgresNewsEvidenceRepository,
-)
-from sector_pulse.storage.postgres.phase1b_repository import PostgresPhase1BRepository
-from sector_pulse.storage.postgres.phase1b_runs_repository import (
-    PostgresPhase1BRunsRepository,
-)
-from sector_pulse.storage.postgres.prompt_golden_repository import (
+from sector_pulse.storage.postgres.evaluation.prompt_golden_repository import (
     PostgresPromptGoldenRepository,
 )
-from sector_pulse.storage.postgres.release_audit_repository import (
-    PostgresReleaseAuditRepository,
-)
-from sector_pulse.storage.postgres.review_analytics import (
-    PostgresReviewAnalyticsQueries,
-)
-from sector_pulse.storage.postgres.shadow_acceptance_repository import (
+from sector_pulse.storage.postgres.evaluation.shadow_acceptance_repository import (
     PostgresShadowAcceptanceRepository,
 )
+from sector_pulse.storage.postgres.news.news_evidence_repository import (
+    PostgresNewsEvidenceRepository,
+)
+from sector_pulse.storage.postgres.review.draft_edit_repository import (
+    PostgresDraftEditRepository,
+)
+from sector_pulse.storage.postgres.review.governance_repository import (
+    PostgresGovernanceRepository,
+)
+from sector_pulse.storage.postgres.review.release_audit_repository import (
+    PostgresReleaseAuditRepository,
+)
+from sector_pulse.storage.postgres.review.review_analytics import (
+    PostgresReviewAnalyticsQueries,
+)
+from sector_pulse.storage.postgres.runs.phase1b_runs_repository import (
+    PostgresPhase1BRunsRepository,
+)
+from sector_pulse.storage.postgres.writing.agent_invocation_repository import (
+    PostgresAgentInvocationRepository,
+)
+from sector_pulse.storage.postgres.writing.phase1b_repository import PostgresPhase1BRepository
 
 
 @pytest.mark.parametrize(

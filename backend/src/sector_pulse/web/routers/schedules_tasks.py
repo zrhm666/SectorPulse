@@ -7,7 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 
 from sector_pulse.application.tasks.run_coordinator import RunCoordinator
 from sector_pulse.application.tasks.schedule_service import ScheduleCreate, ScheduleService
-from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 from sector_pulse.web.schemas.task import ScheduleCreateRequest, ScheduleResponse
 
 

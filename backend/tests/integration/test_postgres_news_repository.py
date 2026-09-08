@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.news_repository import PostgresNewsRepository
+from sector_pulse.storage.postgres.news.news_repository import PostgresNewsRepository
 from sqlalchemy import text
 
 

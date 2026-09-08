@@ -3,9 +3,11 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.release_audit import ApprovalStatus, DraftApproval, DraftExport
+from sector_pulse.domain.review.release_audit import ApprovalStatus, DraftApproval, DraftExport
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.release_audit_repository import PostgresReleaseAuditRepository
+from sector_pulse.storage.postgres.review.release_audit_repository import (
+    PostgresReleaseAuditRepository,
+)
 
 
 def test_postgres_release_audit_matches_runtime_contract() -> None:

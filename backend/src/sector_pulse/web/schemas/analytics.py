@@ -1,4 +1,4 @@
-from sector_pulse.domain.review_analytics import ReviewMetrics, ReviewSummary
+from sector_pulse.domain.review.review_analytics import ReviewMetrics, ReviewSummary
 
 
 class ReviewMetricsResponse(ReviewMetrics):

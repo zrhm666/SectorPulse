@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sector_pulse.domain.news import NewsUse
+from sector_pulse.domain.news.news import NewsUse
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.infrastructure.news.rss_adapter import RssNewsAdapter
 from sector_pulse.infrastructure.news.rss_client import (

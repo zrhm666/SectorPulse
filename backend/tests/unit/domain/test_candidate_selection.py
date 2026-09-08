@@ -4,13 +4,13 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
-from sector_pulse.domain.candidate_selection import (
+from sector_pulse.domain.market.candidate_selection import (
     CandidateSelection,
     CandidateSelectionMethod,
     candidate_data_version,
 )
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataCandidate
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import RealDataCandidate
 
 
 def candidates() -> tuple[RealDataCandidate, ...]:

@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
-from sector_pulse.domain.release_audit import DraftApproval, DraftExport
+from sector_pulse.domain.review.release_audit import DraftApproval, DraftExport
 
 
 def test_approval_binds_version_and_export_format() -> None:

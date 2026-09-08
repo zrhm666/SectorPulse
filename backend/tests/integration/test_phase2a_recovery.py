@@ -7,15 +7,19 @@ from sector_pulse.application.tasks.run_coordinator import RunCoordinator
 from sector_pulse.application.tasks.schedule_service import ScheduleService
 from sector_pulse.application.tasks.scheduler import EmbeddedScheduler
 from sector_pulse.application.tasks.task_run_service import TaskRunService
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
-from sector_pulse.domain.task import TaskRunKey, TaskRunStatus
+from sector_pulse.domain.runs.real_data_run import (
+    RealDataRun,
+    RealDataRunRequest,
+    RealDataRunStatus,
+)
+from sector_pulse.domain.runs.task import TaskRunKey, TaskRunStatus
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.phase1b_runs_repository import (
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
     SQLitePhase1BRunsRepository,
 )
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
 from sector_pulse.web.app import create_app
 
 

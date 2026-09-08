@@ -28,11 +28,11 @@ from sector_pulse.application.comparison.run_comparison_models import (
     RunOption,
     RunOptionPage,
 )
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.news import NewsDocument
-from sector_pulse.domain.news_retrieval import SectorEventLink
-from sector_pulse.domain.quality import QualityStatus
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunStatus
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.news.news import NewsDocument
+from sector_pulse.domain.news.news_retrieval import SectorEventLink
+from sector_pulse.domain.runs.real_data_run import RealDataRun, RealDataRunStatus
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 
 

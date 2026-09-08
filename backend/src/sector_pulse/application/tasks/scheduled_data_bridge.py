@@ -3,13 +3,10 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from sector_pulse.application.tasks.schedule_service import ScheduleView
-from sector_pulse.domain.real_data_run import RealDataRunRequest, RealDataRunStatus
-from sector_pulse.domain.task import TaskRunStatus
-from sector_pulse.storage.ports import (
-    Phase1BRunsRepositoryPort,
-    RealDataRunRepositoryPort,
-    RuntimeTaskRepositoryPort,
-)
+from sector_pulse.domain.runs.real_data_run import RealDataRunRequest, RealDataRunStatus
+from sector_pulse.domain.runs.task import TaskRunStatus
+from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort, RealDataRunRepositoryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 
 
 class DataRunStarter(Protocol):

@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 
 from sector_pulse.application.diagnostics.phase0_probe import Phase0ProbeReport
+from sector_pulse.domain.market.quality import QualityReport, QualityStatus
 from sector_pulse.domain.provider import AuthorizationStatus
-from sector_pulse.domain.quality import QualityReport, QualityStatus
-from sector_pulse.domain.time import AnalysisRun
+from sector_pulse.domain.runs.time import AnalysisRun
 from sector_pulse.reporting.phase0_report import render_phase0_markdown
 
 

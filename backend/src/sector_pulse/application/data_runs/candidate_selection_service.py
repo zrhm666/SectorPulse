@@ -4,12 +4,12 @@ from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
 
-from sector_pulse.domain.candidate_selection import (
+from sector_pulse.domain.market.candidate_selection import (
     CandidateSelection,
     CandidateSelectionMethod,
     candidate_data_version,
 )
-from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRun
+from sector_pulse.domain.runs.real_data_run import RealDataCandidate, RealDataRun
 
 
 class CandidateSelectionNotFound(ValueError):

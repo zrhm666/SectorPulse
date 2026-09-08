@@ -3,9 +3,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.quality import QualityStatus
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.runs.real_data_run import (
     RealDataCandidate,
     RealDataQualitySummary,
     RealDataRun,
@@ -13,7 +13,9 @@ from sector_pulse.domain.real_data_run import (
     RealDataRunStatus,
 )
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.real_data_run_repository import PostgresRealDataRunRepository
+from sector_pulse.storage.postgres.runs.real_data_run_repository import (
+    PostgresRealDataRunRepository,
+)
 
 
 @pytest.mark.postgres

@@ -6,10 +6,10 @@ from uuid import UUID
 import pytest
 import yaml
 from sector_pulse.application.writing.attribution_gate import evaluate_attribution_gate
-from sector_pulse.domain.attribution import AttributionContext
-from sector_pulse.domain.evidence import EvidenceLevel
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.news import NewsDocument, SourceGrade
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.news.evidence import EvidenceLevel
+from sector_pulse.domain.news.news import NewsDocument, SourceGrade
+from sector_pulse.domain.writing.attribution import AttributionContext
 
 RUN_ID = UUID("00000000-0000-0000-0000-000000000001")
 CUTOFF = datetime(2026, 8, 14, 2, tzinfo=UTC)

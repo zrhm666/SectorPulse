@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from sector_pulse.domain.editing import DraftPatch
+from sector_pulse.domain.review.editing import DraftPatch
 
 
 class DraftPatchRequest(BaseModel):

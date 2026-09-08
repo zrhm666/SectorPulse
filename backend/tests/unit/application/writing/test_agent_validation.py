@@ -9,16 +9,16 @@ from sector_pulse.application.writing.agent_validation import (
     validate_claim_numbers,
     validate_prohibited_language,
 )
-from sector_pulse.domain.attribution import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.news.evidence import EvidenceLevel
+from sector_pulse.domain.news.news import SourceGrade
+from sector_pulse.domain.writing.attribution import (
     AttributionContext,
     AttributionGateResult,
     Claim,
     ClaimKind,
     SectorAnalysisCard,
 )
-from sector_pulse.domain.evidence import EvidenceLevel
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.news import SourceGrade
 
 RUN_ID = UUID("00000000-0000-0000-0000-000000000001")
 CONTEXT = AttributionContext(

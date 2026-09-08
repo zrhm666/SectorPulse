@@ -16,16 +16,13 @@ from sector_pulse.application.writing.phase1b_pipeline import (
 )
 from sector_pulse.application.writing.progress import ProgressSink
 from sector_pulse.config.llm_config import LLMRuntimeConfig
-from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
+from sector_pulse.domain.writing.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.ports import (
-    AgentInvocationRepositoryPort,
-    NewsEvidenceRepositoryPort,
-    Phase1BRepositoryPort,
-    Phase1BRunsRepositoryPort,
-)
-from sector_pulse.storage.sqlite.phase1b_runs_repository import (
+from sector_pulse.storage.ports.news import NewsEvidenceRepositoryPort
+from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort
+from sector_pulse.storage.ports.writing import AgentInvocationRepositoryPort, Phase1BRepositoryPort
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
 )
 from sector_pulse.web.events.progress_bus import ProgressBus

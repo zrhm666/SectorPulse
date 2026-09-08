@@ -8,8 +8,8 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sector_pulse.application.tasks.schedule_service import ScheduleService, ScheduleView
-from sector_pulse.domain.task import TaskRunKey, TaskRunStatus
-from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+from sector_pulse.domain.runs.task import TaskRunKey, TaskRunStatus
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 
 logger = logging.getLogger(__name__)
 
