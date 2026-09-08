@@ -60,6 +60,17 @@ it('gates approval immediately while a field is dirty', async () => {
   expect(screen.getByText('草稿仍有未保存的修改，请等待保存完成。')).toBeVisible()
 })
 
+it('keeps the same editor mounted when focus mode is toggled', async () => {
+  render(<MemoryRouter><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
+  const introduction = await screen.findByLabelText('导语')
+  fireEvent.change(introduction, { target: { value: '正在编辑的导语' } })
+  fireEvent.click(screen.getByRole('button', { name: '专注草稿' }))
+  expect(screen.getByLabelText('导语')).toBe(introduction)
+  expect(screen.getByLabelText('导语')).toHaveValue('正在编辑的导语')
+  expect(screen.getByRole('button', { name: '恢复三栏' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: '批准复制' })).toBeDisabled()
+})
+
 it('refreshes only approval state after a successful approval action', async () => {
   vi.mocked(editing.approveDraft).mockResolvedValue({ draft_id: 'draft-1', version: 2, status: 'APPROVED_FOR_COPY', actor: 'reviewer' })
   vi.mocked(editing.fetchApproval)

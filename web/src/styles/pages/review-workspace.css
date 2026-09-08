@@ -453,3 +453,14 @@
 .evidence-pane h3 { font-size: .9375rem; }
 .review-actions { padding: 16px; background: var(--sp-primary-soft); border: 1px solid #c9daf8; border-radius: var(--sp-radius-md); }
 .review-actions .button { width: 100%; }
+.draft-chapter-nav { display: grid; gap: 6px; margin: 16px 0; color: var(--sp-text-secondary); font-size: .8125rem; }
+.draft-chapter-nav select { min-height: 40px; min-width: 0; width: 100%; padding: 8px 10px; border: 1px solid var(--sp-border-strong); border-radius: var(--sp-radius-sm); background: var(--sp-surface); color: var(--sp-text); font: inherit; }
+@media (max-width: 768px) { .draft-chapter-nav select { min-height: 44px; } }
+.review-return-form { display: grid; gap: 10px; }
+.review-return-form__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (min-width: 1025px) {
+  .review-workspace[data-focus="true"] .review-workspace__grid { grid-template-columns: minmax(0, 1fr); }
+  .review-workspace[data-focus="true"] .review-workspace__pane:not([data-pane="draft"]) { display: none; }
+  .review-workspace[data-focus="true"] .draft-workspace { max-width: 960px; width: 100%; margin-inline: auto; }
+}
+@media (max-width: 1024px) { .review-focus-toggle { display: none; } }

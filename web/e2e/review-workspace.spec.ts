@@ -119,6 +119,32 @@ for (const viewport of [{ width: 1024, height: 768 }, { width: 768, height: 1024
   })
 }
 
+for (const width of [1440, 1024, 390]) {
+  test(`review refinement keeps focus and actions accessible at ${width}`, async ({ page }) => {
+    await openReview(page, { width, height: 900 })
+    expect((await page.getByLabel('跳转章节').boundingBox())!.height).toBeGreaterThanOrEqual(width < 769 ? 44 : 40)
+    if (width > 1024) {
+      await page.getByRole('button', { name: '专注草稿' }).click()
+      await expect(page.locator('[data-pane="queue"]')).toBeHidden()
+      await expect(page.locator('[data-pane="evidence"]')).toBeHidden()
+    }
+    await page.getByLabel('跳转章节').selectOption('conclusion')
+    await expect(page.getByLabel('结论', { exact: true })).toBeFocused()
+    await page.getByLabel('跳转章节').selectOption('introduction')
+    const input = page.getByLabel('导语', { exact: true })
+    expect(await input.evaluate(e => e.clientHeight >= e.scrollHeight - 2)).toBe(true)
+    await page.screenshot({ path: test.info().outputPath(`review-${width}.png`) })
+    if (width > 1024) await page.getByRole('button', { name: '恢复三栏' }).click()
+    else await page.getByRole('tab', { name: '证据', exact: true }).click()
+    await expect(page.getByLabel('退回原因')).toHaveCount(0)
+    await page.getByRole('button', { name: '退回修改', exact: true }).click()
+    await page.getByLabel('退回原因').fill('需要补充来源')
+    await page.getByRole('button', { name: '取消退回' }).click()
+    await page.getByRole('button', { name: '退回修改', exact: true }).click()
+    await expect(page.getByLabel('退回原因')).toHaveValue('需要补充来源')
+  })
+}
+
 test('focused section drives evidence and autosave persists after 800ms', async ({ page }) => {
   const state = await openReview(page, { width: 1536, height: 1024 })
   await page.getByLabel('农业板块').focus()

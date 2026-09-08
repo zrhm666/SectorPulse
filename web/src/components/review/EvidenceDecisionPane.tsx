@@ -30,6 +30,7 @@ export default function EvidenceDecisionPane(props: Props) {
   const [decision, setDecision] = useState('KEEP')
   const [decisionReason, setDecisionReason] = useState('')
   const [returnReason, setReturnReason] = useState('')
+  const [returnExpanded, setReturnExpanded] = useState(false)
   const [confirm, setConfirm] = useState<'approve' | 'return' | null>(null)
   const [sourcesExpanded, setSourcesExpanded] = useState(false)
   const allSources = props.version.sources as Source[]
@@ -156,10 +157,11 @@ export default function EvidenceDecisionPane(props: Props) {
           {props.exportUrl && <a className="button button-primary" href={props.exportUrl}>导出已批准版本</a>}
         </>
         : <button className="button button-primary" disabled={Boolean(approvalBlockReason)} onClick={() => setConfirm('approve')}>批准复制</button>}
-      <label>退回原因
+      {!returnExpanded && <button className="button button-secondary" type="button" aria-expanded="false" onClick={() => setReturnExpanded(true)}>退回修改</button>}
+      {returnExpanded && <div className="review-return-form"><label>退回原因
         <textarea value={returnReason} onChange={(event) => setReturnReason(event.target.value)} rows={2} />
       </label>
-      <button className="button button-secondary" disabled={!returnReason.trim()} onClick={() => setConfirm('return')}>退回修改</button>
+      <div className="review-return-form__actions"><button type="button" className="button button-secondary" onClick={() => setReturnExpanded(false)}>取消退回</button><button type="button" className="button button-secondary" disabled={!returnReason.trim()} onClick={() => setConfirm('return')}>提交退回</button></div></div>}
     </section>
 
     <ConfirmDialog open={confirm === 'approve'} title={`批准草稿 v${props.version.version}`} description="批准后该版本可以导出和复制。" confirmLabel="确认批准" onCancel={() => setConfirm(null)} onConfirm={async () => { setConfirm(null); await props.onApprove() }} />

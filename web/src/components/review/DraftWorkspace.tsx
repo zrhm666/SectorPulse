@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import type { DraftVersionView } from '../../api'
 import type { DraftPatchInput, DraftPatchResponse } from '../../editingApi'
 import useDraftAutosave, { type AutosaveStatus } from '../../hooks/useDraftAutosave'
@@ -23,6 +23,28 @@ type Props = {
   onPendingChange?: (pending: boolean) => void
   onFocusField?: (field: DraftFieldContext) => void
   onStateChange?: (state: DraftWorkspaceState) => void
+}
+
+function DocumentTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const fit = () => {
+      if (!element.scrollHeight) return
+      element.style.height = 'auto'
+      element.style.height = `${element.scrollHeight + 2}px`
+    }
+    fit()
+    let width = element.getBoundingClientRect().width
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(entries => {
+      const next = entries[0]?.contentRect.width
+      if (next != null && next !== width) { width = next; fit() }
+    })
+    observer?.observe(element)
+    return () => observer?.disconnect()
+  }, [props.value])
+  return <textarea {...props} ref={ref} />
 }
 
 export default function DraftWorkspace({ versions, onSave, onPendingChange, onFocusField, onStateChange }: Props) {
@@ -79,6 +101,11 @@ export default function DraftWorkspace({ versions, onSave, onPendingChange, onFo
         <label>查看版本<select aria-label="查看草稿版本" value={version.version} disabled={autosave.hasPending} onChange={(event) => setSelected(Number(event.target.value))}>{versions.map((item) => <option key={item.version} value={item.version}>v{item.version}</option>)}</select></label>
       </div>
     </div>
+    <label className="draft-chapter-nav">跳转章节<select aria-label="跳转章节" value="" onChange={event => {
+      const field = document.getElementById(`field-${event.target.value}`)
+      field?.scrollIntoView?.({ block: 'center' })
+      field?.focus({ preventScroll: true })
+    }}><option value="" disabled>选择要阅读或修改的章节</option>{definitions.map(field => <option key={field.key} value={field.key}>{field.label}</option>)}</select></label>
     {readOnly && <p className="readonly-note">正在查看历史版本 v{version.version}，历史内容不可修改，也不会触发自动保存。</p>}
     <article className="draft-document" aria-label={`草稿版本 v${version.version}`}>
       {definitions.map((field) => {
@@ -89,7 +116,7 @@ export default function DraftWorkspace({ versions, onSave, onPendingChange, onFo
             <label htmlFor={`field-${field.key}`}>{field.label}</label>
             {!readOnly && <span className="draft-field-status" role="status" data-status={state.status}>{STATUS_COPY[state.status]}{state.queued ? ' · 新修改排队中' : ''}</span>}
           </div>
-          <textarea
+          <DocumentTextarea
             id={`field-${field.key}`}
             value={state.value}
             readOnly={readOnly}

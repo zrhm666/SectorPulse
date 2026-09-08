@@ -19,6 +19,7 @@ export default function ReviewWorkspacePage() {
   const [searchParams] = useSearchParams()
   const feedback = useFeedback()
   const [activePane, setActivePane] = useState<ReviewPane>('draft')
+  const [focusDraft, setFocusDraft] = useState(false)
   const [activeField, setActiveField] = useState<DraftFieldContext | null>(null)
   const [draftState, setDraftState] = useState<DraftWorkspaceState>({ hasPending: false, hasConflict: false, readOnly: false, version: 0 })
   const workspace = useReviewWorkspace(searchParams.get('run'))
@@ -58,12 +59,12 @@ export default function ReviewWorkspacePage() {
   }, [selectedId])
 
   return <section className="review-page">
-    <PageHeader title="审核工作台" description="集中阅读、修改和核准已生成的分析草稿。" />
+    <PageHeader title="审核工作台" description="集中阅读、修改和核准已生成的分析草稿。" actions={latest && <button type="button" className="button button-secondary review-focus-toggle" aria-pressed={focusDraft} onClick={() => { setFocusDraft(value => !value); setActivePane('draft') }}>{focusDraft ? '恢复三栏' : '专注草稿'}</button>} />
     {initialLoading && <LoadingState label="正在加载审核队列…" />}
     {queueError && <InlineAlert tone="error" title="无法加载审核队列">{queueError}</InlineAlert>}
     {workspaceError && versions.length > 0 && <InlineAlert tone="warning" title="显示最近一次成功数据">{workspaceError}</InlineAlert>}
     {!initialLoading && !queueError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
-    {runs.length > 0 && <div className="review-workspace">
+    {runs.length > 0 && <div className="review-workspace" data-focus={focusDraft}>
       <ReviewPaneTabs active={activePane} onChange={setActivePane} />
       <div className="review-workspace__grid" role="region" aria-label="审核主工作区">
         <div id="review-pane-queue" className="review-workspace__pane" role="tabpanel" aria-labelledby="review-tab-queue" data-pane="queue" data-active={activePane === 'queue'}>

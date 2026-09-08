@@ -10,6 +10,22 @@ const versions = [
 
 afterEach(() => vi.useRealTimers())
 
+it('navigates to a document field without remounting the editor', async () => {
+  render(<DraftWorkspace versions={versions} onSave={vi.fn()} />)
+  const conclusion = screen.getByLabelText('结论')
+  await userEvent.selectOptions(screen.getByLabelText('跳转章节'), 'conclusion')
+  expect(conclusion).toHaveFocus()
+  expect(screen.getByLabelText('结论')).toBe(conclusion)
+})
+
+it('grows long text to its measured content height', () => {
+  const height = vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get').mockReturnValue(580)
+  const view = render(<DraftWorkspace versions={versions} onSave={vi.fn()} />)
+  expect(screen.getByLabelText('导语').style.height).toBe('582px')
+  view.unmount()
+  height.mockRestore()
+})
+
 it('autosaves the latest structured field without manual save buttons', async () => {
   vi.useFakeTimers()
   const onSave = vi.fn().mockResolvedValue({ draft_id: 'draft-1', version: 3, status: 'READY_FOR_HUMAN_REVIEW', content: {} })

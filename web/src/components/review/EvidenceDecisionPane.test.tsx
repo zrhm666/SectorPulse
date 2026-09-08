@@ -10,7 +10,24 @@ it('keeps evidence and return reasons independent', async () => {
 
   await userEvent.type(screen.getByLabelText('理由'), '保留原始来源')
 
-  expect(screen.getByRole('button', { name: '退回修改' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: '退回修改' }))
+  expect(screen.getByRole('button', { name: '提交退回' })).toBeDisabled()
+})
+
+it('reveals return reason on demand, preserves cancelled text and requires confirmation', async () => {
+  const onReturn = vi.fn().mockResolvedValue(undefined)
+  render(<EvidenceDecisionPane version={version} governance={{ status: 'PASS', issues: [] }} approval={null} decisions={[]} onDecision={vi.fn()} onApprove={vi.fn()} onRevoke={vi.fn()} onReturn={onReturn} />)
+  expect(screen.queryByLabelText('退回原因')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '退回修改' }))
+  await userEvent.type(screen.getByLabelText('退回原因'), '需要补充来源')
+  await userEvent.click(screen.getByRole('button', { name: '取消退回' }))
+  expect(screen.queryByLabelText('退回原因')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '退回修改' }))
+  expect(screen.getByLabelText('退回原因')).toHaveValue('需要补充来源')
+  await userEvent.click(screen.getByRole('button', { name: '提交退回' }))
+  expect(onReturn).not.toHaveBeenCalled()
+  await userEvent.click(screen.getByRole('button', { name: '确认退回' }))
+  expect(onReturn).toHaveBeenCalledWith('需要补充来源')
 })
 
 it('shows the approved export action', () => {
