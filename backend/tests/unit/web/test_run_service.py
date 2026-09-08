@@ -8,12 +8,12 @@ from sector_pulse.application.writing.phase1b_pipeline import Phase1BRequest
 from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.agent_invocation_repository import SQLiteAgentInvocationRepository
-from sector_pulse.storage.news_evidence_repository import SQLiteNewsEvidenceRepository
-from sector_pulse.storage.news_repository import SQLiteNewsRepository
-from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
-from sector_pulse.storage.phase1b_runs_repository import SQLitePhase1BRunsRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.agent_invocation_repository import SQLiteAgentInvocationRepository
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
+from sector_pulse.storage.sqlite.phase1b_runs_repository import SQLitePhase1BRunsRepository
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.run_service import RunService
 

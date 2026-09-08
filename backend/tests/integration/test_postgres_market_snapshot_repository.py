@@ -3,8 +3,8 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.market import SectorKind
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_market_snapshot_repository import (
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.market_snapshot_repository import (
     PostgresMarketSnapshotRepository,
 )
 

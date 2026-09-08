@@ -7,9 +7,11 @@ from sector_pulse.domain.candidate_selection import (
     CandidateSelectionVersionConflict,
 )
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest
-from sector_pulse.storage.candidate_selection_repository import SQLiteCandidateSelectionRepository
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.candidate_selection_repository import (
+    SQLiteCandidateSelectionRepository,
+)
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
 
 
 def selection(run_id, version: int, *, edit_count: int = 0) -> CandidateSelection:

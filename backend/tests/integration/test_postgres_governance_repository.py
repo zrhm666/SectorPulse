@@ -2,8 +2,8 @@ import os
 from uuid import uuid4
 
 import pytest
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_governance_repository import PostgresGovernanceRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.governance_repository import PostgresGovernanceRepository
 
 
 def test_postgres_governance_empty_decisions() -> None:

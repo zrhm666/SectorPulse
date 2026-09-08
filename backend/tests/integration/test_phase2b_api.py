@@ -3,8 +3,8 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sector_pulse.domain.article import ArticleDraft, DraftStatus
-from sector_pulse.storage.phase1b_repository import SQLitePhase1BRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.web.app import create_app
 
 

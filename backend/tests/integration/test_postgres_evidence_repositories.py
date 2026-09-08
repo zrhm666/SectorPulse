@@ -1,8 +1,8 @@
 import os
 
 import pytest
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_news_evidence_repository import PostgresNewsEvidenceRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.news_evidence_repository import PostgresNewsEvidenceRepository
 
 
 @pytest.mark.postgres

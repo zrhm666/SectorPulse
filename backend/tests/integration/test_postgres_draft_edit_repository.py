@@ -2,8 +2,8 @@ import os
 from uuid import uuid4
 
 import pytest
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_draft_edit_repository import PostgresDraftEditRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.draft_edit_repository import PostgresDraftEditRepository
 
 
 def test_postgres_draft_edit_missing_version() -> None:

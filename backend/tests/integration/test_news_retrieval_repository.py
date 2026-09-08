@@ -12,8 +12,8 @@ from sector_pulse.domain.news_retrieval import (
     SourceRunMetric,
 )
 from sector_pulse.domain.provider import DataStatus
-from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.news_retrieval_repository import SQLiteNewsRetrievalRepository
 
 
 def test_save_audit_is_idempotent_and_hashes_query_values(tmp_path: Path) -> None:

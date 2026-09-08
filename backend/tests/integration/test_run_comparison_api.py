@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sector_pulse.application.comparison.run_comparison_queries import RunComparisonQueries
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
 from sector_pulse.storage.runtime_bundle import build_sqlite_storage
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.web.app import create_app
 from sector_pulse.web.errors import register_error_handlers
 from sector_pulse.web.routers.run_comparisons import build_run_comparisons_router

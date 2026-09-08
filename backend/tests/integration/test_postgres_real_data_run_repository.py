@@ -12,8 +12,8 @@ from sector_pulse.domain.real_data_run import (
     RealDataRunRequest,
     RealDataRunStatus,
 )
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_real_data_run_repository import PostgresRealDataRunRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.real_data_run_repository import PostgresRealDataRunRepository
 
 
 @pytest.mark.postgres

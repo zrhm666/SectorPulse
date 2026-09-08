@@ -20,10 +20,10 @@ from sector_pulse.domain.quality import (
 from sector_pulse.domain.time import AnalysisMode, AnalysisRun
 from sector_pulse.ports.market_data import MarketDataPort
 from sector_pulse.ports.news import NewsPort
-from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
-from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
-from sector_pulse.storage.news_repository import SQLiteNewsRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.evidence_repository import SQLiteEvidenceRepository
+from sector_pulse.storage.sqlite.market_snapshot_repository import SQLiteMarketSnapshotRepository
+from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
 
 
 class Phase1AReport(BaseModel):

@@ -17,8 +17,8 @@ from sector_pulse.domain.news_retrieval import (
 )
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRun
-from sector_pulse.storage.phase1b_runs_repository import Phase1BRunRow
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
+from sector_pulse.storage.sqlite.phase1b_runs_repository import Phase1BRunRow
 
 
 class MarketSnapshotReader(Protocol):

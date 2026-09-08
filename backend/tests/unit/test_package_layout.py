@@ -9,5 +9,5 @@ ROOT = Path(sector_pulse.__file__).parent
 
 def test_application_modules_are_grouped() -> None:
     assert {p.name for p in (ROOT / "application").glob("*.py")} <= {
-        "__init__.py", "review_analytics.py", "postgres_review_analytics.py"
+        "__init__.py"
     }

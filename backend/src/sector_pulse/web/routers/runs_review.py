@@ -18,7 +18,6 @@ from sector_pulse.application.runs.run_queries import RunQueryService
 from sector_pulse.domain.article import ArticleDraft
 from sector_pulse.domain.release_audit import DraftApproval, DraftExport
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_input
-from sector_pulse.storage.draft_edit_repository import DraftVersionConflict
 from sector_pulse.storage.ports import (
     DraftEditRepositoryPort,
     GovernanceRepositoryPort,
@@ -26,6 +25,7 @@ from sector_pulse.storage.ports import (
     ReleaseAuditRepositoryPort,
     ReviewAnalyticsPort,
 )
+from sector_pulse.storage.sqlite.draft_edit_repository import DraftVersionConflict
 from sector_pulse.web.analytics_schemas import ReviewMetricsResponse, ReviewSummaryResponse
 from sector_pulse.web.editing_schemas import (
     DraftPatchRequest,

@@ -10,8 +10,8 @@ from sector_pulse.domain.real_data_run import (
     RealDataRunRequest,
     RealDataRunStatus,
 )
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.web.data_run_service import DataRunService
 from sector_pulse.web.progress_bus import ProgressBus
 

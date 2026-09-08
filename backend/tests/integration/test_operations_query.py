@@ -8,13 +8,13 @@ from sector_pulse.domain.real_data_run import (
     RealDataRun,
     RealDataRunRequest,
 )
-from sector_pulse.storage.operations_query import SQLiteOperationsQuery
-from sector_pulse.storage.phase1b_runs_repository import (
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.operations_query import SQLiteOperationsQuery
+from sector_pulse.storage.sqlite.phase1b_runs_repository import (
     Phase1BRunRow,
     SQLitePhase1BRunsRepository,
 )
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
 
 
 def test_sqlite_operations_query_unifies_real_persisted_runs(tmp_path) -> None:

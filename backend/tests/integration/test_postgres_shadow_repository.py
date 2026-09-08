@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.shadow_acceptance import ShadowRun
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_shadow_acceptance_repository import (
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.shadow_acceptance_repository import (
     PostgresShadowAcceptanceRepository,
 )
 

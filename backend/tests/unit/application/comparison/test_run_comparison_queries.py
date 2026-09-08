@@ -5,7 +5,7 @@ from sector_pulse.application.comparison.run_comparison_queries import RunCompar
 from sector_pulse.domain.market import SectorKind
 from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRunStatus
 from sector_pulse.storage.runtime_bundle import build_sqlite_storage
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 from backend.tests.comparison_fixtures import save_snapshot, seed_news, seed_pair
 

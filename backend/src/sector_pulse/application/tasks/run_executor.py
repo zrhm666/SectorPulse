@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from sector_pulse.domain.task import Checkpoint, TaskStage
-from sector_pulse.storage.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
 
 
 @dataclass(frozen=True)

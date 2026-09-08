@@ -19,14 +19,14 @@ from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.phase1b_runs_repository import (
-    Phase1BRunRow,
-)
 from sector_pulse.storage.ports import (
     AgentInvocationRepositoryPort,
     NewsEvidenceRepositoryPort,
     Phase1BRepositoryPort,
     Phase1BRunsRepositoryPort,
+)
+from sector_pulse.storage.sqlite.phase1b_runs_repository import (
+    Phase1BRunRow,
 )
 from sector_pulse.web.progress_bus import ProgressBus
 from sector_pulse.web.schemas import RunDetail, RunSummary

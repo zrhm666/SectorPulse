@@ -4,7 +4,7 @@ import os
 from collections.abc import Iterator
 
 import pytest
-from sector_pulse.storage.postgres import PostgresDatabase
+from sector_pulse.storage.postgres.database import PostgresDatabase
 from sqlalchemy import text
 
 

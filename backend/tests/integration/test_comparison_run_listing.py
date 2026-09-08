@@ -4,8 +4,8 @@ from uuid import UUID
 
 import pytest
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
-from sector_pulse.storage.real_data_run_repository import SQLiteRealDataRunRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
 
 
 def test_history_beyond_fifty_and_same_timestamp_order(tmp_path: Path) -> None:

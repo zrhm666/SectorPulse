@@ -16,7 +16,7 @@ from sector_pulse.application.tasks.scheduler import EmbeddedScheduler
 from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.storage.database_runtime import Database
-from sector_pulse.storage.postgres import PostgresDatabase
+from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.web.operations_schemas import (
     OperationsConsentStatus,

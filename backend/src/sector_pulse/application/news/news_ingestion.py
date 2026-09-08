@@ -7,7 +7,7 @@ from sector_pulse.domain.news import NewsDocument, NewsEvent
 from sector_pulse.domain.provider import DataStatus, ProviderResult
 from sector_pulse.domain.time import AnalysisRun
 from sector_pulse.ports.news import NewsPort
-from sector_pulse.storage.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
 
 
 def _normalize_title(title: str) -> str:

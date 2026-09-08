@@ -1,32 +1,32 @@
 import inspect
 
 import pytest
-from sector_pulse.application.postgres_review_analytics import (
-    PostgresReviewAnalyticsQueries,
-)
-from sector_pulse.storage.postgres_agent_invocation_repository import (
+from sector_pulse.storage.postgres.agent_invocation_repository import (
     PostgresAgentInvocationRepository,
 )
-from sector_pulse.storage.postgres_draft_edit_repository import (
+from sector_pulse.storage.postgres.draft_edit_repository import (
     PostgresDraftEditRepository,
 )
-from sector_pulse.storage.postgres_governance_repository import (
+from sector_pulse.storage.postgres.governance_repository import (
     PostgresGovernanceRepository,
 )
-from sector_pulse.storage.postgres_news_evidence_repository import (
+from sector_pulse.storage.postgres.news_evidence_repository import (
     PostgresNewsEvidenceRepository,
 )
-from sector_pulse.storage.postgres_phase1b_repository import PostgresPhase1BRepository
-from sector_pulse.storage.postgres_phase1b_runs_repository import (
+from sector_pulse.storage.postgres.phase1b_repository import PostgresPhase1BRepository
+from sector_pulse.storage.postgres.phase1b_runs_repository import (
     PostgresPhase1BRunsRepository,
 )
-from sector_pulse.storage.postgres_prompt_golden_repository import (
+from sector_pulse.storage.postgres.prompt_golden_repository import (
     PostgresPromptGoldenRepository,
 )
-from sector_pulse.storage.postgres_release_audit_repository import (
+from sector_pulse.storage.postgres.release_audit_repository import (
     PostgresReleaseAuditRepository,
 )
-from sector_pulse.storage.postgres_shadow_acceptance_repository import (
+from sector_pulse.storage.postgres.review_analytics import (
+    PostgresReviewAnalyticsQueries,
+)
+from sector_pulse.storage.postgres.shadow_acceptance_repository import (
     PostgresShadowAcceptanceRepository,
 )
 

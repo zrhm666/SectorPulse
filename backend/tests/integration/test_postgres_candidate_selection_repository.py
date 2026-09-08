@@ -4,11 +4,11 @@ from datetime import UTC, datetime
 import pytest
 from sector_pulse.domain.candidate_selection import CandidateSelection, CandidateSelectionMethod
 from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_candidate_selection_repository import (
+from sector_pulse.storage.postgres.candidate_selection_repository import (
     PostgresCandidateSelectionRepository,
 )
-from sector_pulse.storage.postgres_real_data_run_repository import PostgresRealDataRunRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.real_data_run_repository import PostgresRealDataRunRepository
 
 
 @pytest.mark.postgres

@@ -43,13 +43,13 @@ from sector_pulse.ports.news_sources import (
     SectorConstituentPort,
 )
 from sector_pulse.storage.database_runtime import Database
-from sector_pulse.storage.evidence_repository import SQLiteEvidenceRepository
-from sector_pulse.storage.market_snapshot_repository import SQLiteMarketSnapshotRepository
-from sector_pulse.storage.news_repository import SQLiteNewsRepository
-from sector_pulse.storage.news_retrieval_repository import SQLiteNewsRetrievalRepository
-from sector_pulse.storage.postgres import PostgresDatabase
+from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.evidence_repository import SQLiteEvidenceRepository
+from sector_pulse.storage.sqlite.market_snapshot_repository import SQLiteMarketSnapshotRepository
+from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.news_retrieval_repository import SQLiteNewsRetrievalRepository
 
 
 class Phase1A2Request(BaseModel):

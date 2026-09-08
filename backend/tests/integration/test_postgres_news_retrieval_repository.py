@@ -2,8 +2,8 @@ import os
 from uuid import uuid4
 
 import pytest
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_news_retrieval_repository import PostgresNewsRetrievalRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.news_retrieval_repository import PostgresNewsRetrievalRepository
 
 
 @pytest.mark.postgres

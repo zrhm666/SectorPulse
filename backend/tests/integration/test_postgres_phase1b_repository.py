@@ -13,8 +13,8 @@ from sector_pulse.domain.review import (
     ReviewIssue,
     ReviewReport,
 )
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_phase1b_repository import PostgresPhase1BRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.phase1b_repository import PostgresPhase1BRepository
 from sector_pulse.web.app import create_app
 from sqlalchemy import text
 

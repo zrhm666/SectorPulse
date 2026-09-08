@@ -5,9 +5,9 @@ from sector_pulse.storage.ports import (
     OperationsQueryPort,
     RuntimeTaskRepositoryPort,
 )
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_operations_query import PostgresOperationsQuery
-from sector_pulse.storage.postgres_task_repository import PostgresTaskRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.operations_query import PostgresOperationsQuery
+from sector_pulse.storage.postgres.task_repository import PostgresTaskRepository
 from sector_pulse.storage.runtime_bundle import build_postgres_storage
 
 

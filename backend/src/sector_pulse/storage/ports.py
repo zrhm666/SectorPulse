@@ -44,9 +44,9 @@ from sector_pulse.domain.review_analytics import ReviewMetrics, ReviewSummary
 from sector_pulse.domain.shadow_acceptance import ComplianceRecord, RecoveryDrill, ShadowRun
 from sector_pulse.domain.task import Checkpoint, TaskRunKey, TaskRunStatus, TaskStage
 from sector_pulse.domain.time import AnalysisRun
-from sector_pulse.storage.news_evidence_repository import NewsEvidenceItem
-from sector_pulse.storage.phase1b_runs_repository import Phase1BRunRow
-from sector_pulse.storage.task_repository import TaskEvent
+from sector_pulse.storage.sqlite.news_evidence_repository import NewsEvidenceItem
+from sector_pulse.storage.sqlite.phase1b_runs_repository import Phase1BRunRow
+from sector_pulse.storage.sqlite.task_repository import TaskEvent
 
 
 @runtime_checkable

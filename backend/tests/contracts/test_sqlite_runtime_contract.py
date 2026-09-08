@@ -26,7 +26,7 @@ from sector_pulse.storage.ports import (
     TaskRepositoryPort,
 )
 from sector_pulse.storage.runtime_bundle import build_sqlite_storage
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 
 def _bundle(tmp_path: Path):

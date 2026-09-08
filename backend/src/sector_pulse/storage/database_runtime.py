@@ -2,8 +2,8 @@ from pathlib import Path
 
 from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.storage.database_config import resolve_database_config
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 type Database = SQLiteDatabase | PostgresDatabase
 

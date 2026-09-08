@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.prompt_golden import PromptGoldenCase
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.postgres_prompt_golden_repository import PostgresPromptGoldenRepository
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.prompt_golden_repository import PostgresPromptGoldenRepository
 
 
 def test_postgres_prompt_golden_round_trip() -> None:

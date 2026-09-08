@@ -8,8 +8,8 @@ from sector_pulse.storage.database_runtime import (
     close_database,
     initialize_database,
 )
-from sector_pulse.storage.postgres import PostgresDatabase
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 
 def test_build_database_defaults_to_sqlite(tmp_path: Path) -> None:

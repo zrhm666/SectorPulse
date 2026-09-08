@@ -13,7 +13,7 @@ from sector_pulse.domain.provider import (
     ProviderResult,
 )
 from sector_pulse.domain.time import AnalysisMode
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 NOW = datetime(2026, 8, 14, 2, tzinfo=UTC)
 

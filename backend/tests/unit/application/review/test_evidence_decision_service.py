@@ -2,8 +2,8 @@ from uuid import uuid4
 
 from sector_pulse.application.review.evidence_decision_service import EvidenceDecisionService
 from sector_pulse.domain.article import ArticleDraft, ArticleSection, ArticleSource, DraftStatus
-from sector_pulse.storage.governance_repository import SQLiteGovernanceRepository
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.governance_repository import SQLiteGovernanceRepository
 
 
 def test_rejecting_source_marks_only_linked_sections_for_rewrite(tmp_path):

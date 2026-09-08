@@ -13,7 +13,7 @@ from sector_pulse.domain.provider import (
 )
 from sector_pulse.domain.quality import QualityThresholds
 from sector_pulse.domain.time import AnalysisMode
-from sector_pulse.storage.sqlite import SQLiteDatabase
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 
 class FakeMarketProvider:

@@ -34,7 +34,7 @@ from sector_pulse.ports.news_sources import (
 )
 from sector_pulse.storage.database_runtime import Database, build_database
 from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
-from sector_pulse.storage.postgres import PostgresDatabase
+from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import (
     RuntimeStorageBundle,
     build_postgres_storage,

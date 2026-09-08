@@ -2,11 +2,11 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.article import ArticleDraft, DraftStatus
-from sector_pulse.storage.phase1b_repository import (
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.phase1b_repository import (
     ImmutableDraftVersionError,
     SQLitePhase1BRepository,
 )
-from sector_pulse.storage.sqlite import SQLiteDatabase
 
 
 def make_draft(version: int) -> ArticleDraft:
