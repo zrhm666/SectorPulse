@@ -24,6 +24,14 @@
   gap: var(--space-3);
 }
 
+.registry-toolbar__search { display: flex; align-items: end; gap: 12px; }
+.registry-toolbar__search label { flex: 1; min-width: 0; }
+.registry-quick-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.registry-quick-filters [aria-pressed="true"] { background: var(--sp-primary-soft); color: var(--sp-primary-hover); border-color: var(--sp-primary); }
+.registry-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 20px; color: var(--sp-text-muted); font-size: .8125rem; }
+.registry-run-identity { display: grid; gap: 4px; }
+.registry-run-identity code { color: var(--sp-text-muted); font-size: .75rem; }
+
 .registry-toolbar label {
   display: grid;
   gap: var(--space-1);
@@ -35,6 +43,9 @@
 .registry-toolbar select {
   width: 100%;
 }
+
+.registry-toolbar input, .registry-toolbar select { min-height: 40px; min-width: 0; padding: 8px 10px; border: 1px solid var(--sp-border-strong); border-radius: var(--sp-radius-sm); background: var(--sp-surface); color: var(--sp-text); font: inherit; }
+@media (max-width: 768px) { .registry-toolbar input, .registry-toolbar select { min-height: 44px; } }
 
 .registry-toolbar__meta {
   display: flex;
@@ -110,7 +121,7 @@
 
 @media (max-width: 560px) {
   .registry-toolbar__fields {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .registry-toolbar__meta {

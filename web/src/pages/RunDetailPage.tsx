@@ -1,5 +1,6 @@
+import { registryReturnTo } from './run-registry/registryModel'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { fetchRun, retryRun, RunSummary } from '../api'
 import { useRunSSE } from '../useRuns'
 import DraftTab from './tabs/DraftTab'
@@ -13,7 +14,7 @@ import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import StatusBadge from '../components/ui/StatusBadge'
 import SummaryStrip from '../components/ui/SummaryStrip'
-import { formatDate, formatDuration } from '../runPresentation'
+import { formatDate, formatDuration, providerLabel, runCost } from '../runPresentation'
 import ContentRunStageRail from '../components/runs/ContentRunStageRail'
 
 const TABS = [
@@ -22,6 +23,7 @@ const TABS = [
 type Tab = (typeof TABS)[number][0]
 
 export default function RunDetailPage() {
+  const returnTo = registryReturnTo(useLocation().state)
   const { runId } = useParams()
   const [tab, setTab] = useState<Tab>('overview')
   const [run, setRun] = useState<RunSummary | null>(null)
@@ -58,17 +60,17 @@ export default function RunDetailPage() {
 
   return (
     <section className="content-run-page density-compact">
-      <PageHeader title={`内容运行 ${runId?.slice(0, 8) ?? ''}`} description="查看归因、草稿、审核与治理结果。" actions={<Link className="button button-secondary" to="/runs">返回运行历史</Link>} />
+      <PageHeader title={`内容运行 ${runId?.slice(0, 8) ?? ''}`} description="查看归因、草稿、审核与治理结果。" actions={<Link className="button button-secondary" to={returnTo}>返回运行历史</Link>} />
       {loadError && <InlineAlert tone="error" title="无法加载运行详情"><button className="button button-secondary" type="button" onClick={refresh}>重新加载</button></InlineAlert>}
       {!run && !loadError && <LoadingState label="正在加载运行详情…" />}
       {run && <>
         <SummaryStrip label="内容运行摘要" items={[
           { label: '状态', value: <StatusBadge status={run.status} /> },
-          { label: 'Provider', value: run.provider },
+          { label: '数据来源', value: providerLabel(run.provider) },
           { label: '创建时间', value: formatDate(run.requested_at) },
-          { label: '耗时', value: formatDuration(run.elapsed_ms) },
-          { label: '成本', value: run.total_cost_cny != null ? `¥${run.total_cost_cny}` : '待完成' },
-          { label: '板块数', value: run.sector_count ?? 0 },
+          { label: '耗时', value: formatDuration(run.elapsed_ms, run.status) },
+          { label: '成本', value: runCost(run.total_cost_cny, run.status) },
+          { label: '板块数', value: run.sector_count ?? '未记录' },
         ]} />
         {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成"><p>{run.error_message ?? '本次运行未能完成，请检查系统状态。'}</p>{run.input_json_hash && <p>已保留输入快照，可使用相同输入重新运行。</p>}</InlineAlert>}
         {run.status === 'INTERRUPTED' && <InlineAlert tone="warning" title="运行已中断">服务重启前的执行未完成，可使用已保存的输入重新运行。</InlineAlert>}

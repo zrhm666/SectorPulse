@@ -47,13 +47,26 @@ describe('RunDetailPage', () => {
     )
 
     expect(await screen.findByText('待人工审核')).toBeVisible()
-    expect(screen.getByText('fixture')).toBeVisible()
+    expect(screen.getByText('样例演练')).toBeVisible()
     expect(screen.getByRole('button', { name: '重新运行' })).toBeEnabled()
     expect(screen.getByRole('tab', { name: '治理' })).toBeVisible()
     expect(screen.getByRole('region', { name: '内容运行摘要' })).toHaveTextContent('板块数')
     expect(screen.getByRole('region', { name: '运行阶段' })).toBeVisible()
     expect(screen.getByRole('link', { name: '进入审核工作台' })).toHaveAttribute('href', '/review?run=run-1')
     await waitFor(() => expect(fetchRun).toHaveBeenCalledWith('run-1'))
+  })
+
+  it('does not describe missing terminal metrics as pending or zero', async () => {
+    vi.mocked(fetchRun).mockResolvedValue({ run_id: 'run-1', requested_at: '2026-08-17T00:00:00Z', provider: 'live', status: 'FAILED', elapsed_ms: null, total_cost_cny: null, draft_id: null })
+    render(<MemoryRouter initialEntries={['/runs/run-1']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+    const summary = await screen.findByRole('region', { name: '内容运行摘要' })
+    expect(summary).not.toHaveTextContent('待完成')
+    expect(summary.textContent?.match(/未记录/g)).toHaveLength(3)
+  })
+
+  it('returns to the filtered registry when opened from its list', async () => {
+    render(<MemoryRouter initialEntries={[{ pathname: '/runs/run-1', state: { registryReturnTo: '/runs?status=FAILED&page=2' } }]}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+    expect(await screen.findByRole('link', { name: '返回运行历史' })).toHaveAttribute('href', '/runs?status=FAILED&page=2')
   })
 
   it('keeps a stored draft reachable when the run status is failed', async () => {
