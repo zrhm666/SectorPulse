@@ -1,1 +1,1 @@
-"""web / events package."""
+"""Web 进度事件与订阅通道。"""

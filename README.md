@@ -307,11 +307,11 @@ pg_dump -h 127.0.0.1 -U 用户名 -d 数据库名 --format=custom --file=$backup
 SectorPulse/
 ├─ backend/
 │  ├─ src/sector_pulse/
-│  │  ├─ application/      # 分析、归因、任务与审核用例
+│  │  ├─ application/      # 按业务分包：data_runs/news/writing/review/runs/tasks 等
 │  │  ├─ domain/           # 领域模型与规则
 │  │  ├─ infrastructure/   # 数据源与 LLM Provider
-│  │  ├─ storage/          # SQLite/PostgreSQL 仓储与迁移
-│  │  └─ web/              # FastAPI 接口与服务入口
+│  │  ├─ storage/          # sqlite/postgres 实现；共用配置、装配与 migrations
+│  │  └─ web/              # routers/schemas/services/events/providers 与服务入口
 │  └─ tests/               # 单元、集成、端到端与 Live 测试
 ├─ config/                 # LLM、新闻源、实体和 Prompt 配置
 ├─ docs/                   # 设计、计划、验收与项目审查记录
@@ -319,6 +319,9 @@ SectorPulse/
 ├─ scripts/                # 验证、备份与恢复脚本
 └─ web/                    # React 运营后台
 ```
+
+后端职责划分、新代码放置规则及导入示例见 [后端维护指南](backend/README.md)。
+本轮仅整理 Python 内部模块路径，HTTP API、CLI 和数据库表保持不变。
 
 ## 主要页面
 

@@ -1,1 +1,1 @@
-"""application / diagnostics package."""
+"""Phase 0/1A 诊断与探针入口。"""

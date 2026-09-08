@@ -1,1 +1,1 @@
-"""application / tasks package."""
+"""任务生命周期、执行协调与定时调度。"""

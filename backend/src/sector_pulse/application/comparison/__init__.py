@@ -1,1 +1,1 @@
-"""application / comparison package."""
+"""跨运行对比的模型、差异计算和查询。"""

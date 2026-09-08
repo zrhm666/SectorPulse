@@ -1,1 +1,1 @@
-"""application / data_runs package."""
+"""数据采集运行、候选选择、查询及写作桥接用例。"""

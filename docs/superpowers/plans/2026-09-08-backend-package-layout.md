@@ -43,8 +43,8 @@ $env:SECTOR_PULSE_DATABASE_URL=''
 
 接口：现有应用服务签名不变；消费者切换到 application.<业务>.<原模块>。
 
-- [ ] 建立后端全量离线基线。
-- [ ] 添加结构测试，先确认旧布局失败：
+- [x] 建立后端全量离线基线。
+- [x] 添加结构测试，先确认旧布局失败：
 
 ```python
 def test_application_modules_are_grouped():
@@ -53,15 +53,15 @@ def test_application_modules_are_grouped():
     }
 ```
 
-- [ ] 按设计表移动36个模块，新增9个职责明确的包；更新 backend/scripts 当前 Python 导入及 mock 字符串。
-- [ ] 移动对应 application 单元测试，归因 fixture 路径由 parents[2] 改为 parents[3]。
-- [ ] 运行结构和 application 测试，Ruff、Mypy；检查差异后提交。
+- [x] 按设计表移动36个模块，新增9个职责明确的包；更新 backend/scripts 当前 Python 导入及 mock 字符串。
+- [x] 移动对应 application 单元测试，归因 fixture 路径由 parents[2] 改为 parents[3]。
+- [x] 运行结构和 application 测试，Ruff、Mypy；检查差异后提交。
 
 ### Task 2: Storage 双方言分包
 
 接口：SQLiteDatabase、PostgresDatabase 与 RuntimeStorageBundle 原签名保持。
 
-- [ ] 添加以下默认 SQLite 迁移回归，用新导入路径运行确认失败：
+- [x] 添加以下默认 SQLite 迁移回归，用新导入路径运行确认失败：
 
 ```python
 def test_default_migrations_apply_all_versions(tmp_path):
@@ -75,27 +75,27 @@ def test_default_migrations_apply_all_versions(tmp_path):
     assert versions == [(n,) for n in range(1, 19)]
 ```
 
-- [ ] 按设计规则移动双方言 repositories、operations_query 和 application 的 SQL analytics，更新 runtime_bundle 和消费者导入。
-- [ ] 两个数据库 initialize 默认资源路径改为 Path(__file__).resolve().parents[1] / "migrations"，显式参数保持。
-- [ ] 收紧 application 顶层断言只允许 __init__.py；整理 storage 单元测试；跑真实临时 SQLite 与已有 PostgreSQL 离线测试。
-- [ ] 检查迁移 SQL diff 为空，Ruff、Mypy、后端回归后提交。
+- [x] 按设计规则移动双方言 repositories、operations_query 和 application 的 SQL analytics，更新 runtime_bundle 和消费者导入。
+- [x] 两个数据库 initialize 默认资源路径改为 Path(__file__).resolve().parents[1] / "migrations"，显式参数保持。
+- [x] 收紧 application 顶层断言只允许 __init__.py；整理 storage 单元测试；跑真实临时 SQLite 与已有 PostgreSQL 离线测试。
+- [x] 检查迁移 SQL diff 为空，Ruff、Mypy、后端回归后提交。
 
 ### Task 3: Web 职责分包
 
 接口：app/server/dependencies/routers 不搬迁；所有 HTTP 路径和 DTO 不变。
 
-- [ ] 增加 web 顶层仅允许 __init__/app/server/dependencies/errors 的断言；旧布局应失败。
-- [ ] 按设计表移动 schemas/services/events/providers，更新导入（schemas.py 指向 schemas.runs，其他专属 DTO 指向各自包）。
-- [ ] 整理对应 web 单元测试；全仓扫描旧模块路径、动态导入及文件资源定位。
-- [ ] 运行 web 与 API 集成回归、Ruff、Mypy，通过后提交。
+- [x] 增加 web 顶层仅允许 __init__/app/server/dependencies/errors 的断言；旧布局应失败。
+- [x] 按设计表移动 schemas/services/events/providers，更新导入（schemas.py 指向 schemas.runs，其他专属 DTO 指向各自包）。
+- [x] 整理对应 web 单元测试；全仓扫描旧模块路径、动态导入及文件资源定位。
+- [x] 运行 web 与 API 集成回归、Ruff、Mypy，通过后提交。
 
 ### Task 4: 验收和维护文档
 
-- [ ] 新增全模块 import 和 domain 无上层依赖约束；确认 CLI/web 入口可导入。
-- [ ] 全量离线后端、前端测试、tooling、构建、隔离 SQLite HTTP smoke、生产及开发 E2E。
-- [ ] 构建 wheel 并检查双方言迁移资源和新包；核验全部 SQL 与业务逻辑未变化。
-- [ ] 更新 backend/README.md 和根 README，新增验收记录：明确 PostgreSQL 实库测试未执行，不以离线检查冒充。
-- [ ] 更新任务勾选，最终自审并提交；保留功能分支，不合并、不推送。
+- [x] 新增全模块 import 和 domain 无上层依赖约束；确认 CLI/web 入口可导入。
+- [x] 全量离线后端、前端测试、tooling、构建、隔离 SQLite HTTP smoke、生产及开发 E2E。
+- [x] 构建 wheel 并检查双方言迁移资源和新包；核验全部 SQL 与业务逻辑未变化。
+- [x] 更新 backend/README.md 和根 README，新增验收记录：明确 PostgreSQL 实库测试未执行，不以离线检查冒充。
+- [x] 更新任务勾选，最终自审并提交；保留功能分支，不合并、不推送。
 
 ## 自审
 

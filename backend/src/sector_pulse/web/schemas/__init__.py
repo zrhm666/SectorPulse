@@ -1,1 +1,1 @@
-"""web / schemas package."""
+"""HTTP 请求与响应模型；按接口业务显式导入。"""

@@ -1,1 +1,1 @@
-"""application / news package."""
+"""新闻检索、入库协调、实体解析和质量判定。"""
