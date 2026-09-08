@@ -3,12 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { fetchRun } from '../api'
+import { fetchRadar, fetchRun } from '../api'
 import RunDetailPage from './RunDetailPage'
 
 vi.mock('../api', () => ({
   fetchRun: vi.fn(),
   retryRun: vi.fn(),
+  fetchRadar: vi.fn(),
 }))
 
 vi.mock('../useRuns', () => ({
@@ -24,6 +25,7 @@ vi.mock('./tabs/GovernanceTab', () => ({ default: () => <div>治理内容</div> 
 
 describe('RunDetailPage', () => {
   beforeEach(() => {
+    vi.mocked(fetchRadar).mockResolvedValue({ cards: [] })
     vi.mocked(fetchRun).mockResolvedValue({
       run_id: 'run-1',
       requested_at: '2026-08-17T00:00:00Z',
@@ -80,6 +82,26 @@ describe('RunDetailPage', () => {
     expect(await screen.findByText('草稿内容')).toBeInTheDocument()
     expect(screen.getByText('审核服务暂时不可用')).toBeVisible()
     expect(screen.getByText(/已保留输入快照/)).toBeVisible()
-    expect(screen.queryByText('已完成')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('timeline-state')[4]).toHaveTextContent('已完成')
+    expect(screen.getAllByTestId('timeline-state')[5]).toHaveTextContent('未记录')
+  })
+
+  it('restores saved attribution on an unreviewed historical run and links its draft to review', async () => {
+    vi.mocked(fetchRun).mockResolvedValue({
+      run_id: 'run-1', requested_at: '2026-08-25T14:12:00Z', provider: 'live',
+      status: 'UNREVIEWED', draft_id: 'draft-1', elapsed_ms: null, total_cost_cny: null,
+      review_decision: null,
+    })
+    vi.mocked(fetchRadar).mockResolvedValue({ cards: [{
+      sector_id: 'sector-1', attribution_level: 'LOW', confidence: 0.3,
+      allowed_max_level: 'LOW', conclusion: '证据不足', counter_evidence: [],
+      uncertainties: [], claims: [],
+    }] })
+    render(<MemoryRouter initialEntries={['/runs/run-1']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+    expect(await screen.findByRole('link', { name: '进入审核工作台' })).toHaveAttribute('href', '/review?run=run-1')
+    await waitFor(() => expect(screen.getAllByTestId('timeline-state')[2]).toHaveTextContent('已完成'))
+    expect(screen.getAllByTestId('timeline-state')[3]).toHaveTextContent('未记录')
+    expect(screen.getAllByTestId('timeline-state')[5]).toHaveTextContent('未记录')
+    expect(screen.getByText('草稿已保存，自动审核尚无结论')).toBeVisible()
   })
 })

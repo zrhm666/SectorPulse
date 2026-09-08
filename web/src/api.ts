@@ -116,8 +116,8 @@ export function fetchRuns(signal?: AbortSignal): Promise<RunSummary[]> {
   return get<RunSummary[]>('/runs', signal)
 }
 
-export function fetchRun(runId: string): Promise<RunSummary> {
-  return get<RunSummary>(`/runs/${runId}`)
+export function fetchRun(runId: string, signal?: AbortSignal): Promise<RunSummary> {
+  return get<RunSummary>(`/runs/${runId}`, signal)
 }
 
 export function fetchRadar(runId: string): Promise<RadarView> {

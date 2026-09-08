@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, expect, it, vi } from 'vitest'
 import * as api from '../api'
 import * as editing from '../editingApi'
@@ -96,4 +96,39 @@ it('opens the run requested by a direct review link', async () => {
 
   expect(await screen.findByRole('button', { name: '审核运行 run-2' })).toHaveAttribute('data-selected', 'true')
   expect(api.fetchDraft).toHaveBeenCalledWith('run-2', expect.any(AbortSignal))
+})
+
+function LocationDisplay() {
+  const location = useLocation()
+  return <output aria-label="当前地址">{location.pathname}{location.search}</output>
+}
+
+it('identifies the source run and preserves the selected run in the URL', async () => {
+  render(<MemoryRouter initialEntries={['/review']}><FeedbackProvider><ReviewWorkspacePage /><LocationDisplay /></FeedbackProvider></MemoryRouter>)
+  const context = await screen.findByRole('region', { name: '来源分析运行' })
+  expect(context).toHaveTextContent('run-1')
+  expect(context).toHaveTextContent('2026年8月23日')
+  expect(context).toHaveTextContent('样例演练')
+  expect(screen.getByRole('link', { name: '查看分析运行' })).toHaveAttribute('href', '/runs/run-1')
+  await waitFor(() => expect(screen.getByLabelText('当前地址')).toHaveTextContent('/review?run=run-1'))
+})
+
+it('prevents the source link from leaving a dirty draft', async () => {
+  render(<MemoryRouter><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
+  fireEvent.change(await screen.findByLabelText('导语'), { target: { value: '未保存内容' } })
+  await userEvent.click(screen.getByRole('link', { name: '查看分析运行' }))
+  expect(screen.getByText('当前草稿仍有未保存或冲突的修改，请处理后再离开。')).toBeVisible()
+})
+
+it('does not abort a slow draft load when the default selection is written to the URL', async () => {
+  const draft = await api.fetchDraft('run-1')
+  vi.mocked(api.fetchDraft).mockImplementation((_id, signal) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(draft), 100)
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    })
+  }))
+  render(<MemoryRouter initialEntries={['/review']}><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
+  expect(await screen.findByLabelText('导语')).toHaveValue('新导语')
 })

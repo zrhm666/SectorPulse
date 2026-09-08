@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { RunSummary } from '../../api'
 import StatusBadge from '../ui/StatusBadge'
+import { formatDate, providerLabel } from '../../runPresentation'
 
 type QueueFilter = 'pending' | 'approved' | 'all'
 
@@ -33,6 +34,6 @@ export default function ReviewQueue({ runs, selectedId, onSelect }: { runs: RunS
         aria-label={`审核运行 ${run.run_id}`}
         data-selected={selectedId === run.run_id}
         onClick={() => onSelect(run.run_id)}
-      ><span><strong>{run.run_id.slice(0, 8)}</strong><small>{run.provider} · {run.sector_count == null ? '板块数未提供' : `${run.sector_count} 个板块`}</small></span><StatusBadge status={isApproved(run) ? 'APPROVED_FOR_COPY' : run.status} /></button></li>)}</ul>}
+      ><span><strong>{formatDate(run.requested_at)}</strong><small>运行 {run.run_id.slice(0, 8)}</small><small>{providerLabel(run.provider)} · {run.sector_count == null ? '板块数未提供' : `${run.sector_count} 个板块`}</small></span><StatusBadge status={isApproved(run) ? 'APPROVED_FOR_COPY' : run.status} /></button></li>)}</ul>}
   </section>
 }

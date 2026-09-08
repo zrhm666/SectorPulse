@@ -1,7 +1,7 @@
 import { registryReturnTo } from './run-registry/registryModel'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { fetchRun, retryRun, RunSummary } from '../api'
+import { fetchRadar, fetchRun, retryRun, RunSummary } from '../api'
 import { useRunSSE } from '../useRuns'
 import DraftTab from './tabs/DraftTab'
 import EvidenceTab from './tabs/EvidenceTab'
@@ -30,6 +30,8 @@ export default function RunDetailPage() {
   const [retrying, setRetrying] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const [retryError, setRetryError] = useState(false)
+  const [savedAttribution, setSavedAttribution] = useState<string | null>(null)
+  const [stageLoadError, setStageLoadError] = useState(false)
 
   const refresh = useCallback(() => {
     if (!runId) return
@@ -58,6 +60,18 @@ export default function RunDetailPage() {
 
   const { events, done, error: streamError } = useRunSSE(runId ?? null, refresh)
 
+  useEffect(() => {
+    let active = true
+    setSavedAttribution(null)
+    setStageLoadError(false)
+    if (done && runId && run?.run_id === runId && run.status !== 'READY_FOR_HUMAN_REVIEW') {
+      fetchRadar(runId).then(radar => {
+        if (active) setSavedAttribution(radar.cards.length ? runId : null)
+      }).catch(() => { if (active) setStageLoadError(true) })
+    }
+    return () => { active = false }
+  }, [done, run?.run_id, run?.status, runId])
+
   return (
     <section className="content-run-page density-compact">
       <PageHeader title={`内容运行 ${runId?.slice(0, 8) ?? ''}`} description="查看归因、草稿、审核与治理结果。" actions={<Link className="button button-secondary" to={returnTo}>返回运行历史</Link>} />
@@ -74,11 +88,13 @@ export default function RunDetailPage() {
         ]} />
         {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成"><p>{run.error_message ?? '本次运行未能完成，请检查系统状态。'}</p>{run.input_json_hash && <p>已保留输入快照，可使用相同输入重新运行。</p>}</InlineAlert>}
         {run.status === 'INTERRUPTED' && <InlineAlert tone="warning" title="运行已中断">服务重启前的执行未完成，可使用已保存的输入重新运行。</InlineAlert>}
-        {['UNREVIEWED', 'REVISE_REQUIRED'].includes(run.status) && <InlineAlert tone="warning" title="审核尚未通过">本次生成已结束，请检查草稿与审核结果后处理。</InlineAlert>}
+        {run.status === 'UNREVIEWED' && <InlineAlert tone="warning" title={run.draft_id ? '草稿已保存，自动审核尚无结论' : '自动审核尚无结论'}>未记录有效的自动审核结论，不等于归因或写作未执行。请检查已有草稿和证据后，再进行人工审核。</InlineAlert>}
+        {run.status === 'REVISE_REQUIRED' && <InlineAlert tone="warning" title="自动审核要求修改">请查看审核意见，修改草稿后再进行人工批准。</InlineAlert>}
         {streamError && run.status !== 'FAILED' && <InlineAlert tone="warning" title="实时进度已中断">{streamError}。页面仍保留最近一次运行快照。</InlineAlert>}
         {retryError && <InlineAlert tone="error" title="重试未能启动">请检查 Provider 和系统配置后再试。</InlineAlert>}
-        <div className="detail-actions">{run.draft_id && run.status === 'READY_FOR_HUMAN_REVIEW' && <Link className="button button-primary" to={`/review?run=${encodeURIComponent(run.run_id)}`}>进入审核工作台</Link>}{run.retryable && <button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button>}</div>
-        <ContentRunStageRail events={events} done={done} run={run} />
+        <div className="detail-actions">{run.draft_id && run.status !== 'RUNNING' && <Link className="button button-primary" to={`/review?run=${encodeURIComponent(run.run_id)}`}>进入审核工作台</Link>}{run.retryable && <button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button>}</div>
+        {stageLoadError && <InlineAlert tone="warning" title="历史归因记录暂时无法加载">阶段条保留已确认的草稿状态；其余记录未被标记为未执行。可刷新页面重试。</InlineAlert>}
+        <ContentRunStageRail events={events} done={done} run={run} hasAttribution={savedAttribution === run.run_id} />
         <div className="tabbar" role="tablist" aria-label="运行详情视图">{TABS.map(([key, label]) => <button key={key} id={`content-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`content-panel-${key}`} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
         <div id={`content-panel-${tab}`} role="tabpanel" aria-labelledby={`content-tab-${tab}`} className="tab-panel">
           {tab === 'overview' && <OverviewTab events={events} done={done} run={run} />}

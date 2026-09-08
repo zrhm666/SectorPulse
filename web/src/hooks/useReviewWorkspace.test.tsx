@@ -29,6 +29,29 @@ beforeEach(() => {
   vi.mocked(editing.fetchEvidenceDecisions).mockResolvedValue([])
 })
 
+it('opens an explicitly requested historical draft outside the recent queue', async () => {
+  vi.mocked(api.fetchRun).mockResolvedValue({ ...pendingRun, run_id: 'older-run' })
+  const { result } = renderHook(() => useReviewWorkspace('older-run'))
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(result.current.selectedRun?.run_id).toBe('older-run')
+})
+
+it('does not silently select another draft when a direct run link is unavailable', async () => {
+  vi.mocked(api.fetchRun).mockRejectedValue(new Error('404'))
+  const { result } = renderHook(() => useReviewWorkspace('missing-run'))
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(result.current.selectedId).toBeNull()
+  expect(result.current.queueError).not.toBeNull()
+})
+
+it('follows a changed URL to the requested run rather than retaining the old selection', async () => {
+  const { result, rerender } = renderHook(({ id }) => useReviewWorkspace(id), { initialProps: { id: 'run-pending' } })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  rerender({ id: 'run-approved' })
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(result.current.selectedId).toBe('run-approved')
+})
+
 it('selects the first pending review and loads its complete workspace', async () => {
   const { result } = renderHook(() => useReviewWorkspace())
   await act(async () => { await Promise.resolve(); await Promise.resolve() })

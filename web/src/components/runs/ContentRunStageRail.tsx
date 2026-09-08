@@ -1,7 +1,7 @@
 import type { RunSummary } from '../../api'
 import type { ProgressEvent } from '../../useRuns'
 
-type StageState = 'complete' | 'degraded' | 'failed' | 'skipped' | 'pending'
+type StageState = 'complete' | 'degraded' | 'failed' | 'skipped' | 'pending' | 'unknown'
 
 const stages = [
   'phase1b.start',
@@ -18,7 +18,7 @@ const labels: Record<(typeof stages)[number], string> = {
   'attribution.done': '归因完成',
   'editorial.done': '编辑完成',
   'writing.done': '写作完成',
-  'review.done': '审核完成',
+  'review.done': '自动审核完成',
 }
 
 const stateLabels: Record<StageState, string> = {
@@ -27,9 +27,11 @@ const stateLabels: Record<StageState, string> = {
   failed: '失败',
   skipped: '未执行',
   pending: '等待中',
+  unknown: '未记录',
 }
 
-function resolveStageStates(events: ProgressEvent[], done: boolean, status?: string): StageState[] {
+function resolveStageStates(events: ProgressEvent[], done: boolean, run: RunSummary | null, hasAttribution: boolean): StageState[] {
+  const status = run?.status
   const seen = new Set(events.map((event) => event.stage))
   if (status === 'READY_FOR_HUMAN_REVIEW') return stages.map(() => 'complete')
   if (status === 'DRAFT_GENERATION_FAILED') {
@@ -49,13 +51,18 @@ function resolveStageStates(events: ProgressEvent[], done: boolean, status?: str
     if (index === failedIndex) return 'failed'
     if (seen.has(stage) || index < furthestObserved) return 'complete'
     if (failedIndex >= 0 && index > failedIndex) return 'skipped'
-    if (done) return 'skipped'
+    // Saved artifacts prove their own stage, not every earlier stage or a passing review.
+    if (index === 0 && (run?.draft_id || hasAttribution)) return 'complete'
+    if ((index === 1 || index === 2) && hasAttribution) return 'complete'
+    if (index === 4 && run?.draft_id) return 'complete'
+    if (index === 5 && run?.review_decision) return 'complete'
+    if (done) return 'unknown'
     return 'pending'
   })
 }
 
-export default function ContentRunStageRail({ events, done, run }: { events: ProgressEvent[]; done: boolean; run: RunSummary | null }) {
-  const states = resolveStageStates(events, done, run?.status)
+export default function ContentRunStageRail({ events, done, run, hasAttribution = false }: { events: ProgressEvent[]; done: boolean; run: RunSummary | null; hasAttribution?: boolean }) {
+  const states = resolveStageStates(events, done, run, hasAttribution)
   return <section className="content-run-stage-rail" role="region" aria-label="运行阶段">
     <div className="content-run-stage-rail__heading">
       <strong>运行阶段</strong>
@@ -68,5 +75,6 @@ export default function ContentRunStageRail({ events, done, run }: { events: Pro
         <small data-testid="timeline-state">{stateLabels[states[index]]}</small>
       </li>)}
     </ol>
+    {done && states.includes('unknown') && <p className="status-detail">历史进度记录不完整；已保存的产物用于确认对应阶段，“未记录”不代表未执行。自动审核完成也不代表已人工批准。</p>}
   </section>
 }

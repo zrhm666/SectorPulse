@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import DraftWorkspace, { type DraftFieldContext, type DraftWorkspaceState } from '../components/review/DraftWorkspace'
 import EvidenceDecisionPane from '../components/review/EvidenceDecisionPane'
 import ReviewPaneTabs, { type ReviewPane } from '../components/review/ReviewPaneTabs'
@@ -10,13 +10,14 @@ import InlineAlert from '../components/ui/InlineAlert'
 import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import useReviewWorkspace from '../hooks/useReviewWorkspace'
+import { formatDate, providerLabel } from '../runPresentation'
 import {
   applyDraftPatch, approveDraft, approvedExportUrl,
   recordEvidenceDecision, returnDraft, ReviewApiError, revokeDraft,
 } from '../editingApi'
 
 export default function ReviewWorkspacePage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const feedback = useFeedback()
   const [activePane, setActivePane] = useState<ReviewPane>('draft')
   const [focusDraft, setFocusDraft] = useState(false)
@@ -27,6 +28,14 @@ export default function ReviewWorkspacePage() {
     runs, selectedId, selectedRun, versions, governance, approval, decisions,
     initialLoading, workspaceLoading, queueError, workspaceError,
   } = workspace
+
+  useEffect(() => {
+    if (selectedId && !searchParams.get('run')) {
+      const next = new URLSearchParams(searchParams)
+      next.set('run', selectedId)
+      setSearchParams(next, { replace: true })
+    }
+  }, [selectedId, searchParams, setSearchParams])
 
   const runAction = async (
     action: () => Promise<void>, refresh: () => Promise<void>, successMessage: string, errorMessage: string,
@@ -60,8 +69,17 @@ export default function ReviewWorkspacePage() {
 
   return <section className="review-page">
     <PageHeader title="审核工作台" description="集中阅读、修改和核准已生成的分析草稿。" actions={latest && <button type="button" className="button button-secondary review-focus-toggle" aria-pressed={focusDraft} onClick={() => { setFocusDraft(value => !value); setActivePane('draft') }}>{focusDraft ? '恢复三栏' : '专注草稿'}</button>} />
+    {selectedRun && <section className="review-run-context" aria-label="来源分析运行">
+      <div><strong>来源分析运行</strong><p>{formatDate(selectedRun.requested_at)} · {providerLabel(selectedRun.provider)} · 内容生成</p><span className="review-run-context__id">运行 ID：{selectedRun.run_id}</span></div>
+      <Link className="button button-secondary" to={`/runs/${encodeURIComponent(selectedRun.run_id)}`} onClick={event => {
+        if (draftState.hasPending || draftState.hasConflict) {
+          event.preventDefault()
+          feedback.error('当前草稿仍有未保存或冲突的修改，请处理后再离开。')
+        }
+      }}>查看分析运行</Link>
+    </section>}
     {initialLoading && <LoadingState label="正在加载审核队列…" />}
-    {queueError && <InlineAlert tone="error" title="无法加载审核队列">{queueError}</InlineAlert>}
+    {queueError && <InlineAlert tone="error" title="无法加载审核队列">{queueError}<div><button type="button" className="button button-secondary" onClick={() => void workspace.refreshQueue()}>重新加载</button> <Link to="/runs">查看运行历史</Link></div></InlineAlert>}
     {workspaceError && versions.length > 0 && <InlineAlert tone="warning" title="显示最近一次成功数据">{workspaceError}</InlineAlert>}
     {!initialLoading && !queueError && runs.length === 0 && <EmptyState title="暂无可审核草稿" description="先创建一次 Fixture 或 Live 分析，草稿完成后会进入这里。" />}
     {runs.length > 0 && <div className="review-workspace" data-focus={focusDraft}>
@@ -74,6 +92,9 @@ export default function ReviewWorkspacePage() {
               return
             }
             workspace.selectRun(runId)
+            const next = new URLSearchParams(searchParams)
+            next.set('run', runId)
+            setSearchParams(next)
             setActivePane('draft')
           }} />
         </div>

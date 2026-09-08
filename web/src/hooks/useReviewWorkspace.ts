@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchDraft, fetchRuns, type DraftVersionView, type RunSummary } from '../api'
+import { fetchDraft, fetchRun, fetchRuns, type DraftVersionView, type RunSummary } from '../api'
 import {
   fetchApproval,
   fetchEvidenceDecisions,
@@ -37,8 +37,8 @@ function reviewable(items: RunSummary[]): RunSummary[] {
 }
 
 function preferredRun(items: RunSummary[], currentId: string | null, requestedId?: string | null): string | null {
-  if (currentId && items.some((item) => item.run_id === currentId)) return currentId
   if (requestedId && items.some((item) => item.run_id === requestedId)) return requestedId
+  if (currentId && items.some((item) => item.run_id === currentId)) return currentId
   return items.find((item) => item.status === 'READY_FOR_HUMAN_REVIEW')?.run_id
     ?? items[0]?.run_id
     ?? null
@@ -72,13 +72,25 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
     queueControllerRef.current = controller
     try {
       const items = reviewable(await fetchRuns(controller.signal))
+      if (requestedId && !items.some(item => item.run_id === requestedId)) {
+        const requested = await fetchRun(requestedId, controller.signal)
+        if (!reviewable([requested]).length) throw new Error('Requested run has no reviewable draft')
+        items.unshift(requested)
+      }
       if (!mountedRef.current || controller.signal.aborted) return
       setRuns(items)
       setSelectedId(preferredRun(items, selectedIdRef.current, requestedId))
       setQueueError(null)
     } catch {
       if (!mountedRef.current || controller.signal.aborted) return
-      setQueueError('无法加载审核队列，请确认服务可用后重试。')
+      if (requestedId) {
+        setSelectedId(null)
+        setRuns([])
+        setVersions([])
+      }
+      setQueueError(requestedId
+        ? '无法打开指定运行的草稿，请检查运行 ID、草稿是否存在，或重试。'
+        : '无法加载审核队列，请确认服务可用后重试。')
     } finally {
       if (queueControllerRef.current === controller) {
         queueControllerRef.current = null
@@ -162,12 +174,16 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
 
   useEffect(() => {
     mountedRef.current = true
-    void refreshQueue()
     return () => {
       mountedRef.current = false
       queueControllerRef.current?.abort()
       workspaceControllerRef.current?.abort()
     }
+  }, [])
+
+  useEffect(() => {
+    void refreshQueue()
+    return () => { queueControllerRef.current?.abort() }
   }, [refreshQueue])
 
   useEffect(() => {

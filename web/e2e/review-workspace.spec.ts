@@ -87,6 +87,39 @@ async function openReview(page: Page, viewport: { width: number; height: number 
   return state
 }
 
+for (const width of [1536, 390]) {
+  test(`historical draft stays linked to its run and shows truthful stages at ${width}`, async ({ page }, testInfo) => {
+    await installReviewFixture(page)
+    await page.route('**/api/runs/review-run-1', route => route.fulfill({
+      json: { ...run(), status: 'UNREVIEWED', review_decision: null },
+    }))
+    await page.route('**/api/runs/review-run-1/radar', route => route.fulfill({
+      json: { cards: [{ sector_id: 'industry-1', conclusion: '已保存归因' }] },
+    }))
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/runs/review-run-1')
+    await expect(page.getByText('草稿已保存，自动审核尚无结论')).toBeVisible()
+    const states = page.getByTestId('timeline-state')
+    await expect(states.nth(2)).toHaveText('已完成')
+    await expect(states.nth(3)).toHaveText('未记录')
+    await expect(states.nth(4)).toHaveText('已完成')
+    await expect(states.nth(5)).toHaveText('未记录')
+    await page.screenshot({ path: testInfo.outputPath('historical-stages.png'), fullPage: true })
+    await page.getByRole('link', { name: '进入审核工作台' }).click()
+    await expect(page).toHaveURL(/\/review\?run=review-run-1$/)
+    const source = page.getByRole('region', { name: '来源分析运行' })
+    await expect(source).toContainText('review-run-1')
+    await expect(page.getByLabel('导语', { exact: true })).toHaveValue('当前导语')
+    await page.reload()
+    await expect(source).toContainText('review-run-1')
+    await expect(page.getByLabel('导语', { exact: true })).toHaveValue('当前导语')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath('review-source.png'), fullPage: true })
+    await page.getByRole('link', { name: '查看分析运行' }).click()
+    await expect(page).toHaveURL(/\/runs\/review-run-1$/)
+  })
+}
+
 for (const viewport of [{ width: 1536, height: 1024 }, { width: 1440, height: 900 }]) {
   test(`desktop review uses balanced independent panes at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await openReview(page, viewport)
@@ -189,7 +222,8 @@ test('loading, empty, governance-blocked and approved states remain explicit', a
 
   // Later routes take precedence; keep the previous fixture until reload completes.
   await installReviewFixture(page, 'empty')
-  await page.reload()
+  // Empty queue is a fresh entry, not a deep link to a now-unavailable draft.
+  await page.goto('/review')
   await expect(page.getByRole('heading', { name: '暂无可审核草稿' })).toBeVisible()
 
   await installReviewFixture(page, 'blocked')
