@@ -125,6 +125,7 @@ def build_runtime_dependencies(
         bus=bus,
         fixture_responses=load_default_fixture_responses(),
         llm_factory={},
+        market_snapshots=storage.market_snapshots,
     )
     provider_factory = RealDataProviderFactory()
     entity_config = load_entity_config(Path("config/sector_entities.yaml"))

@@ -17,8 +17,7 @@
 
 ## 尚未完成
 
-- 旧运行重试输入：从同运行快照恢复缺失名称，目前缺失时使用可追溯 ID 降级。
-- 历史业务草稿的 dry-run 差异工具和经确认后的原子 apply。
+- 经确认后的历史业务草稿原子 apply。
 - 隔离 PostgreSQL 验证；没有使用业务数据库替代测试库。
 - 完整设计的最终 HTTP 流程验收和更多修订边界测试。
 
@@ -31,3 +30,19 @@
 - 新测试包括：可信名称覆盖模型名称、降级名称、类型错配、主体检查、真实内容修订、无变化/非法修改拒绝、预算回调、两轮上限、逐版复审和随包 Fixture。
 - 存在一条原有 FastAPI/Starlette 测试客户端依赖弃用警告，不是本次测试失败。
 - 未修改本轮前端；检查阶段组件确认未知 revision 事件不会破坏既有阶段枚举。
+
+## 续批：名称恢复与只读预览
+
+Web 重试现可从原运行快照补齐缺失名称，原运行输入保持不变。类型错误、重复 ID 或无法唯一匹配的名称不恢复。预览模块列出字段前后值和无法解析章节，无实际变化时不提议新版本。
+
+只读命令（替换明确的目标参数）：
+
+```powershell
+.venv/Scripts/python.exe scripts/repair_draft_identity.py --sqlite data/sector-pulse.db --run-id <运行UUID> --draft-id <草稿UUID> --expected-version <当前版本>
+```
+
+PostgreSQL：在当前终端设置 `SECTOR_PULSE_DATABASE_URL`，不传 `--sqlite`。工具不会自动加载 .env，不打印连接异常详情。只有确认章节尾部标记由旧系统追加时，才传 `--confirmed-system-markers` 生成清理建议；正文中间正常引用不会删除。
+
+目前命令只有 dry-run，不支持 apply。SQLite 测试验证数据库文件前后字节不变、没有新增版本；PostgreSQL 只读分支尚未实测。未对用户业务草稿运行预览，因为尚无明确目标 ID。
+
+续批验证：457 passed、14 skipped、24 deselected；Ruff 通过（包含预览脚本），Mypy 213 个后端源文件通过。原有依赖弃用警告仍为一条。

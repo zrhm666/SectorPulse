@@ -108,9 +108,9 @@ Files:
 
 Interfaces: 修复输入为明确 run_id/draft_id/expected_version；输出为字段差异和无法解析项。dry-run 不写库；apply 复核版本并原子保存新版本和审计。
 
-- [ ] 追踪旧输入恢复入口；仅按同运行 `(sector_kind, sector_id)` 快照补名称，无唯一映射则报告缺失。
-- [ ] 写 dry-run 零写入、保留中间正常引用字样、只清理末尾系统后缀测试；用原始/结果正文的文字常量独立断言。
-- [ ] 实现安全差异生成，示例断言 `assert preview.after.version == original.version + 1`，`assert repository.latest_version(draft_id) == original.version`。
+- [x] 追踪旧输入恢复入口；RunService 在运行 ID 归一前按原运行 `(sector_kind, sector_id)` 快照补名称；不匹配时保持未知，预览报告无法解析章节。
+- [x] 写 dry-run 零写入、保留中间正常引用字样、只清理明确确认的末尾系统后缀测试；用原始/结果正文的文字常量独立断言。
+- [x] 实现安全差异生成；SQLite CLI 验证前后数据库字节一致，原版本数量不变。
 - [ ] 写 apply 事务回滚、冲突拒绝、旧批准不继承及重复执行不生成版本测试，确认失败后实现双方言原子事务。
 - [ ] 命令行默认 dry-run，apply 要求显式开关与目标；实际业务只交付预览，不自行 apply。
 
@@ -128,3 +128,5 @@ Interfaces: 修复输入为明确 run_id/draft_id/expected_version；输出为�
 2026-09-09：设计已获用户确认；开始 Task 1。未调用真实 LLM，未改业务数据库。
 
 2026-09-09 本批：Task 1、2 已实现，Task 3 核心闭环已实现。补充了项目自带 Fixture 的明确主体和实际字数，并修复外部 invocation sink 导致管线成本统计归零的问题。Task 3 的完整边界测试（含更多多章节范围、BLOCK、超时）和 Task 4、5 仍待完成，不将本批测试通过视为整个设计交付。
+
+2026-09-09 续批：新增 `application/writing/sector_identity.py` 供 Web 重试和预览复用；生产依赖注入快照仓库。新增纯预览模块及 `scripts/repair_draft_identity.py`（只读，没有 apply）。SQLite 使用 mode=ro；PostgreSQL 使用只读事务，PG 分支尚未实测。不自动读取 .env，不调用 LLM，不改表。原子 apply 及完整验收仍未完成。
