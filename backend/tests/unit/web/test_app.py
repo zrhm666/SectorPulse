@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sector_pulse.application.data_runs.candidate_selection_service import (
     CandidateSelectionRequired,
@@ -129,7 +130,11 @@ class WritingActions:
         self.generated_id = generated_id
         self.generate_call: tuple[UUID, tuple[str, ...] | None] | None = None
 
-    def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
+    def generate(
+        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None,
+        *, attribution_mode="workflow",
+    ) -> UUID:
+        self.attribution_mode = attribution_mode
         self.generate_call = (run_id, sector_ids)
         return self.generated_id
 
@@ -318,7 +323,8 @@ def test_selection_preview_can_be_confirmed_as_a_version(tmp_path) -> None:
     )
 
 
-def test_generate_uses_confirmed_selection_instead_of_transient_candidates(tmp_path) -> None:
+@pytest.mark.parametrize("mode", ["workflow", "agent"])
+def test_generate_uses_confirmed_selection_instead_of_transient_candidates(tmp_path, mode) -> None:
     run_id = uuid4()
     generated_id = uuid4()
     writing = WritingActions(generated_id)
@@ -338,12 +344,13 @@ def test_generate_uses_confirmed_selection_instead_of_transient_candidates(tmp_p
 
     response = client.post(
         f"/api/data-runs/{run_id}/generate",
-        json={"sector_ids": ["sector-3", "sector-1", "sector-2"]},
+        json={"sector_ids": ["sector-3", "sector-1", "sector-2"], "attribution_mode": mode},
     )
 
     assert response.status_code == 200
     assert response.json() == {"run_id": str(generated_id)}
     assert writing.generate_call == (run_id, ("sector-1", "sector-2", "sector-3"))
+    assert writing.attribution_mode == mode
 
 
 def test_generate_without_a_confirmed_selection_is_rejected(tmp_path) -> None:

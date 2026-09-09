@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4, uuid5
 
+from pydantic import TypeAdapter
+
 from sector_pulse.application.tasks.task_registry import RunTaskRegistry
 from sector_pulse.application.writing.phase1b_pipeline import (
     Phase1BDependencies,
@@ -19,6 +21,7 @@ from sector_pulse.application.writing.sector_identity import restore_context_nam
 from sector_pulse.config.llm_config import LLMRuntimeConfig
 from sector_pulse.domain.llm import AgentInvocation
 from sector_pulse.domain.writing.article import ArticleDraft, ArticleSource, DraftStatus
+from sector_pulse.domain.writing.attribution_mode import AttributionMode
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.storage.ports.market import MarketSnapshotRepositoryPort
 from sector_pulse.storage.ports.news import NewsEvidenceRepositoryPort
@@ -67,6 +70,12 @@ class RunService:
     ) -> UUID:
         # 先做同步预检，避免未配置 Live 任务先落库为 RUNNING。
         self._preflight(provider)
+        mode = TypeAdapter(AttributionMode).validate_python(
+            input_json.get("attribution_mode", "workflow")
+        )
+        if mode is AttributionMode.AGENT:
+            raise ProviderUnavailable("AGENT_MODE_UNAVAILABLE")
+        input_json = {**input_json, "attribution_mode": mode.value}
         run_id = run_id or uuid4()
         existing = self._runs_repo.get_run(run_id)
         if existing is not None:
@@ -327,6 +336,9 @@ class RunService:
                 total_cost_cny=r.total_cost_cny,
                 draft_id=r.draft_id,
                 retry_of_run_id=r.retry_of_run_id,
+                attribution_mode=TypeAdapter(AttributionMode).validate_python(
+                    (r.input_json or {}).get("attribution_mode", "workflow")
+                ),
             )
             for r in self._runs_repo.list_runs(limit)
         ]
@@ -346,6 +358,9 @@ class RunService:
             total_cost_cny=row.total_cost_cny,
             draft_id=row.draft_id,
             retry_of_run_id=row.retry_of_run_id,
+            attribution_mode=TypeAdapter(AttributionMode).validate_python(
+                (row.input_json or {}).get("attribution_mode", "workflow")
+            ),
             input_json_hash=row.input_json_hash,
             error_message=row.error_message,
             sector_count=len(cards),

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sector_pulse.application.data_runs.real_data_writing_bridge import build_phase1b_request
 from sector_pulse.domain.runs.real_data_run import RealDataRunStatus
+from sector_pulse.domain.writing.attribution_mode import AttributionMode
 from sector_pulse.storage.database_runtime import Database
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
@@ -34,7 +35,10 @@ class DataRunWritingService:
         self._storage = storage
         self._consent_file = consent_file or Path(".live-llm-consent")
 
-    def generate(self, run_id: UUID, sector_ids: tuple[str, ...] | None = None) -> UUID:
+    def generate(
+        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None,
+        *, attribution_mode: AttributionMode = AttributionMode.WORKFLOW,
+    ) -> UUID:
         if not self._consent_file.is_file():
             raise ValueError("LIVE_LLM_CONSENT_REQUIRED")
         run = self._repository.get_run(run_id)
@@ -45,4 +49,5 @@ class DataRunWritingService:
         request = build_phase1b_request(
             self._database, run_id, self._storage, selected_sector_ids=sector_ids
         )
-        return self._run_service.create_run(request.model_dump(mode="json"), "live", run_id=run_id)
+        payload = {**request.model_dump(mode="json"), "attribution_mode": attribution_mode.value}
+        return self._run_service.create_run(payload, "live", run_id=run_id)

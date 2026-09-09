@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from sector_pulse.domain.writing.attribution_mode import AttributionMode
+
 
 class NewRunRequest(BaseModel):
     input_json: dict[str, Any]
@@ -16,6 +18,7 @@ class NewRunResponse(BaseModel):
 
 
 class RunSummary(BaseModel):
+    attribution_mode: AttributionMode = AttributionMode.WORKFLOW
     run_id: UUID
     requested_at: datetime
     provider: str

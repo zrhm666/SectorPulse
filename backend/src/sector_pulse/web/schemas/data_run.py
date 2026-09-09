@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from sector_pulse.domain.market.candidate_selection import CandidateSelectionMethod
+from sector_pulse.domain.writing.attribution_mode import AttributionMode
 
 
 class NewDataRunRequest(BaseModel):
@@ -17,6 +18,7 @@ class NewDataRunRequest(BaseModel):
 
 
 class GenerateDataRunRequest(BaseModel):
+    attribution_mode: AttributionMode = AttributionMode.WORKFLOW
     sector_ids: list[str] | None = Field(default=None, min_length=3, max_length=12)
 
 

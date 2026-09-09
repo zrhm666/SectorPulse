@@ -33,6 +33,7 @@ from sector_pulse.domain.writing.attribution import (
     AttributionGateResult,
     SectorAnalysisCard,
 )
+from sector_pulse.domain.writing.attribution_mode import AttributionMode
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.ports.llm import LLMPort
 from sector_pulse.storage.ports.writing import AgentInvocationRepositoryPort, Phase1BRepositoryPort
@@ -51,6 +52,7 @@ class PipelineStatus(str):
 class Phase1BRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
     run_id: UUID
+    attribution_mode: AttributionMode = AttributionMode.WORKFLOW
     requested_at: datetime
     output_dir: Path | None = None
     contexts: tuple[AttributionContext, ...]
@@ -84,6 +86,8 @@ async def run_phase1b_pipeline(
     progress_sink: ProgressSink = NoopProgressSink(),
     invocation_sink: InvocationSink | None = None,
 ) -> Phase1BRunResult:
+    if request.attribution_mode is AttributionMode.AGENT:
+        raise ValueError("AGENT_MODE_UNAVAILABLE")
     started = time.perf_counter()
     progress_sink.emit("phase1b.start", {"run_id": str(request.run_id)})
     collected: list[AgentInvocation] = []

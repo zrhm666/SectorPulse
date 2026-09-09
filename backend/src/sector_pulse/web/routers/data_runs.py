@@ -197,7 +197,10 @@ def build_data_runs_router(
     ) -> dict[str, object]:
         try:
             selection = candidate_selection_service.require_confirmed(run_id)
-            generated_id = writing_service.generate(run_id, selection.selected_sector_ids)
+            generated_id = writing_service.generate(
+                run_id, selection.selected_sector_ids,
+                attribution_mode=(_req or GenerateDataRunRequest()).attribution_mode,
+            )
         except CandidateSelectionNotFound as exc:
             raise HTTPException(404, str(exc)) from exc
         except CandidateSelectionRequired as exc:
