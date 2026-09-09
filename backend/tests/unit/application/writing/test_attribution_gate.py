@@ -35,9 +35,7 @@ def make_context(breadth_ratio: str, source_grade: SourceGrade) -> AttributionCo
 def make_document(case: dict[str, object]) -> NewsDocument:
     published = case["published_at"]
     published_at = (
-        datetime.fromisoformat(str(published).replace("Z", "+00:00"))
-        if published
-        else None
+        datetime.fromisoformat(str(published).replace("Z", "+00:00")) if published else None
     )
     return NewsDocument(
         document_id="doc-1",
@@ -64,9 +62,7 @@ CASES = yaml.safe_load(
 
 @pytest.mark.parametrize("case", CASES, ids=[case["id"] for case in CASES])
 def test_gate_cases(case: dict[str, object]) -> None:
-    context = make_context(
-        str(case["breadth_ratio"]), SourceGrade(str(case["source_grade"]))
-    )
+    context = make_context(str(case["breadth_ratio"]), SourceGrade(str(case["source_grade"])))
     document = make_document(case)
     result = evaluate_attribution_gate(
         context,
@@ -75,3 +71,39 @@ def test_gate_cases(case: dict[str, object]) -> None:
         broad_market_alternative=False,
     )
     assert result.allowed_max_level is EvidenceLevel(str(case["expected_max"]))
+
+
+@pytest.mark.parametrize("kind", list(SectorKind))
+def test_context_uses_matching_snapshot_name(kind: SectorKind) -> None:
+    from sector_pulse.application.writing.attribution_gate import build_attribution_context
+    from sector_pulse.domain.market.market import SectorSnapshot
+    from sector_pulse.domain.market.quality import QualityStatus
+    from sector_pulse.domain.news.evidence import EvidencePack
+    from sector_pulse.domain.runs.time import AnalysisRun
+
+    run = AnalysisRun.create_live(CUTOFF, RUN_ID).lock_live_cutoff(CUTOFF, CUTOFF)
+    pack = EvidencePack(
+        run_id=RUN_ID,
+        sector_id="123",
+        sector_kind=kind,
+        facts=(),
+        event_ids=(),
+        counter_evidence=(),
+        quality_status=QualityStatus.NORMAL,
+        max_level=EvidenceLevel.NO_RELIABLE_EXPLANATION,
+    )
+    snapshot = SectorSnapshot(
+        provider_sector_id="123", name="文化传媒", kind=kind, pct_change=Decimal("1")
+    )
+    context = build_attribution_context(run, pack, snapshot, (), {}, (), None)
+    assert context.sector_name == "文化传媒"
+    with pytest.raises(ValueError, match="snapshot"):
+        build_attribution_context(
+            run,
+            pack,
+            snapshot.model_copy(update={"provider_sector_id": "456"}),
+            (),
+            {},
+            (),
+            None,
+        )

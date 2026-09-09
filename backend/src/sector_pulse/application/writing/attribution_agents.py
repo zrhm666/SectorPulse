@@ -34,6 +34,7 @@ def _fallback(
             run_id=context.run_id,
             sector_id=context.sector_id,
             sector_kind=context.sector_kind,
+            sector_name=context.sector_name,
             allowed_max_level=gate.allowed_max_level,
             attribution_level=EvidenceLevel.NO_RELIABLE_EXPLANATION,
             confidence=Decimal("0"),

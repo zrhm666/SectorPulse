@@ -41,6 +41,7 @@ class AttributionContext(BaseModel):
     run_id: UUID
     sector_id: str
     sector_kind: SectorKind
+    sector_name: str | None = None
     cutoff_at: datetime
     market_facts: Mapping[str, Any]
     event_ids: tuple[str, ...]
@@ -74,6 +75,7 @@ class SectorAnalysisCard(BaseModel):
     run_id: UUID
     sector_id: str
     sector_kind: SectorKind
+    sector_name: str | None = None
     allowed_max_level: EvidenceLevel
     attribution_level: EvidenceLevel
     confidence: Decimal = Field(ge=0, le=1)

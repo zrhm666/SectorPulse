@@ -4,13 +4,14 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from sector_pulse.application.writing.draft_quality import draft_quality_issues, sector_subject
 from sector_pulse.application.writing.invocations import (
     InvocationSink,
     build_invocation,
     noop_invocation_sink,
 )
 from sector_pulse.domain.llm import LLMRequest, LLMStatus
-from sector_pulse.domain.review.review import ReviewReport
+from sector_pulse.domain.review.review import ReviewDecision, ReviewReport
 from sector_pulse.domain.writing.article import (
     ArticleDraft,
     ArticleOutline,
@@ -49,9 +50,7 @@ async def run_editorial_agent(
     valid = tuple(cards[:6])
     if len(valid) < 3:
         raise ValueError("at least 3 analysis cards are required")
-    request = LLMRequest[
-        ArticleOutline
-    ](
+    request = LLMRequest[ArticleOutline](
         agent_name="editorial",
         model=model,
         prompt_id=getattr(prompt, "prompt_id", "editorial"),
@@ -106,12 +105,11 @@ async def run_writing_agent(
         system_prompt=getattr(prompt, "system", ""),
         user_payload={
             "outline": outline.model_dump(mode="json"),
-            "cards": {
-                key: value.model_dump(mode="json") for key, value in cards.items()
-            },
+            "cards": {key: value.model_dump(mode="json") for key, value in cards.items()},
             "verified_sources": [
                 source.model_dump(mode="json") for source in verified_sources or ()
             ],
+            "sector_subjects": {key: sector_subject(card) for key, card in cards.items()},
         },
         response_model=ArticleDraftCandidate,
         fixture_key="article-draft",
@@ -129,6 +127,16 @@ async def run_writing_agent(
     if result.status is not LLMStatus.SUCCESS or result.data is None:
         return None
     candidate = cast(ArticleDraftCandidate, result.data)
+    sector_ids = [section.sector_id for section in candidate.sections]
+    section_ids = [section.section_id for section in candidate.sections]
+    if (
+        candidate.run_id != outline.run_id
+        or len(set(sector_ids)) != len(sector_ids)
+        or len(set(section_ids)) != len(section_ids)
+        or set(sector_ids) != set(outline.sector_ids)
+        or not set(sector_ids) <= cards.keys()
+    ):
+        return None
     payload = candidate.model_dump()
     # LLM 只能生成候选稿，不能自行越过审校进入 ready 终态。
     payload["status"] = DraftStatus.UNREVIEWED
@@ -146,17 +154,16 @@ async def run_review_agent(
     invocation_sink: InvocationSink = noop_invocation_sink,
     model: str = "fixture",
 ) -> ReviewReport | None:
-    request = LLMRequest[
-        ReviewReport
-    ](
+    request = LLMRequest[ReviewReport](
         agent_name="review",
         model=model,
         prompt_id=getattr(prompt, "prompt_id", "review"),
         prompt_version=getattr(prompt, "version", "1"),
         system_prompt=getattr(prompt, "system", ""),
-        user_payload={"draft": draft.model_dump(mode="json"), "cards": {
-            key: value.model_dump(mode="json") for key, value in cards.items()
-        }},
+        user_payload={
+            "draft": draft.model_dump(mode="json"),
+            "cards": {key: value.model_dump(mode="json") for key, value in cards.items()},
+        },
         response_model=ReviewReport,
         fixture_key=f"review:{draft.version}",
     )
@@ -170,7 +177,22 @@ async def run_review_agent(
             getattr(llm, "provider_id", "unknown"),
         )
     )
-    return result.data if result.status is LLMStatus.SUCCESS else None
+    if result.status is not LLMStatus.SUCCESS or result.data is None:
+        return None
+    report = cast(ReviewReport, result.data)
+    if report.draft_id != str(draft.draft_id) or report.draft_version != draft.version:
+        return None
+    issues = draft_quality_issues(draft, cards)
+    if issues:
+        return report.model_copy(
+            update={
+                "decision": ReviewDecision.BLOCK
+                if report.decision is ReviewDecision.BLOCK
+                else ReviewDecision.REVISE,
+                "issues": (*report.issues, *issues),
+            }
+        )
+    return report
 
 
 def revise_sections(
@@ -178,8 +200,10 @@ def revise_sections(
 ) -> ArticleDraft:
     """只替换审核指定的区块，保留其他区块和草稿历史。"""
     sections = tuple(replacements.get(section.section_id, section) for section in draft.sections)
-    character_count = len(draft.introduction) + len(draft.conclusion) + sum(
-        len(section.body) for section in sections
+    character_count = (
+        len(draft.introduction)
+        + len(draft.conclusion)
+        + sum(len(section.body) for section in sections)
     )
     return draft.model_copy(
         update={

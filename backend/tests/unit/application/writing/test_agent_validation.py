@@ -89,3 +89,37 @@ def test_rejects_prohibited_language() -> None:
     with pytest.raises(AgentOutputViolation) as error:
         validate_prohibited_language("建议重仓该板块")
     assert error.value.code == "PROHIBITED_INVESTMENT_LANGUAGE"
+
+
+def test_trusted_context_name_overrides_model_name() -> None:
+    context = AttributionContext.model_validate({**CONTEXT.model_dump(), "sector_name": "文化传媒"})
+    result = validate_analysis_card(card_with(sector_name="模型虚构板块"), GATE, context)
+    assert result.sector_name == "文化传媒"
+
+
+def test_unknown_context_name_does_not_accept_model_guess() -> None:
+    result = validate_analysis_card(card_with(sector_name="模型猜测"), GATE, CONTEXT)
+    assert result.sector_name is None
+
+
+def test_rejects_same_id_with_wrong_sector_kind() -> None:
+    with pytest.raises(AgentOutputViolation) as error:
+        validate_analysis_card(card_with(sector_kind=SectorKind.CONCEPT), GATE, CONTEXT)
+    assert error.value.code == "CARD_CONTEXT_MISMATCH"
+
+
+def test_fallback_preserves_trusted_sector_name() -> None:
+    import asyncio
+    from types import SimpleNamespace
+
+    from sector_pulse.application.writing.attribution_agents import run_attribution_agents
+    from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
+
+    context = AttributionContext.model_validate({**CONTEXT.model_dump(), "sector_name": "文化传媒"})
+    results = asyncio.run(
+        run_attribution_agents(
+            (context,), {context.sector_id: GATE}, FixtureLLMProvider({}), SimpleNamespace()
+        )
+    )
+    assert results[0].error_code == "FIXTURE_RESPONSE_MISSING"
+    assert results[0].card.sector_name == "文化传媒"

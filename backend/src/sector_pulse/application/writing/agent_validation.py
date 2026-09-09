@@ -27,7 +27,11 @@ def validate_analysis_card(
     for evidence_id in card.supporting_evidence_ids:
         if evidence_id not in allowed_ids:
             raise AgentOutputViolation("UNKNOWN_EVIDENCE_ID", evidence_id)
-    if card.run_id != context.run_id or card.sector_id != context.sector_id:
+    if (
+        card.run_id != context.run_id
+        or card.sector_id != context.sector_id
+        or card.sector_kind != context.sector_kind
+    ):
         raise AgentOutputViolation("CARD_CONTEXT_MISMATCH", "card does not match context")
     if LEVEL_RANK[card.attribution_level] > LEVEL_RANK[gate.allowed_max_level]:
         raise AgentOutputViolation("ATTRIBUTION_LEVEL_EXCEEDED", card.attribution_level.value)
@@ -35,7 +39,12 @@ def validate_analysis_card(
     for claim in card.claims:
         validate_prohibited_language(claim.text)
         validate_claim_numbers(claim, context.market_facts)
-    return card
+    return card.model_copy(
+        update={
+            "sector_name": context.sector_name,
+            "allowed_max_level": gate.allowed_max_level,
+        }
+    )
 
 
 def _numbers(text: str) -> tuple[Decimal, ...]:

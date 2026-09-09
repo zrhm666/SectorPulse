@@ -1,4 +1,14 @@
 {
+  "editorial-outline": {
+    "outline_id": "00000000-0000-0000-0000-000000000003",
+    "run_id": "00000000-0000-0000-0000-000000000001",
+    "sector_ids": ["industry-1", "industry-2", "industry-3"],
+    "order_reasons": {"industry-1": "演示顺序", "industry-2": "演示顺序", "industry-3": "演示顺序"},
+    "title_directions": ["离线板块观察示例"],
+    "thesis": "演示明确主体和证据边界。",
+    "section_character_budgets": {"industry-1": 400, "industry-2": 400, "industry-3": 400},
+    "excluded_sector_reasons": {}
+  },
   "article-draft": {
     "draft_id": "00000000-0000-0000-0000-000000000002",
     "run_id": "00000000-0000-0000-0000-000000000001",
@@ -7,14 +17,14 @@
     "titles": ["今日板块观察"],
     "introduction": "本文基于已锁定的公开信息整理市场异动，只描述事实和证据边界。",
     "sections": [
-      {"section_id": "industry-1", "sector_id": "industry-1", "heading": "行业板块观察", "body": "暂无可靠解释，相关新闻仅作背景参考。", "claims": [], "source_ids": ["source-1"], "character_count": 20},
-      {"section_id": "industry-2", "sector_id": "industry-2", "heading": "行业板块观察", "body": "暂无可靠解释，相关新闻仅作背景参考。", "claims": [], "source_ids": ["source-1"], "character_count": 20},
-      {"section_id": "industry-3", "sector_id": "industry-3", "heading": "行业板块观察", "body": "暂无可靠解释，相关新闻仅作背景参考。", "claims": [], "source_ids": ["source-1"], "character_count": 20}
+      {"section_id":"industry-1","sector_id":"industry-1","heading":"行业板块〔industry-1〕观察","body":"行业板块〔industry-1〕是本节观察主体。本段为离线演示数据，只用于验证草稿生成、章节定位与人工审核流程，不描述真实交易日的行情。板块指数、成分股表现和新闻证据是不同维度的信息，不能仅凭同期出现就认定存在因果关系。当前样例没有提供足够的合格事件证据，因此保留暂无可靠解释的结论，不补造驱动因素。阅读时应核对数据截止时间、来源等级和引用内容，再判断一项论断是否得到支持。对缺少可验证材料的部分，应明确保留不确定性，不将猜测包装成事实。后续若取得新的公开材料，应建立新的分析运行，而不是把晚于截止时间的信息写回当前快照。本示例不提供买卖、仓位或收益承诺。审核时请特别检查板块身份是否清晰、正文是否出现系统状态文字，以及引用是否属于本次运行。版本号只表示内容快照，不表示模型或人工已经认可结论。","claims":[],"source_ids":["source-1"],"character_count":347},
+      {"section_id":"industry-2","sector_id":"industry-2","heading":"行业板块〔industry-2〕观察","body":"行业板块〔industry-2〕是本节观察主体。本段为离线演示数据，只用于验证草稿生成、章节定位与人工审核流程，不描述真实交易日的行情。板块指数、成分股表现和新闻证据是不同维度的信息，不能仅凭同期出现就认定存在因果关系。当前样例没有提供足够的合格事件证据，因此保留暂无可靠解释的结论，不补造驱动因素。阅读时应核对数据截止时间、来源等级和引用内容，再判断一项论断是否得到支持。对缺少可验证材料的部分，应明确保留不确定性，不将猜测包装成事实。后续若取得新的公开材料，应建立新的分析运行，而不是把晚于截止时间的信息写回当前快照。本示例不提供买卖、仓位或收益承诺。审核时请特别检查板块身份是否清晰、正文是否出现系统状态文字，以及引用是否属于本次运行。版本号只表示内容快照，不表示模型或人工已经认可结论。","claims":[],"source_ids":["source-1"],"character_count":347},
+      {"section_id":"industry-3","sector_id":"industry-3","heading":"行业板块〔industry-3〕观察","body":"行业板块〔industry-3〕是本节观察主体。本段为离线演示数据，只用于验证草稿生成、章节定位与人工审核流程，不描述真实交易日的行情。板块指数、成分股表现和新闻证据是不同维度的信息，不能仅凭同期出现就认定存在因果关系。当前样例没有提供足够的合格事件证据，因此保留暂无可靠解释的结论，不补造驱动因素。阅读时应核对数据截止时间、来源等级和引用内容，再判断一项论断是否得到支持。对缺少可验证材料的部分，应明确保留不确定性，不将猜测包装成事实。后续若取得新的公开材料，应建立新的分析运行，而不是把晚于截止时间的信息写回当前快照。本示例不提供买卖、仓位或收益承诺。审核时请特别检查板块身份是否清晰、正文是否出现系统状态文字，以及引用是否属于本次运行。版本号只表示内容快照，不表示模型或人工已经认可结论。","claims":[],"source_ids":["source-1"],"character_count":347}
     ],
     "conclusion": "市场仍需结合后续成交和板块广度观察。",
     "risk_notice": "仅供信息交流，不构成投资建议。",
     "sources": [{"source_id": "source-1", "title": "公开来源", "citation_url": "https://example.test/source-1"}],
-    "character_count": 1200
+    "character_count": 1089
   },
   "review:1": {
     "review_id": "review-1",

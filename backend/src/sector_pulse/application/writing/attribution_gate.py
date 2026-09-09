@@ -26,6 +26,12 @@ def build_attribution_context(
     """从已持久化 EvidencePack 构建模型只读输入，并保留每个时间边界的分类。"""
     if run.run_cutoff_at is None:
         raise ValueError("attribution context requires locked cutoff")
+    if (
+        pack.run_id != run.run_id
+        or snapshot.provider_sector_id != pack.sector_id
+        or snapshot.kind != pack.sector_kind
+    ):
+        raise ValueError("snapshot does not match evidence pack identity")
     event_by_id = {event.event_id: event for event in events}
     event_ids = tuple(pack.event_ids)
     eligible: list[str] = []
@@ -53,6 +59,7 @@ def build_attribution_context(
         run_id=run.run_id,
         sector_id=pack.sector_id,
         sector_kind=pack.sector_kind,
+        sector_name=snapshot.name.strip() or None,
         cutoff_at=run.run_cutoff_at,
         market_facts={
             "pct_change": snapshot.pct_change,
