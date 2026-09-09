@@ -15,18 +15,18 @@
 
 这些是内容版本，不是审核次数。真实修订成功才创建下一版本；审核失败或没有实际改动不会制造新版本。历史上旧代码生成的版本不会自动重写，也不会自动去掉旧正文标记。
 
-## 尚未完成
+## 尚未执行
 
-- 经确认后的历史业务草稿原子 apply。
-- 隔离 PostgreSQL 验证；没有使用业务数据库替代测试库。
-- 完整设计的最终 HTTP 流程验收和更多修订边界测试。
+- 未对用户业务草稿执行历史 apply：尚未提供明确目标及确认后的预览哈希，这是刻意保留的安全边界。
+- 未调用真实 LLM；供应商限流、超时和真实输出质量仍需单独验收。
+- 完整生产 HTTP 流程仍需在目标环境运行一次端到端验收。
 
 本批没有调用真实 LLM、没有修改业务草稿或数据库表、没有合并或推送。Fixture 测试不代表真实供应商输出效果已经验证。
 
 ## 本批验证结果（2026-09-09）
 
-- 后端非 Live 全量：452 passed、14 skipped、24 deselected。14 项跳过为缺少隔离 PostgreSQL URL；24 项按 live/live_llm/postgres 标记排除。
-- Ruff：通过；Mypy：211 个源文件通过；`git diff --check`：通过。
+- 后端非 Live 全量：此前基线为 452 passed、14 skipped、24 deselected；本续批新增事务和 CLI 测试另行验证。
+- Ruff：通过；Mypy：213 个源文件通过；`git diff --check`：通过。
 - 新测试包括：可信名称覆盖模型名称、降级名称、类型错配、主体检查、真实内容修订、无变化/非法修改拒绝、预算回调、两轮上限、逐版复审和随包 Fixture。
 - 存在一条原有 FastAPI/Starlette 测试客户端依赖弃用警告，不是本次测试失败。
 - 未修改本轮前端；检查阶段组件确认未知 revision 事件不会破坏既有阶段枚举。
@@ -43,6 +43,6 @@ Web 重试现可从原运行快照补齐缺失名称，原运行输入保持不�
 
 PostgreSQL：在当前终端设置 `SECTOR_PULSE_DATABASE_URL`，不传 `--sqlite`。工具不会自动加载 .env，不打印连接异常详情。只有确认章节尾部标记由旧系统追加时，才传 `--confirmed-system-markers` 生成清理建议；正文中间正常引用不会删除。
 
-目前命令只有 dry-run，不支持 apply。SQLite 测试验证数据库文件前后字节不变、没有新增版本；PostgreSQL 只读分支尚未实测。未对用户业务草稿运行预览，因为尚无明确目标 ID。
+命令默认 dry-run；`--apply` 必须同时提供明确目标、`--expected-preview-hash` 和 `--actor`，并在版本冲突时拒绝写入。SQLite/PostgreSQL 均验证失败审计回滚、并发冲突、旧批准不继承。未对用户业务草稿运行预览，因为尚无明确目标 ID。
 
-续批验证：457 passed、14 skipped、24 deselected；Ruff 通过（包含预览脚本），Mypy 213 个后端源文件通过。原有依赖弃用警告仍为一条。
+续批验证：SQLite/PostgreSQL 事务测试 4 passed；PostgreSQL 集成组 38 passed；CLI 双库预览/apply 测试已验证；Mypy 213 个后端源文件通过。原有依赖弃用警告仍为一条。

@@ -1,4 +1,5 @@
 import hashlib
+import sqlite3
 from collections.abc import Sequence
 from uuid import UUID
 
@@ -34,8 +35,11 @@ class SQLitePhase1BRepository:
                     (run_id, sector_id, sector_kind, payload_json, payload_hash)
                     VALUES (?, ?, ?, ?, ?)""",
                     (
-                        str(context.run_id), context.sector_id, context.sector_kind.value,
-                        payload, _payload_hash(payload),
+                        str(context.run_id),
+                        context.sector_id,
+                        context.sector_kind.value,
+                        payload,
+                        _payload_hash(payload),
                     ),
                 )
 
@@ -58,8 +62,11 @@ class SQLitePhase1BRepository:
                     (run_id, sector_id, sector_kind, payload_json, payload_hash)
                     VALUES (?, ?, ?, ?, ?)""",
                     (
-                        str(card.run_id), card.sector_id, card.sector_kind.value,
-                        payload, _payload_hash(payload),
+                        str(card.run_id),
+                        card.sector_id,
+                        card.sector_kind.value,
+                        payload,
+                        _payload_hash(payload),
                     ),
                 )
                 for claim in card.claims:
@@ -85,62 +92,78 @@ class SQLitePhase1BRepository:
             )
 
     def save_draft(self, draft: ArticleDraft) -> None:
+        with self._database.transaction() as connection:
+            self.save_draft_in_transaction(connection, draft)
+
+    def save_draft_in_transaction(
+        self, connection: sqlite3.Connection, draft: ArticleDraft
+    ) -> None:
+        """Persist on caller transaction; caller controls commit/rollback."""
         payload = draft.model_dump_json()
         payload_hash = _payload_hash(payload)
-        with self._database.transaction() as connection:
-            existing = connection.execute(
-                "SELECT payload_json, payload_hash FROM article_drafts "
-                "WHERE draft_id = ? AND version = ?",
-                (str(draft.draft_id), draft.version),
-            ).fetchone()
-            if existing is not None and existing[1] != payload_hash:
-                previous = ArticleDraft.model_validate_json(existing[0])
-                same_content = previous.model_copy(update={"status": draft.status}) == draft
-                if not same_content:
-                    raise ImmutableDraftVersionError("draft version is immutable")
-                connection.execute(
-                    "UPDATE article_drafts SET status = ?, payload_json = ?, payload_hash = ? "
-                    "WHERE draft_id = ? AND version = ?",
-                    (
-                        draft.status.value,
-                        payload,
-                        payload_hash,
-                        str(draft.draft_id),
-                        draft.version,
-                    ),
-                )
-                return
+        existing = connection.execute(
+            "SELECT payload_json, payload_hash FROM article_drafts "
+            "WHERE draft_id = ? AND version = ?",
+            (str(draft.draft_id), draft.version),
+        ).fetchone()
+        if existing is not None and existing[1] != payload_hash:
+            previous = ArticleDraft.model_validate_json(existing[0])
+            same_content = previous.model_copy(update={"status": draft.status}) == draft
+            if not same_content:
+                raise ImmutableDraftVersionError("draft version is immutable")
             connection.execute(
-                """INSERT OR IGNORE INTO article_drafts
-                (draft_id, run_id, version, status, payload_json, payload_hash)
-                VALUES (?, ?, ?, ?, ?, ?)""",
+                "UPDATE article_drafts SET status = ?, payload_json = ?, payload_hash = ? "
+                "WHERE draft_id = ? AND version = ?",
                 (
-                    str(draft.draft_id), str(draft.run_id), draft.version, draft.status.value,
-                    payload, payload_hash,
+                    draft.status.value,
+                    payload,
+                    payload_hash,
+                    str(draft.draft_id),
+                    draft.version,
                 ),
             )
-            for section in draft.sections:
-                section_payload = section.model_dump_json()
-                connection.execute(
-                    """INSERT OR IGNORE INTO article_sections
-                    (draft_id, version, section_id, payload_json, payload_hash)
-                    VALUES (?, ?, ?, ?, ?)""",
-                    (
-                        str(draft.draft_id), draft.version, section.section_id,
-                        section_payload, _payload_hash(section_payload),
-                    ),
-                )
-            for source in draft.sources:
-                source_payload = source.model_dump_json()
-                connection.execute(
-                    """INSERT OR IGNORE INTO article_sources
-                    (draft_id, version, source_id, payload_json, payload_hash)
-                    VALUES (?, ?, ?, ?, ?)""",
-                    (
-                        str(draft.draft_id), draft.version, source.source_id,
-                        source_payload, _payload_hash(source_payload),
-                    ),
-                )
+            return
+        connection.execute(
+            """INSERT OR IGNORE INTO article_drafts
+            (draft_id, run_id, version, status, payload_json, payload_hash)
+            VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                str(draft.draft_id),
+                str(draft.run_id),
+                draft.version,
+                draft.status.value,
+                payload,
+                payload_hash,
+            ),
+        )
+        for section in draft.sections:
+            section_payload = section.model_dump_json()
+            connection.execute(
+                """INSERT OR IGNORE INTO article_sections
+                (draft_id, version, section_id, payload_json, payload_hash)
+                VALUES (?, ?, ?, ?, ?)""",
+                (
+                    str(draft.draft_id),
+                    draft.version,
+                    section.section_id,
+                    section_payload,
+                    _payload_hash(section_payload),
+                ),
+            )
+        for source in draft.sources:
+            source_payload = source.model_dump_json()
+            connection.execute(
+                """INSERT OR IGNORE INTO article_sources
+                (draft_id, version, source_id, payload_json, payload_hash)
+                VALUES (?, ?, ?, ?, ?)""",
+                (
+                    str(draft.draft_id),
+                    draft.version,
+                    source.source_id,
+                    source_payload,
+                    _payload_hash(source_payload),
+                ),
+            )
 
     def save_review(self, report: ReviewReport) -> None:
         payload = report.model_dump_json()
@@ -150,8 +173,11 @@ class SQLitePhase1BRepository:
                 (review_id, draft_id, draft_version, payload_json, payload_hash)
                 VALUES (?, ?, ?, ?, ?)""",
                 (
-                    report.review_id, report.draft_id, report.draft_version,
-                    payload, _payload_hash(payload),
+                    report.review_id,
+                    report.draft_id,
+                    report.draft_version,
+                    payload,
+                    _payload_hash(payload),
                 ),
             )
             for issue in report.issues:

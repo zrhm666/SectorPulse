@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from sector_pulse.domain.review.editing import DraftPatch
-from sector_pulse.domain.writing.article import ArticleDraft
+from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.storage.sqlite.writing.phase1b_repository import SQLitePhase1BRepository
 
@@ -48,27 +48,38 @@ class SQLiteDraftEditRepository:
         *,
         actor: str,
     ) -> ArticleDraft:
-        try:
-            base = self.get_version(draft_id, base_version)
-        except KeyError as exc:
-            raise DraftVersionConflict("draft base version is stale") from exc
-        latest = self.latest_version(draft_id)
-        if latest.version != base_version:
-            raise DraftVersionConflict("draft base version is stale")
-        values: dict[str, Any] = base.model_dump()
-        for operation in operations:
-            current = self._read_path(values, operation.path)
-            current_hash = hashlib.sha256(
-                json.dumps(current, ensure_ascii=False, sort_keys=True).encode("utf-8")
-                if not isinstance(current, str) else current.encode("utf-8")
-            ).hexdigest()
-            if current_hash != operation.old_value_hash:
-                raise DraftVersionConflict(f"patch old value does not match: {operation.path}")
-            self._write_path(values, operation.path, operation.value)
-        result = ArticleDraft.model_validate({**values, "version": base.version + 1})
-        self._drafts.save_draft(result)
-        now = datetime.now(UTC).isoformat()
         with self._database.transaction() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT version, payload_json FROM article_drafts "
+                "WHERE draft_id = ? ORDER BY version DESC LIMIT 1",
+                (str(draft_id),),
+            ).fetchone()
+            if row is None or row[0] != base_version:
+                raise DraftVersionConflict("draft base version is stale")
+            base = ArticleDraft.model_validate_json(row[1])
+            values: dict[str, Any] = base.model_dump()
+            for operation in operations:
+                current = self._read_path(values, operation.path)
+                current_hash = hashlib.sha256(
+                    json.dumps(current, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                    if not isinstance(current, str)
+                    else current.encode("utf-8")
+                ).hexdigest()
+                if current_hash != operation.old_value_hash:
+                    raise DraftVersionConflict(f"patch old value does not match: {operation.path}")
+                self._write_path(values, operation.path, operation.value)
+            values["status"] = DraftStatus.UNREVIEWED
+            values["character_count"] = (
+                len(values["introduction"])
+                + len(values["conclusion"])
+                + sum(len(section["body"]) for section in values["sections"])
+            )
+            for section in values["sections"]:
+                section["character_count"] = len(section["body"])
+            result = ArticleDraft.model_validate({**values, "version": base.version + 1})
+            self._drafts.save_draft_in_transaction(connection, result)
+            now = datetime.now(UTC).isoformat()
             for index, operation in enumerate(operations):
                 payload = operation.model_dump(mode="json")
                 connection.execute(
@@ -77,16 +88,19 @@ class SQLiteDraftEditRepository:
                      operation_json, input_hash, output_hash, actor, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        str(operation.patch_id), str(result.draft_id), str(result.run_id),
-                        base.version, result.version, index,
+                        str(operation.patch_id),
+                        str(result.draft_id),
+                        str(result.run_id),
+                        base.version,
+                        result.version,
+                        index,
                         json.dumps(payload, ensure_ascii=False, sort_keys=True),
                         operation.old_value_hash,
                         hashlib.sha256(
-                            json.dumps(
-                                operation.value, ensure_ascii=False, sort_keys=True
-                            ).encode()
+                            json.dumps(operation.value, ensure_ascii=False, sort_keys=True).encode()
                         ).hexdigest(),
-                        actor, now,
+                        actor,
+                        now,
                     ),
                 )
         return result

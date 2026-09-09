@@ -1,4 +1,4 @@
-"""Read-only historical draft preview. Intentionally no apply operation yet."""
+"""Historical draft preview; apply requires an explicit matching preview fingerprint."""
 
 import argparse
 import json
@@ -9,7 +9,11 @@ from dataclasses import asdict
 from pathlib import Path
 from uuid import UUID
 
-from sector_pulse.application.writing.draft_repair import preview_draft_repair
+from sector_pulse.application.writing.draft_repair import (
+    apply_draft_repair,
+    preview_draft_repair,
+    repair_preview_hash,
+)
 from sector_pulse.application.writing.sector_identity import restore_context_names
 from sector_pulse.domain.market.market import SectorUniverseSnapshot
 from sector_pulse.domain.writing.article import ArticleDraft
@@ -19,7 +23,10 @@ from sqlalchemy.engine import make_url
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="只读预览草稿主体修复，不写入数据库。")
+    parser = argparse.ArgumentParser(description="默认只读预览草稿修复；显式确认指纹后才可写入。")
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--expected-preview-hash")
+    parser.add_argument("--actor")
     parser.add_argument("--sqlite", type=Path, help="显式 SQLite 文件；省略则读环境变量数据库 URL")
     parser.add_argument("--run-id", required=True, type=UUID)
     parser.add_argument("--draft-id", required=True, type=UUID)
@@ -30,6 +37,8 @@ def main() -> int:
         help="仅在已确认末尾标记为旧系统追加时，用于生成清理预览",
     )
     args = parser.parse_args()
+    if args.apply and (not args.expected_preview_hash or not (args.actor or "").strip()):
+        parser.error("--apply 必须同时提供 --expected-preview-hash 和 --actor")
     if args.sqlite:
         uri = args.sqlite.resolve().as_uri() + "?mode=ro"
         engine = create_engine("sqlite://", creator=lambda: sqlite3.connect(uri, uri=True))
@@ -93,8 +102,35 @@ def main() -> int:
                 "proposed_version": preview.after.version if preview.after else None,
                 "changes": [asdict(change) for change in preview.changes],
                 "unresolved_section_ids": preview.unresolved_section_ids,
+                "preview_hash": repair_preview_hash(preview),
             }
-            print(json.dumps(output, ensure_ascii=False, indent=2))
+        if args.apply:
+            if output["preview_hash"] != args.expected_preview_hash:
+                raise ValueError("preview fingerprint mismatch")
+            if args.sqlite:
+                from sector_pulse.storage.sqlite.database import SQLiteDatabase
+                from sector_pulse.storage.sqlite.review.draft_edit_repository import (
+                    SQLiteDraftEditRepository,
+                )
+
+                repository = SQLiteDraftEditRepository(SQLiteDatabase(args.sqlite))
+            else:
+                from sector_pulse.storage.postgres.database import PostgresDatabase
+                from sector_pulse.storage.postgres.review.draft_edit_repository import (
+                    PostgresDraftEditRepository,
+                )
+
+                repository = PostgresDraftEditRepository(PostgresDatabase(raw_url, engine=engine))
+            saved = apply_draft_repair(
+                preview,
+                repository,
+                expected_preview_hash=args.expected_preview_hash,
+                actor=args.actor,
+            )
+            output.update(
+                mode="applied" if preview.after else "no-change", saved_version=saved.version
+            )
+        print(json.dumps(output, ensure_ascii=False, indent=2))
     finally:
         engine.dispose()
     return 0
@@ -102,6 +138,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     try:
         raise SystemExit(main())
     except Exception as exc:

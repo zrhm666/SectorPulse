@@ -1,11 +1,15 @@
 """Pure historical repair preview. No persistence, LLM calls, or inferred sector names."""
 
+import hashlib
+import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from sector_pulse.domain.review.editing import DraftPatch
 from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
 from sector_pulse.domain.writing.attribution import AttributionContext, SectorAnalysisCard
+from sector_pulse.storage.ports.review import DraftEditRepositoryPort
 
 GENERIC_HEADING = re.compile(r"^(\s*)板块[一二三四五六七八九十\d]+(?=\s*[:：、])")
 FIRST_REFERENCE = re.compile(r"^(\s*)(?:该行业板块|该概念板块|该板块)")
@@ -29,6 +33,48 @@ class DraftRepairPreview:
     after: ArticleDraft | None
     changes: tuple[RepairChange, ...]
     unresolved_section_ids: tuple[str, ...]
+
+
+def repair_preview_hash(preview: DraftRepairPreview) -> str:
+    payload = {
+        "before": preview.before.model_dump(mode="json"),
+        "after": preview.after.model_dump(mode="json") if preview.after else None,
+        "changes": [(c.path, c.before, c.after) for c in preview.changes],
+        "unresolved": preview.unresolved_section_ids,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+
+
+def apply_draft_repair(
+    preview: DraftRepairPreview,
+    repository: DraftEditRepositoryPort,
+    *,
+    expected_preview_hash: str,
+    actor: str,
+) -> ArticleDraft:
+    if not actor.strip() or repair_preview_hash(preview) != expected_preview_hash:
+        raise ValueError("repair preview confirmation does not match")
+    current = repository.latest_version(preview.before.draft_id)
+    if current != preview.before:
+        raise ValueError("repair preview is stale")
+    if preview.after is None:
+        return current
+    operations = tuple(
+        DraftPatch(
+            path=change.path,
+            old_value_hash=hashlib.sha256(change.before.encode()).hexdigest(),
+            value=change.after,
+        )
+        for change in preview.changes
+    )
+    return repository.apply_patch(
+        current.draft_id,
+        current.version,
+        operations,
+        actor=f"draft-identity-repair:{actor.strip()}",
+    )
 
 
 def preview_draft_repair(

@@ -28,21 +28,33 @@ class PostgresPhase1BRepository:
     def save_contexts(self, contexts: Sequence[AttributionContext]) -> None:
         with self._database.start().begin() as connection:
             for item in contexts:
-                self._upsert(connection, "attribution_contexts",
-                                   "run_id, sector_id, sector_kind", str(item.run_id),
-                                   item.sector_id, item.sector_kind.value, item.model_dump_json())
+                self._upsert(
+                    connection,
+                    "attribution_contexts",
+                    "run_id, sector_id, sector_kind",
+                    str(item.run_id),
+                    item.sector_id,
+                    item.sector_kind.value,
+                    item.model_dump_json(),
+                )
 
     def save_gate_results(self, results: Sequence[AttributionGateResult]) -> None:
         with self._database.start().begin() as connection:
             for item in results:
                 payload = item.model_dump_json()
                 connection.execute(
-                    text("INSERT INTO attribution_gate_results (run_id, sector_id, payload_json, payload_hash) "
-                         "VALUES (:run_id, :sector_id, :payload, :hash) "
-                         "ON CONFLICT (run_id, sector_id) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
-                         "payload_hash = EXCLUDED.payload_hash"),
-                    {"run_id": str(item.run_id), "sector_id": item.sector_id,
-                     "payload": payload, "hash": _hash(payload)},
+                    text(
+                        "INSERT INTO attribution_gate_results (run_id, sector_id, payload_json, payload_hash) "
+                        "VALUES (:run_id, :sector_id, :payload, :hash) "
+                        "ON CONFLICT (run_id, sector_id) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
+                        "payload_hash = EXCLUDED.payload_hash"
+                    ),
+                    {
+                        "run_id": str(item.run_id),
+                        "sector_id": item.sector_id,
+                        "payload": payload,
+                        "hash": _hash(payload),
+                    },
                 )
 
     def save_cards(self, cards: Sequence[SectorAnalysisCard]) -> None:
@@ -50,61 +62,101 @@ class PostgresPhase1BRepository:
             for item in cards:
                 payload = item.model_dump_json()
                 connection.execute(
-                    text("INSERT INTO sector_analysis_cards (run_id, sector_id, sector_kind, payload_json, payload_hash) "
-                         "VALUES (:run_id, :sector_id, :sector_kind, :payload, :hash) "
-                         "ON CONFLICT (run_id, sector_id, sector_kind) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
-                         "payload_hash = EXCLUDED.payload_hash"),
-                    {"run_id": str(item.run_id), "sector_id": item.sector_id,
-                     "sector_kind": item.sector_kind.value, "payload": payload, "hash": _hash(payload)},
+                    text(
+                        "INSERT INTO sector_analysis_cards (run_id, sector_id, sector_kind, payload_json, payload_hash) "
+                        "VALUES (:run_id, :sector_id, :sector_kind, :payload, :hash) "
+                        "ON CONFLICT (run_id, sector_id, sector_kind) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
+                        "payload_hash = EXCLUDED.payload_hash"
+                    ),
+                    {
+                        "run_id": str(item.run_id),
+                        "sector_id": item.sector_id,
+                        "sector_kind": item.sector_kind.value,
+                        "payload": payload,
+                        "hash": _hash(payload),
+                    },
                 )
                 for claim in item.claims:
                     claim_payload = claim.model_dump_json()
                     connection.execute(
-                        text("INSERT INTO claims (run_id, claim_id, payload_json, payload_hash) "
-                             "VALUES (:run_id, :claim_id, :payload, :hash) "
-                             "ON CONFLICT (run_id, claim_id) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
-                             "payload_hash = EXCLUDED.payload_hash"),
-                        {"run_id": str(item.run_id), "claim_id": claim.claim_id,
-                         "payload": claim_payload, "hash": _hash(claim_payload)},
+                        text(
+                            "INSERT INTO claims (run_id, claim_id, payload_json, payload_hash) "
+                            "VALUES (:run_id, :claim_id, :payload, :hash) "
+                            "ON CONFLICT (run_id, claim_id) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
+                            "payload_hash = EXCLUDED.payload_hash"
+                        ),
+                        {
+                            "run_id": str(item.run_id),
+                            "claim_id": claim.claim_id,
+                            "payload": claim_payload,
+                            "hash": _hash(claim_payload),
+                        },
                     )
 
     def save_outline(self, outline: ArticleOutline) -> None:
         payload = outline.model_dump_json()
         with self._database.start().begin() as connection:
             connection.execute(
-                text("INSERT INTO article_outlines (outline_id, run_id, payload_json, payload_hash) "
-                     "VALUES (:outline_id, :run_id, :payload, :hash) "
-                     "ON CONFLICT (outline_id) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
-                     "payload_hash = EXCLUDED.payload_hash"),
-                {"outline_id": str(outline.outline_id), "run_id": str(outline.run_id),
-                 "payload": payload, "hash": _hash(payload)},
+                text(
+                    "INSERT INTO article_outlines (outline_id, run_id, payload_json, payload_hash) "
+                    "VALUES (:outline_id, :run_id, :payload, :hash) "
+                    "ON CONFLICT (outline_id) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
+                    "payload_hash = EXCLUDED.payload_hash"
+                ),
+                {
+                    "outline_id": str(outline.outline_id),
+                    "run_id": str(outline.run_id),
+                    "payload": payload,
+                    "hash": _hash(payload),
+                },
             )
 
     def save_draft(self, draft: ArticleDraft) -> None:
-        payload = draft.model_dump_json()
         with self._database.start().begin() as connection:
-            existing = connection.execute(
-                text("SELECT payload_json, payload_hash FROM article_drafts WHERE draft_id = :draft_id AND version = :version"),
-                {"draft_id": str(draft.draft_id), "version": draft.version},
-            )
-            row = existing.first()
-            if row is not None and row[1] != _hash(payload):
-                previous = ArticleDraft.model_validate_json(row[0])
-                if previous.model_copy(update={"status": draft.status}) != draft:
-                    raise ImmutableDraftVersionError("draft version is immutable")
-                connection.execute(
-                    text("UPDATE article_drafts SET status = :status, payload_json = :payload, payload_hash = :hash "
-                         "WHERE draft_id = :draft_id AND version = :version"),
-                    {"status": draft.status.value, "payload": payload, "hash": _hash(payload),
-                     "draft_id": str(draft.draft_id), "version": draft.version},
-                )
-                return
+            self.save_draft_in_transaction(connection, draft)
+
+    def save_draft_in_transaction(self, connection: Connection, draft: ArticleDraft) -> None:
+        """Persist on caller transaction; caller controls commit/rollback."""
+        payload = draft.model_dump_json()
+        existing = connection.execute(
+            text(
+                "SELECT payload_json, payload_hash FROM article_drafts WHERE draft_id = :draft_id AND version = :version"
+            ),
+            {"draft_id": str(draft.draft_id), "version": draft.version},
+        )
+        row = existing.first()
+        if row is not None and row[1] != _hash(payload):
+            previous = ArticleDraft.model_validate_json(row[0])
+            if previous.model_copy(update={"status": draft.status}) != draft:
+                raise ImmutableDraftVersionError("draft version is immutable")
             connection.execute(
-                text("INSERT INTO article_drafts (draft_id, run_id, version, status, payload_json, payload_hash) "
-                     "VALUES (:draft_id, :run_id, :version, :status, :payload, :hash) ON CONFLICT DO NOTHING"),
-                {"draft_id": str(draft.draft_id), "run_id": str(draft.run_id), "version": draft.version,
-                 "status": draft.status.value, "payload": payload, "hash": _hash(payload)},
+                text(
+                    "UPDATE article_drafts SET status = :status, payload_json = :payload, payload_hash = :hash "
+                    "WHERE draft_id = :draft_id AND version = :version"
+                ),
+                {
+                    "status": draft.status.value,
+                    "payload": payload,
+                    "hash": _hash(payload),
+                    "draft_id": str(draft.draft_id),
+                    "version": draft.version,
+                },
             )
+            return
+        connection.execute(
+            text(
+                "INSERT INTO article_drafts (draft_id, run_id, version, status, payload_json, payload_hash) "
+                "VALUES (:draft_id, :run_id, :version, :status, :payload, :hash) ON CONFLICT DO NOTHING"
+            ),
+            {
+                "draft_id": str(draft.draft_id),
+                "run_id": str(draft.run_id),
+                "version": draft.version,
+                "status": draft.status.value,
+                "payload": payload,
+                "hash": _hash(payload),
+            },
+        )
 
     def save_review(self, report: ReviewReport) -> None:
         payload = report.model_dump_json()
@@ -148,33 +200,55 @@ class PostgresPhase1BRepository:
                 )
 
     def list_drafts(self, draft_id: UUID) -> tuple[ArticleDraft, ...]:
-        return tuple(ArticleDraft.model_validate_json(p) for p in self._payloads(
-            "SELECT payload_json FROM article_drafts WHERE draft_id = :id ORDER BY version", {"id": str(draft_id)}
-        ))
+        return tuple(
+            ArticleDraft.model_validate_json(p)
+            for p in self._payloads(
+                "SELECT payload_json FROM article_drafts WHERE draft_id = :id ORDER BY version",
+                {"id": str(draft_id)},
+            )
+        )
 
     def get_contexts(self, run_id: UUID) -> tuple[AttributionContext, ...]:
-        return tuple(AttributionContext.model_validate_json(p) for p in self._payloads(
-            "SELECT payload_json FROM attribution_contexts WHERE run_id = :id ORDER BY sector_id", {"id": str(run_id)}
-        ))
+        return tuple(
+            AttributionContext.model_validate_json(p)
+            for p in self._payloads(
+                "SELECT payload_json FROM attribution_contexts WHERE run_id = :id ORDER BY sector_id",
+                {"id": str(run_id)},
+            )
+        )
 
     def get_gates(self, run_id: UUID) -> tuple[AttributionGateResult, ...]:
-        return tuple(AttributionGateResult.model_validate_json(p) for p in self._payloads(
-            "SELECT payload_json FROM attribution_gate_results WHERE run_id = :id ORDER BY sector_id", {"id": str(run_id)}
-        ))
+        return tuple(
+            AttributionGateResult.model_validate_json(p)
+            for p in self._payloads(
+                "SELECT payload_json FROM attribution_gate_results WHERE run_id = :id ORDER BY sector_id",
+                {"id": str(run_id)},
+            )
+        )
 
     def get_cards(self, run_id: UUID) -> tuple[SectorAnalysisCard, ...]:
-        return tuple(SectorAnalysisCard.model_validate_json(p) for p in self._payloads(
-            "SELECT payload_json FROM sector_analysis_cards WHERE run_id = :id ORDER BY sector_id", {"id": str(run_id)}
-        ))
+        return tuple(
+            SectorAnalysisCard.model_validate_json(p)
+            for p in self._payloads(
+                "SELECT payload_json FROM sector_analysis_cards WHERE run_id = :id ORDER BY sector_id",
+                {"id": str(run_id)},
+            )
+        )
 
     def get_outline(self, run_id: UUID) -> ArticleOutline | None:
-        values = self._payloads("SELECT payload_json FROM article_outlines WHERE run_id = :id", {"id": str(run_id)})
+        values = self._payloads(
+            "SELECT payload_json FROM article_outlines WHERE run_id = :id", {"id": str(run_id)}
+        )
         return ArticleOutline.model_validate_json(values[0]) if values else None
 
     def get_drafts(self, run_id: UUID) -> tuple[ArticleDraft, ...]:
-        return tuple(ArticleDraft.model_validate_json(p) for p in self._payloads(
-            "SELECT payload_json FROM article_drafts WHERE run_id = :id ORDER BY version", {"id": str(run_id)}
-        ))
+        return tuple(
+            ArticleDraft.model_validate_json(p)
+            for p in self._payloads(
+                "SELECT payload_json FROM article_drafts WHERE run_id = :id ORDER BY version",
+                {"id": str(run_id)},
+            )
+        )
 
     def get_review(self, run_id: UUID) -> ReviewReport | None:
         values = self._payloads(
@@ -190,13 +264,27 @@ class PostgresPhase1BRepository:
             return [row[0] for row in result.fetchall()]
 
     @staticmethod
-    def _upsert(connection: Connection, table: str, keys: str, run_id: str, sector_id: str,
-                       sector_kind: str, payload: str) -> None:
+    def _upsert(
+        connection: Connection,
+        table: str,
+        keys: str,
+        run_id: str,
+        sector_id: str,
+        sector_kind: str,
+        payload: str,
+    ) -> None:
         connection.execute(
-            text(f"INSERT INTO {table} ({keys}, payload_json, payload_hash) VALUES "
-                 "(:run_id, :sector_id, :sector_kind, :payload, :hash) "
-                 f"ON CONFLICT ({keys}) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
-                 "payload_hash = EXCLUDED.payload_hash"),
-            {"run_id": run_id, "sector_id": sector_id, "sector_kind": sector_kind,
-             "payload": payload, "hash": _hash(payload)},
+            text(
+                f"INSERT INTO {table} ({keys}, payload_json, payload_hash) VALUES "
+                "(:run_id, :sector_id, :sector_kind, :payload, :hash) "
+                f"ON CONFLICT ({keys}) DO UPDATE SET payload_json = EXCLUDED.payload_json, "
+                "payload_hash = EXCLUDED.payload_hash"
+            ),
+            {
+                "run_id": run_id,
+                "sector_id": sector_id,
+                "sector_kind": sector_kind,
+                "payload": payload,
+                "hash": _hash(payload),
+            },
         )
