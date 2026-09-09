@@ -43,10 +43,10 @@ it('does not invent completed stages for a generic failed historical run', () =>
   expect(screen.queryByText('已完成')).not.toBeInTheDocument()
 })
 
-it('uses saved draft and attribution without inventing editorial or automatic review history', () => {
+it('uses saved draft to reconstruct editorial completion without inventing automatic review history', () => {
   render(<ContentRunStageRail events={[]} done run={{ ...failedDraftRun, status: 'UNREVIEWED', draft_id: 'draft-1' }} hasAttribution />)
   expect(screen.getAllByTestId('timeline-state').map(node => node.textContent)).toEqual([
-    '已完成', '已完成', '已完成', '未记录', '已完成', '未记录',
+    '已完成', '已完成', '已完成', '已完成', '已完成', '未记录',
   ])
   expect(screen.getByText('自动审核完成')).toBeInTheDocument()
 })

@@ -54,6 +54,10 @@ function resolveStageStates(events: ProgressEvent[], done: boolean, run: RunSumm
     // Saved artifacts prove their own stage, not every earlier stage or a passing review.
     if (index === 0 && (run?.draft_id || hasAttribution)) return 'complete'
     if ((index === 1 || index === 2) && hasAttribution) return 'complete'
+    // A saved draft can only exist after the outline/editorial stage persisted successfully.
+    // Historical pages do not receive the original SSE event stream, so recover this fact
+    // from the durable artifact instead of showing a misleading "未记录" state.
+    if (index === 3 && run?.draft_id) return 'complete'
     if (index === 4 && run?.draft_id) return 'complete'
     if (index === 5 && run?.review_decision) return 'complete'
     if (done) return 'unknown'
