@@ -1,5 +1,5 @@
 import pytest
-from sector_pulse.domain.editing import DraftPatch
+from sector_pulse.domain.review.editing import DraftPatch
 
 
 def test_patch_rejects_source_and_cutoff_paths():

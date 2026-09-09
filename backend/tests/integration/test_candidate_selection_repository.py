@@ -1,17 +1,17 @@
 from datetime import UTC, datetime
 
 import pytest
-from sector_pulse.domain.candidate_selection import (
+from sector_pulse.domain.market.candidate_selection import (
     CandidateSelection,
     CandidateSelectionMethod,
     CandidateSelectionVersionConflict,
 )
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest
-from sector_pulse.storage.sqlite.candidate_selection_repository import (
+from sector_pulse.domain.runs.real_data_run import RealDataRun, RealDataRunRequest
+from sector_pulse.storage.sqlite.database import SQLiteDatabase
+from sector_pulse.storage.sqlite.market.candidate_selection_repository import (
     SQLiteCandidateSelectionRepository,
 )
-from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 
 
 def selection(run_id, version: int, *, edit_count: int = 0) -> CandidateSelection:

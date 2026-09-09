@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from sector_pulse.domain.task import Checkpoint, TaskStage
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.domain.runs.task import Checkpoint, TaskStage
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
 
 
 @dataclass(frozen=True)

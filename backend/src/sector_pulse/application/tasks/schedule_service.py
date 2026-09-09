@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from sector_pulse.storage.ports import ScheduleRepositoryPort
+from sector_pulse.storage.ports.tasks import ScheduleRepositoryPort
 
 
 class ScheduleCreate(BaseModel):

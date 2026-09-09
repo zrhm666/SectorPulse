@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from sector_pulse.domain.evidence import EvidenceLevel, EvidencePack
-from sector_pulse.domain.quality import QualityStatus
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.news.evidence import EvidenceLevel, EvidencePack
 
 
 def test_evidence_pack_serializes_stable_level_and_counter_evidence() -> None:

@@ -2,13 +2,13 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest
+from sector_pulse.domain.runs.real_data_run import RealDataRun, RealDataRunRequest
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.phase1b_runs_repository import (
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
     SQLitePhase1BRunsRepository,
 )
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.web.app import create_app
 
 

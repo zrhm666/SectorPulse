@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
 from sector_pulse.application.data_runs.real_data_queries import RealDataRunQueries
-from sector_pulse.domain.quality import QualityStatus
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.runs.real_data_run import (
     RealDataQualitySummary,
     RealDataRun,
     RealDataRunRequest,

@@ -5,8 +5,9 @@ from zoneinfo import ZoneInfo
 
 from sector_pulse.application.tasks.schedule_service import ScheduleService, ScheduleView
 from sector_pulse.application.tasks.task_run_service import TaskRunService
-from sector_pulse.domain.task import TaskRunStatus
-from sector_pulse.storage.ports import RealDataRunRepositoryPort, RuntimeTaskRepositoryPort
+from sector_pulse.domain.runs.task import TaskRunStatus
+from sector_pulse.storage.ports.runs import RealDataRunRepositoryPort
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 
 
 class ScheduleDataRunBridge(Protocol):

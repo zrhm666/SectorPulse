@@ -3,10 +3,10 @@ from uuid import uuid4
 
 import pytest
 from sector_pulse.domain.llm import AgentInvocation, LLMStatus, MoneyCny, TokenUsage
-from sector_pulse.storage.postgres.agent_invocation_repository import (
+from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.writing.agent_invocation_repository import (
     PostgresAgentInvocationRepository,
 )
-from sector_pulse.storage.postgres.database import PostgresDatabase
 
 
 def test_postgres_agent_invocation_round_trip() -> None:

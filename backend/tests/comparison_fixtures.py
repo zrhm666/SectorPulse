@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
-from sector_pulse.domain.news_retrieval import (
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, SourceGrade
+from sector_pulse.domain.news.news_retrieval import (
     MappingConfidence,
     NewsQuery,
     NewsQueryDocumentLink,
@@ -14,13 +14,13 @@ from sector_pulse.domain.news_retrieval import (
     SectorEventLink,
 )
 from sector_pulse.domain.provider import DataStatus, ProviderResult
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.runs.real_data_run import (
     RealDataCandidate,
     RealDataRun,
     RealDataRunRequest,
     RealDataRunStatus,
 )
-from sector_pulse.domain.time import AnalysisRun
+from sector_pulse.domain.runs.time import AnalysisRun
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 
 NOW = datetime(2026, 9, 7, 1, tzinfo=UTC)

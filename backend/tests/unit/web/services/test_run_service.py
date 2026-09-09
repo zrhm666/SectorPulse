@@ -6,14 +6,16 @@ from uuid import uuid4
 
 from sector_pulse.application.writing.phase1b_pipeline import Phase1BRequest
 from sector_pulse.config.llm_config import LLMRuntimeConfig
-from sector_pulse.domain.news import NewsDocument, NewsEvent, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, SourceGrade
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.sqlite.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.news_evidence_repository import SQLiteNewsEvidenceRepository
-from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
-from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
-from sector_pulse.storage.sqlite.phase1b_runs_repository import SQLitePhase1BRunsRepository
+from sector_pulse.storage.sqlite.news.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.sqlite.news.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import SQLitePhase1BRunsRepository
+from sector_pulse.storage.sqlite.writing.agent_invocation_repository import (
+    SQLiteAgentInvocationRepository,
+)
+from sector_pulse.storage.sqlite.writing.phase1b_repository import SQLitePhase1BRepository
 from sector_pulse.web.events.progress_bus import ProgressBus
 from sector_pulse.web.services.run_service import RunService
 
@@ -63,6 +65,57 @@ async def test_content_retry_persists_lineage_and_preserves_original(tmp_path):
     assert stored.input_json == before.input_json
     assert service._runs_repo.get_run(original) == before
     assert service.get_run(retry).retry_of_run_id == original
+
+
+async def test_retry_restores_only_unique_same_run_snapshot_names(tmp_path):
+    from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+
+    service = _service(tmp_path)
+    original = service.create_run(_input_json(), "fixture")
+    await service.wait(original)
+    before = service._runs_repo.get_run(original)
+
+    class Snapshots:
+        def get(self, run_id, kind):
+            assert run_id == original
+            if kind != SectorKind.INDUSTRY:
+                return None
+            return SectorUniverseSnapshot(
+                provider_id="fixture",
+                classification_version="1",
+                source_version="1",
+                kind=kind,
+                observed_at=datetime.now(UTC),
+                collected_at=datetime.now(UTC),
+                sectors=(
+                    SectorSnapshot(
+                        provider_sector_id="industry-1", name="文化传媒", kind=kind, pct_change=0
+                    ),
+                    SectorSnapshot(
+                        provider_sector_id="industry-2", name="名称甲", kind=kind, pct_change=0
+                    ),
+                    SectorSnapshot(
+                        provider_sector_id="industry-2", name="名称乙", kind=kind, pct_change=0
+                    ),
+                    SectorSnapshot(
+                        provider_sector_id="industry-3",
+                        name="错类型",
+                        kind=SectorKind.CONCEPT,
+                        pct_change=0,
+                    ),
+                ),
+            )
+
+    service._market_snapshots = Snapshots()
+    retry = service.retry_run(original)
+    await service.wait(retry)
+    contexts = service._phase1b_repo.get_contexts(retry)
+    names = {c.sector_id: c.sector_name for c in contexts}
+    assert names["industry-1"] == "文化传媒"
+    assert names["industry-2"] is None
+    assert names["industry-3"] is None
+    assert service._runs_repo.get_run(original) == before
+    assert service._runs_repo.get_run(retry).input_json["contexts"][0]["sector_name"] == "文化传媒"
 
 
 async def test_create_run_lifecycle(tmp_path) -> None:

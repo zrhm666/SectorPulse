@@ -2,15 +2,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from sector_pulse.application.diagnostics.phase0_probe import run_phase0_probe
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.quality import QualityThresholds
 from sector_pulse.domain.provider import (
     AuthorizationStatus,
     DataStatus,
     ProviderManifest,
     ProviderResult,
 )
-from sector_pulse.domain.quality import QualityThresholds
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 
 
 class FakeMarketPort:

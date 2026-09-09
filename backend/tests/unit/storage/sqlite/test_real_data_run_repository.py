@@ -4,15 +4,15 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import (
     RealDataCandidate,
     RealDataRun,
     RealDataRunRequest,
     RealDataRunStatus,
 )
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 
 RUN_ID = uuid4()
 

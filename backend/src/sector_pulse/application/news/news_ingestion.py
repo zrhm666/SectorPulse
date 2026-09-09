@@ -3,11 +3,11 @@ import re
 from collections.abc import Sequence
 from difflib import SequenceMatcher
 
-from sector_pulse.domain.news import NewsDocument, NewsEvent
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent
 from sector_pulse.domain.provider import DataStatus, ProviderResult
-from sector_pulse.domain.time import AnalysisRun
+from sector_pulse.domain.runs.time import AnalysisRun
 from sector_pulse.ports.news import NewsPort
-from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.news.news_repository import SQLiteNewsRepository
 
 
 def _normalize_title(title: str) -> str:

@@ -7,9 +7,9 @@ from sector_pulse.application.news.news_retrieval import (
     build_news_query_plan,
     execute_news_query_plan,
 )
-from sector_pulse.domain.candidate import SectorCandidate
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news_retrieval import (
+from sector_pulse.domain.market.candidate import SectorCandidate
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.news.news_retrieval import (
     NewsQueryPlan,
     QueryType,
     SectorEntityConfig,

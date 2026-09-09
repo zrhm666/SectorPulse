@@ -2,11 +2,11 @@ from collections.abc import Sequence
 from decimal import Decimal
 from uuid import UUID
 
-from sector_pulse.domain.candidate import SectorCandidate
-from sector_pulse.domain.evidence import EvidenceLevel, EvidencePack
-from sector_pulse.domain.market import SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news import NewsEvent
-from sector_pulse.domain.quality import QualityStatus
+from sector_pulse.domain.market.candidate import SectorCandidate
+from sector_pulse.domain.market.market import SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.news.evidence import EvidenceLevel, EvidencePack
+from sector_pulse.domain.news.news import NewsEvent
 
 MARKET_SCORE_WEIGHT = Decimal("0.90")
 

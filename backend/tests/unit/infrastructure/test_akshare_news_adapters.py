@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sector_pulse.domain.news import SourceGrade
+from sector_pulse.domain.news.news import SourceGrade
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.infrastructure.news.akshare_adapters import (
     AkShareClsAdapter,

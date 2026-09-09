@@ -5,14 +5,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 
-from sector_pulse.domain.prompt_golden import PromptGoldenCase
-from sector_pulse.domain.shadow_acceptance import (
+from sector_pulse.domain.evaluation.prompt_golden import PromptGoldenCase
+from sector_pulse.domain.evaluation.shadow_acceptance import (
     ComplianceRecord,
     RecoveryDrill,
     ShadowRun,
     ShadowRunStatus,
 )
-from sector_pulse.storage.ports import PromptGoldenRepositoryPort, ShadowAcceptanceRepositoryPort
+from sector_pulse.storage.ports.evaluation import (
+    PromptGoldenRepositoryPort,
+    ShadowAcceptanceRepositoryPort,
+)
 from sector_pulse.web.schemas.prompt_golden import PromptGoldenRequest, PromptGoldenResponse
 from sector_pulse.web.schemas.shadow import (
     ComplianceRecordRequest,

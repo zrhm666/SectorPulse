@@ -7,8 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataRunStatus
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import RealDataRunStatus
 
 Provider = Literal["fixture", "live"]
 RunMode = Literal["intraday", "post_close"]

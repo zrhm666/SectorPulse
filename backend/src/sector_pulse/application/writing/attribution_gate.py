@@ -2,16 +2,16 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from decimal import Decimal
 
-from sector_pulse.domain.attribution import (
+from sector_pulse.domain.market.market import SectorSnapshot
+from sector_pulse.domain.news.evidence import EvidenceLevel, EvidencePack
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, NewsUse, SourceGrade
+from sector_pulse.domain.news.news_retrieval import SectorEventLink
+from sector_pulse.domain.runs.time import AnalysisRun
+from sector_pulse.domain.writing.attribution import (
     LEVEL_RANK,
     AttributionContext,
     AttributionGateResult,
 )
-from sector_pulse.domain.evidence import EvidenceLevel, EvidencePack
-from sector_pulse.domain.market import SectorSnapshot
-from sector_pulse.domain.news import NewsDocument, NewsEvent, NewsUse, SourceGrade
-from sector_pulse.domain.news_retrieval import SectorEventLink
-from sector_pulse.domain.time import AnalysisRun
 
 
 def build_attribution_context(
@@ -26,6 +26,12 @@ def build_attribution_context(
     """从已持久化 EvidencePack 构建模型只读输入，并保留每个时间边界的分类。"""
     if run.run_cutoff_at is None:
         raise ValueError("attribution context requires locked cutoff")
+    if (
+        pack.run_id != run.run_id
+        or snapshot.provider_sector_id != pack.sector_id
+        or snapshot.kind != pack.sector_kind
+    ):
+        raise ValueError("snapshot does not match evidence pack identity")
     event_by_id = {event.event_id: event for event in events}
     event_ids = tuple(pack.event_ids)
     eligible: list[str] = []
@@ -53,6 +59,7 @@ def build_attribution_context(
         run_id=run.run_id,
         sector_id=pack.sector_id,
         sector_kind=pack.sector_kind,
+        sector_name=snapshot.name.strip() or None,
         cutoff_at=run.run_cutoff_at,
         market_facts={
             "pct_change": snapshot.pct_change,

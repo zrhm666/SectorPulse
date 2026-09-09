@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sector_pulse.domain.article import ArticleDraft
+from sector_pulse.domain.writing.article import ArticleDraft
 
 
 @dataclass(frozen=True)

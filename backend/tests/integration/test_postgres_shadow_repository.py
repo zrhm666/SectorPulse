@@ -3,9 +3,9 @@ from datetime import UTC, date, datetime
 from uuid import uuid4
 
 import pytest
-from sector_pulse.domain.shadow_acceptance import ShadowRun
+from sector_pulse.domain.evaluation.shadow_acceptance import ShadowRun
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.shadow_acceptance_repository import (
+from sector_pulse.storage.postgres.evaluation.shadow_acceptance_repository import (
     PostgresShadowAcceptanceRepository,
 )
 

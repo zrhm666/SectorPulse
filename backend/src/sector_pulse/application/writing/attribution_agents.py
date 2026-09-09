@@ -10,13 +10,13 @@ from sector_pulse.application.writing.invocations import (
     noop_invocation_sink,
 )
 from sector_pulse.application.writing.progress import NoopProgressSink, ProgressSink
-from sector_pulse.domain.attribution import (
+from sector_pulse.domain.llm import LLMRequest, LLMStatus
+from sector_pulse.domain.news.evidence import EvidenceLevel
+from sector_pulse.domain.writing.attribution import (
     AttributionContext,
     AttributionGateResult,
     SectorAnalysisCard,
 )
-from sector_pulse.domain.evidence import EvidenceLevel
-from sector_pulse.domain.llm import LLMRequest, LLMStatus
 from sector_pulse.ports.llm import LLMPort
 
 
@@ -34,6 +34,7 @@ def _fallback(
             run_id=context.run_id,
             sector_id=context.sector_id,
             sector_kind=context.sector_kind,
+            sector_name=context.sector_name,
             allowed_max_level=gate.allowed_max_level,
             attribution_level=EvidenceLevel.NO_RELIABLE_EXPLANATION,
             confidence=Decimal("0"),

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from sector_pulse.application.news.news_quality import evaluate_news_quality
-from sector_pulse.domain.news import NewsDocument, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, SourceGrade
 from sector_pulse.domain.provider import DataStatus
 
 NOW = datetime(2026, 8, 14, 2, tzinfo=UTC)

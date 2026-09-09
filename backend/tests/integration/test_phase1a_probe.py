@@ -3,16 +3,16 @@ from decimal import Decimal
 from pathlib import Path
 
 from sector_pulse.application.diagnostics.phase1a_probe import run_phase1a_probe
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news import NewsDocument, SourceGrade
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.market.quality import QualityThresholds
+from sector_pulse.domain.news.news import NewsDocument, SourceGrade
 from sector_pulse.domain.provider import (
     AuthorizationStatus,
     DataStatus,
     ProviderManifest,
     ProviderResult,
 )
-from sector_pulse.domain.quality import QualityThresholds
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 

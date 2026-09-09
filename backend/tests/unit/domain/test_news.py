@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
-from sector_pulse.domain.news import NewsDocument, NewsUse, SourceGrade
+from sector_pulse.domain.news.news import NewsDocument, NewsUse, SourceGrade
 
 
 def make_document(

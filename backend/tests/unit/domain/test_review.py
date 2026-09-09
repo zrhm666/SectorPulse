@@ -1,5 +1,5 @@
 import pytest
-from sector_pulse.domain.review import ReviewDecision, ReviewReport
+from sector_pulse.domain.review.review import ReviewDecision, ReviewReport
 
 
 def test_pass_review_cannot_contain_blocking_issue() -> None:

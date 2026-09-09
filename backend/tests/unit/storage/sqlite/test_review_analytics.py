@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.review_analytics import ReviewAnalyticsQueries
+from sector_pulse.storage.sqlite.review.review_analytics import ReviewAnalyticsQueries
 
 
 def test_summary_empty_range_is_zero(tmp_path) -> None:

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.infrastructure.providers.akshare.constituents import (
     AkShareSectorConstituentAdapter,

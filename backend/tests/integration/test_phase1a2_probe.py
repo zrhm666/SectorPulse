@@ -4,15 +4,15 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from sector_pulse.application.data_runs.phase1a2_probe import Phase1A2Request, run_phase1a2_probe
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news import NewsDocument, SourceGrade
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.news.news import NewsDocument, SourceGrade
 from sector_pulse.domain.provider import (
     AuthorizationStatus,
     DataStatus,
     ProviderManifest,
     ProviderResult,
 )
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 NOW = datetime(2026, 8, 14, 2, tzinfo=UTC)
@@ -135,7 +135,7 @@ def test_phase1a2_probe_fixture_end_to_end(tmp_path) -> None:
         disclosure_news=News(),
         database=SQLiteDatabase(tmp_path / "probe.db"),
         entity_config=__import__(
-            "sector_pulse.domain.news_retrieval", fromlist=["SectorEntityConfig"]
+            "sector_pulse.domain.news.news_retrieval", fromlist=["SectorEntityConfig"]
         ).SectorEntityConfig(version="fixture", aliases={}, industry_terms={}, ambiguous_terms=()),
     )
     report = asyncio.run(

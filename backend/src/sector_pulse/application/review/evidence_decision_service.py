@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
-from sector_pulse.domain.article import ArticleDraft
-from sector_pulse.domain.editing import EvidenceDecision, EvidenceDecisionKind
-from sector_pulse.storage.ports import GovernanceRepositoryPort
+from sector_pulse.domain.review.editing import EvidenceDecision, EvidenceDecisionKind
+from sector_pulse.domain.writing.article import ArticleDraft
+from sector_pulse.storage.ports.review import GovernanceRepositoryPort
 
 
 class EvidenceDecisionService:

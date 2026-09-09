@@ -8,15 +8,15 @@ from sector_pulse.application.data_runs.real_data_writing_bridge import (
     RealDataRunNotReady,
     build_phase1b_request,
 )
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import (
     RealDataCandidate,
     RealDataRun,
     RealDataRunRequest,
     RealDataRunStatus,
 )
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 
 
 def test_non_ready_run_is_rejected_before_bridge_reads_artifacts(tmp_path: Path) -> None:

@@ -8,9 +8,13 @@ from sector_pulse.application.data_runs.candidate_selection_service import (
     CandidateSelectionRequired,
     CandidateSelectionService,
 )
-from sector_pulse.domain.candidate_selection import CandidateSelectionVersionConflict
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRun, RealDataRunRequest
+from sector_pulse.domain.market.candidate_selection import CandidateSelectionVersionConflict
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import (
+    RealDataCandidate,
+    RealDataRun,
+    RealDataRunRequest,
+)
 
 
 class Runs:

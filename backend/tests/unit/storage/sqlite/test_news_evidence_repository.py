@@ -1,5 +1,5 @@
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.news_evidence_repository import SQLiteNewsEvidenceRepository
+from sector_pulse.storage.sqlite.news.news_evidence_repository import SQLiteNewsEvidenceRepository
 
 
 def test_get_events_empty(tmp_path) -> None:

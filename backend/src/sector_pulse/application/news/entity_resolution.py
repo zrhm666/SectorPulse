@@ -1,9 +1,9 @@
 from collections.abc import Mapping, Sequence
 from uuid import UUID
 
-from sector_pulse.domain.market import SectorSnapshot
-from sector_pulse.domain.news import NewsDocument, NewsEvent
-from sector_pulse.domain.news_retrieval import (
+from sector_pulse.domain.market.market import SectorSnapshot
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent
+from sector_pulse.domain.news.news_retrieval import (
     MappingConfidence,
     SectorEntityConfig,
     SectorEventLink,

@@ -4,17 +4,17 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
-from sector_pulse.domain.attribution import AttributionContext
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.review import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.review.review import (
     IssueSeverity,
     ReviewDecision,
     ReviewIssue,
     ReviewReport,
 )
+from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.writing.attribution import AttributionContext
 from sector_pulse.storage.postgres.database import PostgresDatabase
-from sector_pulse.storage.postgres.phase1b_repository import PostgresPhase1BRepository
+from sector_pulse.storage.postgres.writing.phase1b_repository import PostgresPhase1BRepository
 from sector_pulse.web.app import create_app
 from sqlalchemy import text
 

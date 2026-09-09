@@ -6,8 +6,8 @@ from sector_pulse.application.data_runs.candidate_selection import (
     build_evidence_pack,
     select_candidates,
 )
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.news import NewsEvent
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.news.news import NewsEvent
 
 
 def universe(

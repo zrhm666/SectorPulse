@@ -7,8 +7,8 @@ from sector_pulse.application.comparison.run_comparison_diff import (
     metric_difference,
     rank_delta,
 )
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataCandidate
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import RealDataCandidate
 
 
 def test_percentage_difference_preserves_decimal_zero() -> None:

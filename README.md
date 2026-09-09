@@ -308,9 +308,9 @@ SectorPulse/
 ├─ backend/
 │  ├─ src/sector_pulse/
 │  │  ├─ application/      # 按业务分包：data_runs/news/writing/review/runs/tasks 等
-│  │  ├─ domain/           # 领域模型与规则
+│  │  ├─ domain/           # market/news/writing/review/runs/evaluation 领域模型
 │  │  ├─ infrastructure/   # 数据源与 LLM Provider
-│  │  ├─ storage/          # sqlite/postgres 实现；共用配置、装配与 migrations
+│  │  ├─ storage/          # sqlite/postgres 内按业务分组；ports 协议、装配与 migrations
 │  │  └─ web/              # routers/schemas/services/events/providers 与服务入口
 │  └─ tests/               # 单元、集成、端到端与 Live 测试
 ├─ config/                 # LLM、新闻源、实体和 Prompt 配置

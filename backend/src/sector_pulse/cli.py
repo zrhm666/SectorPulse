@@ -18,7 +18,7 @@ from sector_pulse.application.writing.phase1b_pipeline import (
 )
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
-from sector_pulse.domain.quality import QualityThresholds
+from sector_pulse.domain.market.quality import QualityThresholds
 from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.news.akshare_adapters import (
@@ -34,9 +34,11 @@ from sector_pulse.infrastructure.providers.akshare.constituents import (
 from sector_pulse.reporting.phase0_report import render_phase0_markdown, write_utf8_atomic
 from sector_pulse.reporting.phase1a2_report import write_phase1a2_report
 from sector_pulse.reporting.phase1b_report import write_phase1b_artifacts
-from sector_pulse.storage.sqlite.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
+from sector_pulse.storage.sqlite.writing.agent_invocation_repository import (
+    SQLiteAgentInvocationRepository,
+)
+from sector_pulse.storage.sqlite.writing.phase1b_repository import SQLitePhase1BRepository
 
 app = typer.Typer(no_args_is_help=True)
 

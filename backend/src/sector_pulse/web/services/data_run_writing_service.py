@@ -3,12 +3,12 @@ from typing import cast
 from uuid import UUID
 
 from sector_pulse.application.data_runs.real_data_writing_bridge import build_phase1b_request
-from sector_pulse.domain.real_data_run import RealDataRunStatus
+from sector_pulse.domain.runs.real_data_run import RealDataRunStatus
 from sector_pulse.storage.database_runtime import Database
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.real_data_run_repository import SQLiteRealDataRunRepository
+from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
 from sector_pulse.web.services.run_service import RunService
 
 

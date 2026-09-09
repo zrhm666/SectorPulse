@@ -3,7 +3,7 @@ from time import sleep
 
 import pandas as pd
 import pytest
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.infrastructure.providers.akshare import client as client_module
 from sector_pulse.infrastructure.providers.akshare.client import PandasThsAkShareClient
 

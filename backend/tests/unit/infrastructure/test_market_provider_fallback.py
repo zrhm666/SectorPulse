@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import (
     AuthorizationStatus,
     DataStatus,
@@ -8,7 +8,7 @@ from sector_pulse.domain.provider import (
     ProviderManifest,
     ProviderResult,
 )
-from sector_pulse.domain.time import AnalysisMode
+from sector_pulse.domain.runs.time import AnalysisMode
 from sector_pulse.infrastructure.providers.fallback import FallbackMarketDataAdapter
 
 

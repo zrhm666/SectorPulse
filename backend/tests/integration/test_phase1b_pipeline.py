@@ -9,15 +9,17 @@ from sector_pulse.application.writing.phase1b_pipeline import (
     run_phase1b_pipeline,
 )
 from sector_pulse.config.llm_config import LLMRoute, LLMRuntimeConfig
-from sector_pulse.domain.article import ArticleSource, DraftStatus
-from sector_pulse.domain.attribution import AttributionContext, AttributionGateResult
-from sector_pulse.domain.evidence import EvidenceLevel
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.news.evidence import EvidenceLevel
+from sector_pulse.domain.writing.article import ArticleSource, DraftStatus
+from sector_pulse.domain.writing.attribution import AttributionContext, AttributionGateResult
 from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.sqlite.agent_invocation_repository import SQLiteAgentInvocationRepository
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.phase1b_repository import SQLitePhase1BRepository
+from sector_pulse.storage.sqlite.writing.agent_invocation_repository import (
+    SQLiteAgentInvocationRepository,
+)
+from sector_pulse.storage.sqlite.writing.phase1b_repository import SQLitePhase1BRepository
 
 RUN_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -86,8 +88,8 @@ def fixture_responses() -> dict[str, object]:
         {
             "section_id": sector_id,
             "sector_id": sector_id,
-            "heading": f"{sector_id}观察",
-            "body": "市场表现暂无可靠解释。" * 45,
+            "heading": f"行业板块〔{sector_id}〕观察",
+            "body": f"行业板块〔{sector_id}〕表现分化。" + "市场表现暂无可靠解释。" * 35,
             "claims": [],
             "source_ids": [],
             "character_count": 405,
@@ -133,6 +135,18 @@ def fixture_responses() -> dict[str, object]:
         "issues": [],
         "revision_round": 1,
     }
+    responses["revision:1"] = {
+        "sections": [
+            {
+                "section_id": selected[0],
+                "heading": f"行业板块〔{selected[0]}〕观察",
+                "body": f"行业板块〔{selected[0]}〕表现分化，仍需更多证据。"
+                + "市场表现暂无可靠解释。" * 35,
+                "claims": [],
+                "source_ids": [],
+            }
+        ],
+    }
     return responses
 
 
@@ -173,10 +187,228 @@ def test_phase1b_pipeline_produces_reviewable_draft(tmp_path) -> None:
     assert result.draft is not None
     assert len(result.draft.sections) == 3
     assert result.draft.version == 2
+    assert "仍需更多证据" in result.draft.sections[0].body
+    assert "（已复核）" not in result.draft.sections[0].body
     assert result.draft.status is DraftStatus.READY_FOR_HUMAN_REVIEW
     assert result.review is not None
     assert result.review.decision.value == "PASS"
     assert result.total_cost_cny.amount <= Decimal("2.00")
+
+
+def test_revision_missing_keeps_original_version(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    del responses["revision:1"]
+    deps.llm = FixtureLLMProvider(responses)
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "REVISE_REQUIRED"
+    assert result.draft.version == 1
+    assert result.draft.status is DraftStatus.REVISE_REQUIRED
+    assert any(i.code == "REVISION_REQUEST_FAILED" for i in result.review.issues)
+
+
+def test_wrong_version_review_cannot_approve_draft(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["review:1"]["decision"] = "PASS"
+    responses["review:1"]["issues"] = []
+    responses["review:1"]["draft_version"] = 99
+    deps.llm = FixtureLLMProvider(responses)
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "UNREVIEWED"
+    assert result.review is None
+
+
+def test_model_pass_does_not_hide_missing_subject(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["article-draft"]["sections"][0]["body"] = "该板块缺少主体。"
+    responses["review:1"].update(decision="PASS", issues=[])
+    del responses["revision:1"]
+    deps.llm = FixtureLLMProvider(responses)
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "REVISE_REQUIRED"
+    assert any(i.code == "SECTOR_SUBJECT_MISSING" for i in result.review.issues)
+
+
+def test_external_invocation_sink_does_not_disable_budget(tmp_path) -> None:
+    from sector_pulse.domain.llm import MoneyCny
+
+    class CostedFixture(FixtureLLMProvider):
+        async def generate_structured(self, request):
+            result = await super().generate_structured(request)
+            return result.model_copy(update={"estimated_cost_cny": MoneyCny(amount=Decimal("1"))})
+
+    deps = dependencies(tmp_path)
+    deps.llm = CostedFixture(fixture_responses())
+    recorded = []
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+            invocation_sink=recorded.append,
+        )
+    )
+    assert result.status == "BUDGET_EXCEEDED"
+    assert result.total_cost_cny.amount == Decimal("8")
+    assert {i.stage for i in recorded} == {"attribution"}
+
+
+def test_budget_exhausted_after_revision_preserves_new_unreviewed_version(tmp_path) -> None:
+    from sector_pulse.domain.llm import MoneyCny
+
+    class CostedRevision(FixtureLLMProvider):
+        async def generate_structured(self, request):
+            result = await super().generate_structured(request)
+            if request.agent_name == "revision":
+                return result.model_copy(
+                    update={"estimated_cost_cny": MoneyCny(amount=Decimal("2"))}
+                )
+            return result
+
+    deps = dependencies(tmp_path)
+    deps.llm = CostedRevision(fixture_responses())
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "BUDGET_EXCEEDED"
+    assert result.draft.version == 2
+    assert result.draft.status == DraftStatus.UNREVIEWED
+    assert result.review is None
+
+
+def test_writer_cannot_bind_draft_to_unknown_sector(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["article-draft"]["sections"][0]["sector_id"] = "not-in-outline"
+    deps.llm = FixtureLLMProvider(responses)
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "DRAFT_GENERATION_FAILED"
+    assert result.draft is None
+
+
+def test_shipped_fixture_has_identifiable_reviewable_sections(tmp_path) -> None:
+    from sector_pulse.infrastructure.llm.fixture_resources import (
+        load_default_fixture_input,
+        load_default_fixture_responses,
+    )
+
+    deps = dependencies(tmp_path)
+    deps.llm = FixtureLLMProvider(load_default_fixture_responses())
+    request = Phase1BRequest.model_validate({"run_id": str(RUN_ID), **load_default_fixture_input()})
+    result = asyncio.run(run_phase1b_pipeline(deps, request))
+    assert result.status == "READY_FOR_HUMAN_REVIEW"
+    assert result.draft.character_count == (
+        len(result.draft.introduction)
+        + len(result.draft.conclusion)
+        + sum(len(s.body) for s in result.draft.sections)
+    )
+
+
+def test_revision_is_limited_to_two_rounds(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    responses["review:2"].update(decision="REVISE", issues=responses["review:1"]["issues"])
+    responses["revision:2"] = {
+        "sections": [
+            {
+                **responses["revision:1"]["sections"][0],
+                "body": responses["revision:1"]["sections"][0]["body"] + "需持续观察。",
+            }
+        ]
+    }
+    responses["review:3"] = {**responses["review:2"], "review_id": "review-3", "draft_version": 3}
+    deps.llm = FixtureLLMProvider(responses)
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "REVISE_REQUIRED"
+    assert result.draft.version == 3
+    assert result.review.revision_round == 2
+    invocations = deps.invocation_repository.list_for_run(RUN_ID)
+    assert sum(i.stage == "revision" for i in invocations) == 2
+
+
+def test_failed_review_of_revision_cannot_reuse_old_review(tmp_path) -> None:
+    deps = dependencies(tmp_path)
+    responses = fixture_responses()
+    del responses["review:2"]
+    deps.llm = FixtureLLMProvider(responses)
+    result = asyncio.run(
+        run_phase1b_pipeline(
+            deps,
+            Phase1BRequest(
+                run_id=RUN_ID,
+                requested_at=datetime(2026, 8, 14, 3, tzinfo=UTC),
+                contexts=contexts(),
+                gates={c.sector_id: gate(c) for c in contexts()},
+            ),
+        )
+    )
+    assert result.status == "UNREVIEWED"
+    assert result.draft.version == 2
+    assert result.review is None
 
 
 def test_phase1b_pipeline_hydrates_verified_sources_when_writer_omits_them(tmp_path) -> None:

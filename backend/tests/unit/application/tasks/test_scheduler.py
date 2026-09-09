@@ -6,7 +6,7 @@ import pytest
 from sector_pulse.application.tasks.schedule_service import ScheduleCreate, ScheduleService
 from sector_pulse.application.tasks.scheduler import EmbeddedScheduler
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
 
 
 class FakeExecutor:

@@ -4,7 +4,7 @@ from typing import Any
 
 import akshare as ak  # type: ignore[import-untyped]
 
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import (
     AuthorizationStatus,
     DataStatus,

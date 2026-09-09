@@ -3,9 +3,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from sector_pulse.domain.news import NewsDocument, NewsEvent, NewsUse
+from sector_pulse.domain.market.quality import QualityStatus
+from sector_pulse.domain.news.news import NewsDocument, NewsEvent, NewsUse
 from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.quality import QualityStatus
 
 
 class NewsQualityReport(BaseModel):

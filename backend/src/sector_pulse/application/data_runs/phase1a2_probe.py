@@ -19,22 +19,22 @@ from sector_pulse.application.news.news_retrieval import (
     build_news_query_plan,
     execute_news_query_plan,
 )
-from sector_pulse.domain.candidate import SectorCandidate
-from sector_pulse.domain.evidence import EvidencePack
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.news_retrieval import (
-    NewsQueryDocumentLink,
-    SectorEntityConfig,
-    SourceRunMetric,
-)
-from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.quality import (
+from sector_pulse.domain.market.candidate import SectorCandidate
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.market.quality import (
     QualityReport,
     QualityStatus,
     QualityThresholds,
     evaluate_universe,
 )
-from sector_pulse.domain.time import AnalysisMode, AnalysisRun
+from sector_pulse.domain.news.evidence import EvidencePack
+from sector_pulse.domain.news.news_retrieval import (
+    NewsQueryDocumentLink,
+    SectorEntityConfig,
+    SourceRunMetric,
+)
+from sector_pulse.domain.provider import DataStatus
+from sector_pulse.domain.runs.time import AnalysisMode, AnalysisRun
 from sector_pulse.ports.market_data import MarketDataPort
 from sector_pulse.ports.news_sources import (
     DisclosureSearchPort,
@@ -46,10 +46,12 @@ from sector_pulse.storage.database_runtime import Database
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.runtime_bundle import RuntimeStorageBundle
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.evidence_repository import SQLiteEvidenceRepository
-from sector_pulse.storage.sqlite.market_snapshot_repository import SQLiteMarketSnapshotRepository
-from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
-from sector_pulse.storage.sqlite.news_retrieval_repository import SQLiteNewsRetrievalRepository
+from sector_pulse.storage.sqlite.market.market_snapshot_repository import (
+    SQLiteMarketSnapshotRepository,
+)
+from sector_pulse.storage.sqlite.news.evidence_repository import SQLiteEvidenceRepository
+from sector_pulse.storage.sqlite.news.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.news.news_retrieval_repository import SQLiteNewsRetrievalRepository
 
 
 class Phase1A2Request(BaseModel):

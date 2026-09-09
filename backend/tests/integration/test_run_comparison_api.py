@@ -6,7 +6,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sector_pulse.application.comparison.run_comparison_queries import RunComparisonQueries
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
+from sector_pulse.domain.runs.real_data_run import (
+    RealDataRun,
+    RealDataRunRequest,
+    RealDataRunStatus,
+)
 from sector_pulse.storage.runtime_bundle import build_sqlite_storage
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.web.app import create_app

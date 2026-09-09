@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.infrastructure.providers.akshare.mapper import map_sector_rows
 
 

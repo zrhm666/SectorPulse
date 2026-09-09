@@ -15,17 +15,16 @@ from sector_pulse.application.writing.phase1b_pipeline import (
     run_phase1b_pipeline,
 )
 from sector_pulse.application.writing.progress import ProgressSink
+from sector_pulse.application.writing.sector_identity import restore_context_names
 from sector_pulse.config.llm_config import LLMRuntimeConfig
-from sector_pulse.domain.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.domain.llm import AgentInvocation
+from sector_pulse.domain.writing.article import ArticleDraft, ArticleSource, DraftStatus
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.storage.ports import (
-    AgentInvocationRepositoryPort,
-    NewsEvidenceRepositoryPort,
-    Phase1BRepositoryPort,
-    Phase1BRunsRepositoryPort,
-)
-from sector_pulse.storage.sqlite.phase1b_runs_repository import (
+from sector_pulse.storage.ports.market import MarketSnapshotRepositoryPort
+from sector_pulse.storage.ports.news import NewsEvidenceRepositoryPort
+from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort
+from sector_pulse.storage.ports.writing import AgentInvocationRepositoryPort, Phase1BRepositoryPort
+from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
 )
 from sector_pulse.web.events.progress_bus import ProgressBus
@@ -48,6 +47,7 @@ class RunService:
         bus: ProgressBus,
         fixture_responses: dict[str, object],
         llm_factory: dict[str, Any],
+        market_snapshots: MarketSnapshotRepositoryPort | None = None,
     ) -> None:
         self._runs_repo = runs_repo
         self._phase1b_repo = phase1b_repo
@@ -58,6 +58,7 @@ class RunService:
         self._bus = bus
         self._fixture_responses = fixture_responses
         self._llm_factory = llm_factory
+        self._market_snapshots = market_snapshots
         self._tasks = RunTaskRegistry()
 
     def create_run(
@@ -75,6 +76,15 @@ class RunService:
                 return run_id
             raise ProviderUnavailable("run already has a terminal Phase 1B execution")
         request = Phase1BRequest.model_validate({"run_id": str(run_id), **input_json})
+        if self._market_snapshots is not None:
+            restored = restore_context_names(
+                request.contexts, retry_of_run_id or run_id, self._market_snapshots
+            )
+            if restored != request.contexts:
+                request = request.model_copy(update={"contexts": restored})
+                input_json = {
+                    **input_json, "contexts": [c.model_dump(mode="json") for c in restored]
+                }
         if provider == "live":
             request = request.model_copy(
                 update={"verified_sources_by_sector": self._load_verified_sources(request)}

@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 from sector_pulse.application.tasks.run_executor import RetryPolicy, RunExecutor, StageWork
 from sector_pulse.application.tasks.task_run_service import TaskRunService
-from sector_pulse.domain.task import TaskRunKey, TaskStage
+from sector_pulse.domain.runs.task import TaskRunKey, TaskStage
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.task_repository import SQLiteTaskRepository
+from sector_pulse.storage.sqlite.runs.task_repository import SQLiteTaskRepository
 
 
 @pytest.fixture

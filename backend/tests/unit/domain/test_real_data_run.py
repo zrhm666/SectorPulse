@@ -1,6 +1,10 @@
 from uuid import uuid4
 
-from sector_pulse.domain.real_data_run import RealDataRun, RealDataRunRequest, RealDataRunStatus
+from sector_pulse.domain.runs.real_data_run import (
+    RealDataRun,
+    RealDataRunRequest,
+    RealDataRunStatus,
+)
 
 
 def test_intraday_defaults_to_six_hour_lookback() -> None:

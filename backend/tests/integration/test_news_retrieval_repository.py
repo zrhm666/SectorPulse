@@ -2,8 +2,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.news_retrieval import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.news.news_retrieval import (
     MappingConfidence,
     NewsQuery,
     NewsQueryDocumentLink,
@@ -13,7 +13,7 @@ from sector_pulse.domain.news_retrieval import (
 )
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.news_retrieval_repository import SQLiteNewsRetrievalRepository
+from sector_pulse.storage.sqlite.news.news_retrieval_repository import SQLiteNewsRetrievalRepository
 
 
 def test_save_audit_is_idempotent_and_hashes_query_values(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
-from sector_pulse.domain.time import (
+from sector_pulse.domain.runs.time import (
     AnalysisMode,
     AnalysisRun,
     CutoffAlreadyLockedError,

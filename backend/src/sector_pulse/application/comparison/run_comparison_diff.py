@@ -13,8 +13,8 @@ from sector_pulse.application.comparison.run_comparison_models import (
     SectorComparisonRow,
     SnapshotContext,
 )
-from sector_pulse.domain.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
-from sector_pulse.domain.real_data_run import RealDataCandidate
+from sector_pulse.domain.market.market import SectorKind, SectorSnapshot, SectorUniverseSnapshot
+from sector_pulse.domain.runs.real_data_run import RealDataCandidate
 
 
 def metric_difference(

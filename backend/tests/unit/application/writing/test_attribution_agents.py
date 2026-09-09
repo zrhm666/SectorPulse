@@ -4,8 +4,6 @@ from decimal import Decimal
 from uuid import UUID
 
 from sector_pulse.application.writing.attribution_agents import run_attribution_agents
-from sector_pulse.domain.attribution import AttributionContext, AttributionGateResult
-from sector_pulse.domain.evidence import EvidenceLevel
 from sector_pulse.domain.llm import (
     LLMRequest,
     LLMResult,
@@ -13,7 +11,9 @@ from sector_pulse.domain.llm import (
     MoneyCny,
     TokenUsage,
 )
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.news.evidence import EvidenceLevel
+from sector_pulse.domain.writing.attribution import AttributionContext, AttributionGateResult
 
 RUN_ID = UUID("00000000-0000-0000-0000-000000000001")
 

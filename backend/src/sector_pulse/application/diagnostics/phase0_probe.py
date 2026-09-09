@@ -5,17 +5,17 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.provider import AuthorizationStatus
-from sector_pulse.domain.quality import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.market.quality import (
     QualityReport,
     QualityStatus,
     QualityThresholds,
     evaluate_universe,
     lock_cutoff_from_core_market,
 )
-from sector_pulse.domain.radar import build_diagnostic_radar
-from sector_pulse.domain.time import AnalysisMode, AnalysisRun
+from sector_pulse.domain.market.radar import build_diagnostic_radar
+from sector_pulse.domain.provider import AuthorizationStatus
+from sector_pulse.domain.runs.time import AnalysisMode, AnalysisRun
 from sector_pulse.ports.market_data import MarketDataPort
 from sector_pulse.reporting.phase0_report import write_utf8_atomic
 

@@ -18,7 +18,7 @@ from sector_pulse.application.comparison.run_comparison_queries import (
     ComparisonNotFoundError,
     RunComparisonQueries,
 )
-from sector_pulse.domain.market import SectorKind
+from sector_pulse.domain.market.market import SectorKind
 
 
 def _query[T](operation: Callable[[], T]) -> T:

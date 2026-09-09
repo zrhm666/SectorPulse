@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from sector_pulse.application.review.governance_service import GovernanceService
-from sector_pulse.domain.article import ArticleDraft, DraftStatus
+from sector_pulse.domain.writing.article import ArticleDraft, DraftStatus
 
 
 def make_draft(conclusion="总结", source_ids=()):

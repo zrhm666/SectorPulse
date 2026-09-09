@@ -1,8 +1,13 @@
 from uuid import uuid4
 
 from sector_pulse.application.writing.editorial_agents import revise_sections
-from sector_pulse.domain.article import ArticleDraft, ArticleSection, ArticleSource, DraftStatus
-from sector_pulse.domain.attribution import Claim, ClaimKind
+from sector_pulse.domain.writing.article import (
+    ArticleDraft,
+    ArticleSection,
+    ArticleSource,
+    DraftStatus,
+)
+from sector_pulse.domain.writing.attribution import Claim, ClaimKind
 
 
 def section(section_id: str, body: str) -> ArticleSection:

@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
 
-from sector_pulse.domain.candidate import SectorCandidate
-from sector_pulse.domain.news import NewsDocument
-from sector_pulse.domain.news_retrieval import (
+from sector_pulse.domain.market.candidate import SectorCandidate
+from sector_pulse.domain.news.news import NewsDocument
+from sector_pulse.domain.news.news_retrieval import (
     NewsQuery,
     NewsQueryPlan,
     QueryType,

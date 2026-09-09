@@ -4,8 +4,8 @@ from typing import Any
 from uuid import UUID
 
 from sector_pulse.application.tasks.schedule_service import ScheduleView
-from sector_pulse.domain.task import TaskRunKey
-from sector_pulse.storage.ports import RuntimeTaskRepositoryPort
+from sector_pulse.domain.runs.task import TaskRunKey
+from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
 
 
 class TaskRunService:

@@ -2,8 +2,8 @@ from decimal import Decimal
 
 import pytest
 from sector_pulse.application.comparison.run_comparison_queries import RunComparisonQueries
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.real_data_run import RealDataCandidate, RealDataRunStatus
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.runs.real_data_run import RealDataCandidate, RealDataRunStatus
 from sector_pulse.storage.runtime_bundle import build_sqlite_storage
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 

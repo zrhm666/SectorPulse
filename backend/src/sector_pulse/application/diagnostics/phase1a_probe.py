@@ -8,22 +8,24 @@ from sector_pulse.application.data_runs.candidate_selection import (
     select_candidates,
 )
 from sector_pulse.application.news.news_ingestion import ingest_news
-from sector_pulse.domain.market import SectorKind
-from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.quality import (
+from sector_pulse.domain.market.market import SectorKind
+from sector_pulse.domain.market.quality import (
     QualityReport,
     QualityStatus,
     QualityThresholds,
     evaluate_universe,
     lock_cutoff_from_core_market,
 )
-from sector_pulse.domain.time import AnalysisMode, AnalysisRun
+from sector_pulse.domain.provider import DataStatus
+from sector_pulse.domain.runs.time import AnalysisMode, AnalysisRun
 from sector_pulse.ports.market_data import MarketDataPort
 from sector_pulse.ports.news import NewsPort
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
-from sector_pulse.storage.sqlite.evidence_repository import SQLiteEvidenceRepository
-from sector_pulse.storage.sqlite.market_snapshot_repository import SQLiteMarketSnapshotRepository
-from sector_pulse.storage.sqlite.news_repository import SQLiteNewsRepository
+from sector_pulse.storage.sqlite.market.market_snapshot_repository import (
+    SQLiteMarketSnapshotRepository,
+)
+from sector_pulse.storage.sqlite.news.evidence_repository import SQLiteEvidenceRepository
+from sector_pulse.storage.sqlite.news.news_repository import SQLiteNewsRepository
 
 
 class Phase1AReport(BaseModel):
