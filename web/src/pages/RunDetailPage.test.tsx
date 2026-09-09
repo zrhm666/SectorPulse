@@ -100,7 +100,7 @@ describe('RunDetailPage', () => {
     render(<MemoryRouter initialEntries={['/runs/run-1']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
     expect(await screen.findByRole('link', { name: '进入审核工作台' })).toHaveAttribute('href', '/review?run=run-1')
     await waitFor(() => expect(screen.getAllByTestId('timeline-state')[2]).toHaveTextContent('已完成'))
-    expect(screen.getAllByTestId('timeline-state')[3]).toHaveTextContent('未记录')
+    expect(screen.getAllByTestId('timeline-state')[3]).toHaveTextContent('已完成')
     expect(screen.getAllByTestId('timeline-state')[5]).toHaveTextContent('未记录')
     expect(screen.getByText('草稿已保存，自动审核尚无结论')).toBeVisible()
   })
