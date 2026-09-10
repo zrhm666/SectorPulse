@@ -68,6 +68,8 @@ class OpenAICompatibleProvider:
                 "type": "json_object",
             },
         }
+        if request.max_output_tokens is not None:
+            payload["max_tokens"] = request.max_output_tokens
         body: Any = None
         response: httpx.Response | None = None
         request_started = time.perf_counter()
@@ -185,8 +187,7 @@ class OpenAICompatibleProvider:
         """兼容第三方服务返回的代码块、前后说明文字和文本块数组。"""
         if isinstance(content, list):
             content = "".join(
-                item.get("text", "") if isinstance(item, dict) else str(item)
-                for item in content
+                item.get("text", "") if isinstance(item, dict) else str(item) for item in content
             )
         if not isinstance(content, str):
             return content
@@ -228,10 +229,7 @@ class OpenAICompatibleProvider:
             model,
             ModelPrice(input_cny_per_million=Decimal("0"), output_cny_per_million=Decimal("0")),
         )
-        cost = (
-            Decimal(usage.prompt_tokens) * price.input_cny_per_million / Decimal(1_000_000)
-            + Decimal(usage.completion_tokens)
-            * price.output_cny_per_million
-            / Decimal(1_000_000)
-        )
+        cost = Decimal(usage.prompt_tokens) * price.input_cny_per_million / Decimal(
+            1_000_000
+        ) + Decimal(usage.completion_tokens) * price.output_cny_per_million / Decimal(1_000_000)
         return MoneyCny(amount=cost)

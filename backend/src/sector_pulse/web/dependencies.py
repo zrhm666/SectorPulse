@@ -18,12 +18,16 @@ from sector_pulse.application.tasks.schedule_service import ScheduleService
 from sector_pulse.application.tasks.scheduled_data_bridge import ScheduledDataRunBridge
 from sector_pulse.application.tasks.scheduler import EmbeddedScheduler
 from sector_pulse.application.tasks.task_run_service import TaskRunService
+from sector_pulse.application.writing.agent_runtime import AgentRuntime
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.news_config import load_entity_config
 from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.domain.news.news_retrieval import SectorEntityConfig
+from sector_pulse.domain.writing.agent_execution import AgentLimits
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
+from sector_pulse.infrastructure.news.fixture_agent_news import FixtureAgentNewsSearch
+from sector_pulse.infrastructure.news.news_detail_reader import PublicNewsDetailReader
 from sector_pulse.infrastructure.providers.real_data_factory import RealDataProviderFactory
 from sector_pulse.ports.market_data import MarketDataPort
 from sector_pulse.ports.news_sources import (
@@ -34,11 +38,18 @@ from sector_pulse.ports.news_sources import (
 )
 from sector_pulse.storage.database_runtime import Database, build_database
 from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
+from sector_pulse.storage.ports.writing import AgentTracePort
 from sector_pulse.storage.postgres.database import PostgresDatabase
+from sector_pulse.storage.postgres.writing.agent_execution_repository import (
+    PostgresAgentExecutionRepository,
+)
 from sector_pulse.storage.runtime_bundle import (
     RuntimeStorageBundle,
     build_postgres_storage,
     build_sqlite_storage,
+)
+from sector_pulse.storage.sqlite.writing.agent_execution_repository import (
+    SQLiteAgentExecutionRepository,
 )
 from sector_pulse.web.events.progress_bus import ProgressBus
 from sector_pulse.web.routers.review import ReviewRouterDependencies
@@ -114,6 +125,24 @@ def build_runtime_dependencies(
         raise RuntimeError("candidate selection repository is not configured")
 
     bus = ProgressBus()
+    agent_trace: AgentTracePort = (
+        PostgresAgentExecutionRepository(database)
+        if isinstance(database, PostgresDatabase)
+        else SQLiteAgentExecutionRepository(database)
+    )
+
+    def agent_runtime_factory(provider: str) -> AgentRuntime:
+        return AgentRuntime(
+            news=storage.news,
+            trace=agent_trace,
+            search=FixtureAgentNewsSearch()
+            if provider == "fixture"
+            else RealDataProviderFactory().build().keyword_news,
+            detail=PublicNewsDetailReader(),
+            limits=AgentLimits(),
+            prompt=PromptRegistry(Path("config/prompts")).get("attribution_agent"),
+        )
+
     runtime_config = settings.apply_runtime_overrides(load_llm_config(Path("config/llm.yaml")))
     run_service = RunService(
         runs_repo=storage.phase1b_runs,
@@ -126,6 +155,8 @@ def build_runtime_dependencies(
         fixture_responses=load_default_fixture_responses(),
         llm_factory={},
         market_snapshots=storage.market_snapshots,
+        agent_runtime_factory=agent_runtime_factory,
+        agent_trace=agent_trace,
     )
     provider_factory = RealDataProviderFactory()
     entity_config = load_entity_config(Path("config/sector_entities.yaml"))

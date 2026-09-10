@@ -25,3 +25,19 @@ def test_market_block_is_terminal_blocked() -> None:
     status, reasons = decide_terminal_status(report)
     assert status.value == "BLOCKED"
     assert reasons == ("CORE_MARKET_BLOCKED",)
+
+
+def test_market_block_preserves_category_and_safe_failure_reason() -> None:
+    report = Report()
+    report.market_quality = {
+        "industry": QualityReport(
+            status=QualityStatus.BLOCKED, sector_count=0,
+            issues=("FAILED", "MARKET_PROVIDERS_FAILED"),
+        ),
+        "concept": QualityReport(status=QualityStatus.NORMAL, sector_count=375),
+    }
+    status, reasons = decide_terminal_status(report)
+    assert status.value == "BLOCKED"
+    assert reasons == (
+        "CORE_MARKET_BLOCKED", "INDUSTRY_FAILED", "INDUSTRY_MARKET_PROVIDERS_FAILED",
+    )

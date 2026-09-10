@@ -152,6 +152,15 @@ describe('data run workbench api', () => {
     })
   })
 
+  it('sends Agent mode without transient candidate overrides', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({ run_id: 'r1' }))
+    await generateDataRunArticle('r1', { attribution_mode: 'agent' })
+    expect(fetch).toHaveBeenCalledWith('/api/data-runs/r1/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attribution_mode: 'agent' }),
+    })
+  })
+
   it('uses the API detail when a request fails', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ detail: 'run cannot be retried' }, 409))
 

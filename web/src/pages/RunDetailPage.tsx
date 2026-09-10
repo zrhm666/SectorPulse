@@ -16,6 +16,7 @@ import StatusBadge from '../components/ui/StatusBadge'
 import SummaryStrip from '../components/ui/SummaryStrip'
 import { formatDate, formatDuration, providerLabel, runCost } from '../runPresentation'
 import ContentRunStageRail from '../components/runs/ContentRunStageRail'
+import AgentTrace from '../components/runs/AgentTrace'
 
 const TABS = [
   ['overview', '概览'], ['radar', '板块雷达'], ['evidence', '证据'], ['draft', '草稿'], ['review', '审核'], ['governance', '治理'],
@@ -80,10 +81,10 @@ export default function RunDetailPage() {
       {run && <>
         <SummaryStrip label="内容运行摘要" items={[
           { label: '状态', value: <StatusBadge status={run.status} /> },
-          { label: '数据来源', value: providerLabel(run.provider) },
+          { label: '数据来源 / 归因方式', value: <><span>{providerLabel(run.provider)}</span><br /><span>{run.attribution_mode === 'agent' ? 'Agent 模式' : '工作流模式'}</span></> },
           { label: '创建时间', value: formatDate(run.requested_at) },
           { label: '耗时', value: formatDuration(run.elapsed_ms, run.status) },
-          { label: '成本', value: runCost(run.total_cost_cny, run.status) },
+          { label: '成本', value: run.attribution_mode === 'agent' && run.total_cost_cny === null ? '费用未知' : runCost(run.total_cost_cny, run.status) },
           { label: '板块数', value: run.sector_count ?? '未记录' },
         ]} />
         {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成"><p>{run.error_message ?? '本次运行未能完成，请检查系统状态。'}</p>{run.input_json_hash && <p>已保留输入快照，可使用相同输入重新运行。</p>}</InlineAlert>}
@@ -95,6 +96,7 @@ export default function RunDetailPage() {
         <div className="detail-actions">{run.draft_id && run.status !== 'RUNNING' && <Link className="button button-primary" to={`/review?run=${encodeURIComponent(run.run_id)}`}>进入审核工作台</Link>}{run.retryable && <button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button>}</div>
         {stageLoadError && <InlineAlert tone="warning" title="历史归因记录暂时无法加载">阶段条保留已确认的草稿状态；其余记录未被标记为未执行。可刷新页面重试。</InlineAlert>}
         <ContentRunStageRail events={events} done={done} run={run} hasAttribution={savedAttribution === run.run_id} />
+        {run.attribution_mode === 'agent' && <AgentTrace runId={run.run_id} active={!done && run.status === 'RUNNING'} />}
         <div className="tabbar" role="tablist" aria-label="运行详情视图">{TABS.map(([key, label]) => <button key={key} id={`content-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`content-panel-${key}`} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
         <div id={`content-panel-${tab}`} role="tabpanel" aria-labelledby={`content-tab-${tab}`} className="tab-panel">
           {tab === 'overview' && <OverviewTab events={events} done={done} run={run} />}

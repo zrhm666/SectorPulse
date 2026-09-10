@@ -78,6 +78,12 @@ def build_runs_review_router(
             raise HTTPException(404, "run not found")
         return queries.radar(run_id)
 
+    @router.get("/api/runs/{run_id}/agent-trace")
+    async def get_agent_trace(run_id: UUID) -> dict[str, Any]:
+        if queries.detail(run_id) is None:
+            raise HTTPException(404, "run not found")
+        return queries.agent_trace(run_id)
+
     @router.get("/api/runs/{run_id}/draft")
     async def get_draft(run_id: UUID) -> dict[str, Any]:
         if queries.detail(run_id) is None:

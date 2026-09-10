@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Any
@@ -11,6 +12,8 @@ from uuid import UUID, uuid4, uuid5
 from pydantic import TypeAdapter
 
 from sector_pulse.application.tasks.task_registry import RunTaskRegistry
+from sector_pulse.application.writing.agent_budget import BudgetedLLM
+from sector_pulse.application.writing.agent_runtime import AgentRuntime
 from sector_pulse.application.writing.phase1b_pipeline import (
     Phase1BDependencies,
     Phase1BRequest,
@@ -26,7 +29,11 @@ from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.storage.ports.market import MarketSnapshotRepositoryPort
 from sector_pulse.storage.ports.news import NewsEvidenceRepositoryPort
 from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort
-from sector_pulse.storage.ports.writing import AgentInvocationRepositoryPort, Phase1BRepositoryPort
+from sector_pulse.storage.ports.writing import (
+    AgentInvocationRepositoryPort,
+    AgentTracePort,
+    Phase1BRepositoryPort,
+)
 from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
 )
@@ -51,6 +58,8 @@ class RunService:
         fixture_responses: dict[str, object],
         llm_factory: dict[str, Any],
         market_snapshots: MarketSnapshotRepositoryPort | None = None,
+        agent_runtime_factory: Callable[[str], AgentRuntime] | None = None,
+        agent_trace: AgentTracePort | None = None,
     ) -> None:
         self._runs_repo = runs_repo
         self._phase1b_repo = phase1b_repo
@@ -62,19 +71,32 @@ class RunService:
         self._fixture_responses = fixture_responses
         self._llm_factory = llm_factory
         self._market_snapshots = market_snapshots
+        self._agent_runtime_factory = agent_runtime_factory
+        self._agent_trace = agent_trace
         self._tasks = RunTaskRegistry()
 
     def create_run(
-        self, input_json: dict[str, Any], provider: str, run_id: UUID | None = None,
-        *, retry_of_run_id: UUID | None = None,
+        self,
+        input_json: dict[str, Any],
+        provider: str,
+        run_id: UUID | None = None,
+        *,
+        retry_of_run_id: UUID | None = None,
     ) -> UUID:
         # 先做同步预检，避免未配置 Live 任务先落库为 RUNNING。
         self._preflight(provider)
         mode = TypeAdapter(AttributionMode).validate_python(
             input_json.get("attribution_mode", "workflow")
         )
-        if mode is AttributionMode.AGENT:
+        if mode is AttributionMode.AGENT and self._agent_runtime_factory is None:
             raise ProviderUnavailable("AGENT_MODE_UNAVAILABLE")
+        if mode is AttributionMode.AGENT and provider == "live":
+            from sector_pulse.infrastructure.providers.real_data_factory import (
+                RealDataProviderFactory,
+            )
+
+            if not RealDataProviderFactory().preflight().available:
+                raise ProviderUnavailable("LIVE_DATA_CONSENT_REQUIRED")
         input_json = {**input_json, "attribution_mode": mode.value}
         run_id = run_id or uuid4()
         existing = self._runs_repo.get_run(run_id)
@@ -92,7 +114,8 @@ class RunService:
             if restored != request.contexts:
                 request = request.model_copy(update={"contexts": restored})
                 input_json = {
-                    **input_json, "contexts": [c.model_dump(mode="json") for c in restored]
+                    **input_json,
+                    "contexts": [c.model_dump(mode="json") for c in restored],
                 }
         if provider == "live":
             request = request.model_copy(
@@ -185,12 +208,27 @@ class RunService:
 
         try:
             llm = self._build_llm(provider, request.run_id)
+            runtime_config = self._runtime_config(provider)
+            agent_runtime = None
+            if request.attribution_mode is AttributionMode.AGENT:
+                if self._agent_runtime_factory is None:
+                    raise ProviderUnavailable("AGENT_MODE_UNAVAILABLE")
+                agent_runtime = self._agent_runtime_factory(provider)
+                agent_runtime.limits = runtime_config.agent_limits
+                llm = BudgetedLLM(
+                    llm,
+                    runtime_config.budget_cny_per_run,
+                    runtime_config.pricing,
+                    max_calls=runtime_config.max_agent_calls,
+                    max_tokens=runtime_config.max_agent_tokens,
+                )
             deps = Phase1BDependencies(
                 llm=llm,
                 prompts=self._prompts,
                 repository=self._phase1b_repo,
                 invocation_repository=self._invocation_repo,
-                config=self._runtime_config(provider),
+                config=runtime_config,
+                agent_runtime=agent_runtime,
             )
             result = await run_phase1b_pipeline(
                 deps,
@@ -202,7 +240,13 @@ class RunService:
                 run_id,
                 status=result.status,
                 elapsed_ms=result.elapsed_ms,
-                total_cost_cny=str(result.total_cost_cny.amount),
+                total_cost_cny=(
+                    None
+                    if request.attribution_mode is AttributionMode.AGENT
+                    and provider != "fixture"
+                    and any(i.model not in runtime_config.pricing for i in invocations)
+                    else str(result.total_cost_cny.amount)
+                ),
                 draft_id=result.draft.draft_id if result.draft else None,
                 finished_at=datetime.now(UTC),
             )
@@ -281,7 +325,22 @@ class RunService:
         if provider == "fixture":
             from sector_pulse.infrastructure.llm.fixture_provider import FixtureLLMProvider
 
-            return FixtureLLMProvider(self._rebind_run_id(self._fixture_responses, run_id))
+            responses = self._rebind_run_id(self._fixture_responses, run_id)
+            for key, card in list(responses.items()):
+                if key.startswith("sector-analysis:"):
+                    sector = key.split(":", 1)[1]
+                    for index, action in enumerate(
+                        (
+                            {"action": "inspect_market"},
+                            {"action": "search_news", "query": "板块消息"},
+                            {"action": "finish", "card": card},
+                        ),
+                        1,
+                    ):
+                        responses.setdefault(
+                            f"attribution-agent:{sector}:{index}", {"next_action": action}
+                        )
+            return FixtureLLMProvider(responses)
         if provider == "live":
             from sector_pulse.web.providers.live_provider import (
                 build_live_provider,
@@ -393,6 +452,9 @@ class RunService:
                 for c in cards
             ]
         }
+
+    def get_agent_trace(self, run_id: UUID) -> dict[str, Any]:
+        return {"steps": self._agent_trace.list_for_run(run_id) if self._agent_trace else []}
 
     def get_draft(self, run_id: UUID) -> dict[str, Any]:
         drafts = self._phase1b_repo.get_drafts(run_id)

@@ -8,6 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from sector_pulse.application.writing.agent_runtime import AgentRuntime
 from sector_pulse.application.writing.attribution_agents import (
     run_attribution_agents,
 )
@@ -67,6 +68,7 @@ class Phase1BDependencies:
     repository: Phase1BRepositoryPort
     invocation_repository: AgentInvocationRepositoryPort
     config: LLMRuntimeConfig
+    agent_runtime: AgentRuntime | None = None
 
 
 @dataclass(frozen=True)
@@ -86,7 +88,7 @@ async def run_phase1b_pipeline(
     progress_sink: ProgressSink = NoopProgressSink(),
     invocation_sink: InvocationSink | None = None,
 ) -> Phase1BRunResult:
-    if request.attribution_mode is AttributionMode.AGENT:
+    if request.attribution_mode is AttributionMode.AGENT and dependencies.agent_runtime is None:
         raise ValueError("AGENT_MODE_UNAVAILABLE")
     started = time.perf_counter()
     progress_sink.emit("phase1b.start", {"run_id": str(request.run_id)})
@@ -125,7 +127,10 @@ async def run_phase1b_pipeline(
         )
 
     def budget_exhausted() -> bool:
-        return total_cost().amount >= dependencies.config.budget_cny_per_run
+        return (
+            getattr(dependencies.llm, "exhausted", False)
+            or total_cost().amount >= dependencies.config.budget_cny_per_run
+        )
 
     if len(request.contexts) < 3:
         save_invocations()
@@ -140,16 +145,34 @@ async def run_phase1b_pipeline(
         )
     prompt_attribution = dependencies.prompts.get("attribution")
     progress_sink.emit("attribution.start", {"total": len(request.contexts)})
-    agent_results = await run_attribution_agents(
-        request.contexts,
-        request.gates,
-        dependencies.llm,
-        prompt_attribution,
-        dependencies.config.max_attribution_concurrency,
-        progress_sink=progress_sink,
-        invocation_sink=active_invocation_sink,
-        model=dependencies.config.route_for("attribution").model,
-    )
+    if request.attribution_mode is AttributionMode.AGENT and dependencies.agent_runtime is not None:
+        sources = dict(request.verified_sources_by_sector or {})
+        agent_results, contexts = await dependencies.agent_runtime.run(
+            request.contexts,
+            request.gates,
+            dependencies.llm,
+            dependencies.config.route_for("attribution").model,
+            active_invocation_sink,
+            progress_sink,
+            sources,
+        )
+        request = request.model_copy(
+            update={
+                "contexts": contexts,
+                "verified_sources_by_sector": sources or request.verified_sources_by_sector,
+            }
+        )
+    else:
+        agent_results = await run_attribution_agents(
+            request.contexts,
+            request.gates,
+            dependencies.llm,
+            prompt_attribution,
+            dependencies.config.max_attribution_concurrency,
+            progress_sink=progress_sink,
+            invocation_sink=active_invocation_sink,
+            model=dependencies.config.route_for("attribution").model,
+        )
     cards = tuple(result.card for result in agent_results)
     dependencies.repository.save_contexts(request.contexts)
     dependencies.repository.save_gate_results(tuple(request.gates.values()))

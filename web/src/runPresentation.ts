@@ -15,6 +15,18 @@ export function downgradeLabel(code: string) {
   const labels: Record<string, string> = {
     CUTOFF_VIOLATION: '部分新闻晚于数据截止时间，不能用于本次分析',
     CORE_SOURCES_UNAVAILABLE: '核心新闻来源均不可用，请检查数据源后重试',
+    CORE_MARKET_BLOCKED: '核心行情数据未通过检查，未继续筛选候选或生成文章。请检查数据源后重新采集。',
+  }
+  const market = /^(INDUSTRY|CONCEPT)_(.+)$/.exec(code)
+  if (market) {
+    const reasons: Record<string, string> = {
+      FAILED: '行情获取失败', EMPTY: '数据源未返回板块', UNAVAILABLE: '数据源不可用',
+      INSUFFICIENT_COVERAGE: '返回的板块数量不足，未达到覆盖率要求',
+      MARKET_PROVIDERS_FAILED: '主数据源与备用数据源均获取失败',
+      AKSHARE_FETCH_FAILED: '东方财富行情获取失败',
+      AKSHARE_THS_FETCH_FAILED: '同花顺行情获取失败',
+    }
+    if (reasons[market[2]]) return `${market[1] === 'INDUSTRY' ? '行业' : '概念'}行情：${reasons[market[2]]}`
   }
   return labels[code] ?? code
 }

@@ -51,6 +51,7 @@ class LLMRequest(BaseModel, Generic[T]):
     user_payload: dict[str, object]
     response_model: type[BaseModel]
     fixture_key: str | None = None
+    max_output_tokens: int | None = Field(default=None, ge=1, le=16384)
 
 
 class LLMResult(BaseModel, Generic[T]):

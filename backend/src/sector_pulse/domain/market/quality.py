@@ -31,10 +31,16 @@ def evaluate_universe(
 ) -> QualityReport:
     """按板块类型核验覆盖率；供应商失败绝不降级为“无数据”。"""
     if result.data is None:
+        issues: tuple[str, ...] = (result.status.value,)
+        # Persist only known diagnostic codes, never third-party exception messages.
+        if result.error and result.error.code in {
+            "MARKET_PROVIDERS_FAILED", "AKSHARE_FETCH_FAILED", "AKSHARE_THS_FETCH_FAILED",
+        }:
+            issues += (result.error.code,)
         return QualityReport(
             status=QualityStatus.BLOCKED,
             sector_count=0,
-            issues=(result.status.value,),
+            issues=issues,
         )
     minimum = (
         thresholds.min_industry_count

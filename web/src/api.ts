@@ -1,7 +1,10 @@
 // web/src/api.ts
 const BASE = '/api'
 
+export type AttributionMode = 'workflow' | 'agent'
+
 export interface RunSummary {
+  attribution_mode?: AttributionMode
   run_id: string
   requested_at: string
   provider: string

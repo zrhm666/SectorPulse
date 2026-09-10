@@ -399,10 +399,11 @@ export function createDataRun(input: NewDataRunRequest): Promise<{ run_id: strin
 
 export function generateDataRunArticle(
   runId: string,
-  _legacyTransientSectorIds?: string[],
+  options?: { attribution_mode: 'workflow' | 'agent' } | string[],
 ): Promise<{ run_id: string }> {
   return request(`${dataRunPath(runId)}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    ...(options && !Array.isArray(options) ? { body: JSON.stringify(options) } : {}),
   })
 }

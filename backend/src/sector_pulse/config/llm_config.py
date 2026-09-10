@@ -4,6 +4,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from sector_pulse.domain.writing.agent_execution import AgentLimits
+
 
 class LLMRoute(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -19,6 +21,9 @@ class LLMRuntimeConfig(BaseModel):
     max_revision_rounds: int = Field(ge=0, le=2)
     routes: dict[str, LLMRoute]
     pricing: dict[str, dict[str, str]] = Field(default_factory=dict)
+    agent_limits: AgentLimits = Field(default_factory=AgentLimits)
+    max_agent_calls: int = Field(default=80, ge=1, le=200)
+    max_agent_tokens: int = Field(default=500000, ge=1000, le=2000000)
 
     def route_for(self, stage: str, provider_override: str | None = None) -> LLMRoute:
         # 统一从配置解析阶段路由；旧配置缺失 routes 时保留 Fixture 兼容默认值。

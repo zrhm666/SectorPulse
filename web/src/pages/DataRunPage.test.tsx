@@ -115,6 +115,22 @@ it('collapses completed processing while leaving downgrade alerts visible', asyn
   expect(screen.getByText('数据处理进度')).toBeVisible()
 })
 
+it('explains blocked market collection without suggesting it is still running', async () => {
+  vi.mocked(api.fetchDataRun).mockResolvedValue({
+    ...READY_RUN, status: 'BLOCKED', cutoff_at: null,
+    downgrade_reasons: ['CORE_MARKET_BLOCKED', 'INDUSTRY_MARKET_PROVIDERS_FAILED'],
+  })
+  vi.mocked(api.fetchDataRunMarket).mockResolvedValue({
+    snapshots: [], kind: 'INDUSTRY', items: [], total: 0, offset: 0, limit: 20,
+  })
+  renderPage()
+  expect(await screen.findByText('核心行情数据未就绪，运行已停止')).toBeVisible()
+  expect(screen.getByRole('alert')).toHaveTextContent('行业行情：主数据源与备用数据源均获取失败')
+  expect(await screen.findByText('本次运行已结束，没有保存可展示的行情快照。请检查上方原因后重新采集。')).toBeVisible()
+  expect(screen.queryByText(/当前运行可能仍在采集阶段/)).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '按原参数重新采集' })).toBeEnabled()
+})
+
 it('expands active processing and supports keyboard tab navigation', async () => {
   vi.mocked(api.fetchDataRun).mockResolvedValue({ ...READY_RUN, status: 'FETCHING_MARKET' })
   renderPage()
@@ -249,7 +265,7 @@ it('generates the article with only the candidates selected by the user', async 
   expect(api.confirmDataRunSelection).toHaveBeenCalledWith(
     'run-1', ['industry-1', 'industry-3', 'industry-4'], 1,
   )
-  expect(api.generateDataRunArticle).toHaveBeenCalledWith('run-1')
+  expect(api.generateDataRunArticle).toHaveBeenCalledWith('run-1', { attribution_mode: 'workflow' })
 })
 
 it('requires at least three selected candidates before generation', async () => {

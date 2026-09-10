@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from sector_pulse.domain.llm import AgentInvocation
@@ -43,9 +43,14 @@ class Phase1BRepositoryPort(Protocol):
     def get_review(self, run_id: UUID) -> ReviewReport | None: ...
 
 
-
 @runtime_checkable
 class AgentInvocationRepositoryPort(Protocol):
     def save(self, invocations: Sequence[AgentInvocation]) -> None: ...
 
     def list_for_run(self, run_id: UUID) -> list[AgentInvocation]: ...
+
+
+class AgentTracePort(Protocol):
+    def save(self, context: AttributionContext, step: int, event: dict[str, Any]) -> None: ...
+
+    def list_for_run(self, run_id: UUID) -> list[dict[str, Any]]: ...

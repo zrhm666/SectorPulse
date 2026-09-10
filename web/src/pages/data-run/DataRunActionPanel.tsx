@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import type { AttributionMode } from '../../api'
 
 import type { DataRunContentView, DataRunView } from '../../dataRunsApi'
 
@@ -13,13 +15,14 @@ type Props = {
   candidatesLoading: boolean
   selectionConfirmed?: boolean
   selectionDirty?: boolean
-  onGenerate: () => void
+  onGenerate: (mode: AttributionMode) => void
   onRetry: () => void
   onCancel: () => void
   cancelling: boolean
 }
 
 export default function DataRunActionPanel({ run, contentRun, busy, error, candidateCount, candidatesLoading, selectionConfirmed = true, selectionDirty = false, onGenerate, onRetry, onCancel, cancelling }: Props) {
+  const [mode, setMode] = useState<AttributionMode>('workflow')
   let action
   let description = '数据采集完成后，可从这里继续生成分析稿。'
   if (contentRun) {
@@ -37,7 +40,7 @@ export default function DataRunActionPanel({ run, contentRun, busy, error, candi
           : selectionDirty
             ? '候选范围有未确认修改，请保存后再生成分析稿。'
             : `已确认 ${candidateCount} 个候选板块，分析稿只会覆盖该版本。`
-    action = <button className="button button-primary" type="button" disabled={busy || !selectionReady} onClick={onGenerate}>{busy ? '正在启动生成…' : '生成分析稿'}</button>
+    action = <button className="button button-primary" type="button" disabled={busy || !selectionReady} onClick={() => onGenerate(mode)}>{busy ? '正在启动生成…' : '生成分析稿'}</button>
   } else if (RETRYABLE.has(run.status)) {
     description = run.error_code ? `本次运行未能继续：${run.error_code}` : '本次运行未能继续，可按原参数重新采集。'
     action = <button className="button button-primary" type="button" disabled={busy} onClick={onRetry}>{busy ? '正在创建新运行…' : '按原参数重新采集'}</button>
@@ -50,6 +53,14 @@ export default function DataRunActionPanel({ run, contentRun, busy, error, candi
       <div>
         <strong>下一步</strong>
         <p>{description}</p>
+        {!contentRun && run.status === 'READY_FOR_ATTRIBUTION' && <fieldset className="attribution-mode" disabled={busy}>
+          <legend>归因方式</legend>
+          <div className="attribution-mode__options">
+            <label><input type="radio" name="attribution-mode" value="workflow" checked={mode === 'workflow'} onChange={() => setMode('workflow')} /><span><strong>工作流模式</strong><small>使用已采集证据，调用较少</small></span></label>
+            <label><input type="radio" name="attribution-mode" value="agent" checked={mode === 'agent'} onChange={() => setMode('agent')} /><span><strong>Agent 模式</strong><small>自主检索与核对，耗时和用量更高</small></span></label>
+          </div>
+          {mode === 'agent' && <p>按预算和轮次限制查证；原文不可读时使用摘要，不保证查到可靠归因。</p>}
+        </fieldset>}
         {error && <p className="data-run-action__error" role="alert">{error}</p>}
       </div>
       {action}

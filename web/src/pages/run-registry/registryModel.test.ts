@@ -26,3 +26,8 @@ it('allows only local registry return destinations', () => {
   }
   expect(registryReturnTo(null)).toBe('/runs')
 })
+
+it('identifies Agent content runs in list labels and search', () => {
+  const data = registryRows([{ run_id: 'content-1', attribution_mode: 'agent', requested_at: new Date(now).toISOString(), provider: 'live', status: 'RUNNING', elapsed_ms: null, total_cost_cny: null, draft_id: null }], [])
+  expect(selectRegistry(data, new URLSearchParams('q=Agent'), now).total).toBe(1)
+})

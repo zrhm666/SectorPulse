@@ -33,7 +33,13 @@ def decide_terminal_status(
 ) -> tuple[RealDataRunStatus, tuple[str, ...]]:
     """把 Phase 1A.2 质量报告转换为真实数据运行的明确终态。"""
     if any(quality.status is QualityStatus.BLOCKED for quality in report.market_quality.values()):
-        return RealDataRunStatus.BLOCKED, ("CORE_MARKET_BLOCKED",)
+        details = tuple(
+            f"{kind.upper()}_{issue}"
+            for kind, quality in report.market_quality.items()
+            if quality.status is QualityStatus.BLOCKED
+            for issue in quality.issues
+        )
+        return RealDataRunStatus.BLOCKED, ("CORE_MARKET_BLOCKED", *details)
     if not report.ready_for_phase1b or report.downgrade_reasons:
         return RealDataRunStatus.DEGRADED, tuple(report.downgrade_reasons)
     return RealDataRunStatus.READY_FOR_ATTRIBUTION, ()

@@ -24,9 +24,7 @@ def test_initialize_creates_phase1a_tables(tmp_path: Path) -> None:
     database.initialize()
 
     with database.connection() as connection:
-        rows = connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        ).fetchall()
+        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
 
     assert {row[0] for row in rows} >= EXPECTED_TABLES
 
@@ -41,7 +39,7 @@ def test_initialize_is_idempotent(tmp_path: Path) -> None:
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
 
-        assert versions == [(version,) for version in range(1, 19)]
+        assert versions == [(version,) for version in range(1, 20)]
 
 
 def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> None:
@@ -50,12 +48,8 @@ def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> No
 
     with database.connection() as connection:
         task_columns = {row[1] for row in connection.execute("PRAGMA table_info(task_runs)")}
-        run_columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(real_data_runs)")
-        }
-        schedule_columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(schedules)")
-        }
+        run_columns = {row[1] for row in connection.execute("PRAGMA table_info(real_data_runs)")}
+        schedule_columns = {row[1] for row in connection.execute("PRAGMA table_info(schedules)")}
 
     assert {
         "retry_of_run_id",
@@ -151,9 +145,7 @@ def test_failed_migration_rolls_back_schema_and_version(tmp_path: Path) -> None:
         database.initialize(broken_migrations)
 
     with database.connection() as connection:
-        schedule_columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(schedules)")
-        }
+        schedule_columns = {row[1] for row in connection.execute("PRAGMA table_info(schedules)")}
         versions = connection.execute(
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
