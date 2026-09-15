@@ -9,10 +9,12 @@ from sector_pulse.web.services.run_service import ProviderUnavailable
 from backend.tests.unit.web.services.test_run_service import _input_json, _service
 
 
-def test_legacy_input_defaults_to_workflow_and_rejects_unknown_mode():
+def test_legacy_pipeline_keeps_its_default_while_new_generate_request_rejects_modes():
     payload = {**_input_json(), "run_id": uuid4()}
     assert Phase1BRequest.model_validate(payload).attribution_mode == "workflow"
-    assert GenerateDataRunRequest().attribution_mode == "workflow"
+    assert GenerateDataRunRequest().model_dump() == {}
+    with pytest.raises(ValidationError):
+        GenerateDataRunRequest.model_validate({"attribution_mode": "workflow"})
     with pytest.raises(ValidationError):
         Phase1BRequest.model_validate({**payload, "attribution_mode": "autonomous"})
 

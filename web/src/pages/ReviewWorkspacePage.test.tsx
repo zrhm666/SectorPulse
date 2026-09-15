@@ -13,7 +13,7 @@ vi.mock('../editingApi')
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.fetchRuns).mockResolvedValue([{ run_id: 'run-1', requested_at: '2026-08-23T01:00:00Z', provider: 'fixture', status: 'READY_FOR_HUMAN_REVIEW', elapsed_ms: 100, total_cost_cny: '0', draft_id: 'draft-1' }])
-  vi.mocked(api.fetchDraft).mockResolvedValue({ versions: [{ version: 1, status: 'READY_FOR_HUMAN_REVIEW', titles: ['旧标题'], introduction: '旧导语', sections: [{ section_id: 'section-1', heading: '板块', body: '旧正文' }], conclusion: '旧结论', risk_notice: '旧风险', sources: [{ source_id: 'source-1', title: '来源', citation_url: 'https://example.test' }], character_count: 1000 }, { version: 2, status: 'READY_FOR_HUMAN_REVIEW', titles: ['新标题'], introduction: '新导语', sections: [{ section_id: 'section-1', heading: '板块', body: '新正文' }], conclusion: '新结论', risk_notice: '新风险', sources: [{ source_id: 'source-1', title: '来源', citation_url: 'https://example.test' }], character_count: 1000 }] })
+  vi.mocked(api.fetchDraft).mockResolvedValue({ versions: [{ version: 1, status: 'READY_FOR_HUMAN_REVIEW', titles: ['旧标题'], introduction: '旧导语', sections: [{ section_id: 'section-1', heading: '板块', body: '旧正文' }], conclusion: '旧结论', risk_notice: '旧风险', sources: [{ source_id: 'source-1', title: '来源', citation_url: 'https://example.test' }], character_count: 1000 }, { version: 2, status: 'READY_FOR_HUMAN_REVIEW', titles: ['新标题'], introduction: '新导语', sections: [{ section_id: 'section-1', heading: '板块', body: '新正文' }], conclusion: '新结论', risk_notice: '新风险', sources: [{ source_id: 'source-1', title: '来源', citation_url: 'https://example.test' }], character_count: 1000 }], revision: 5 })
   vi.mocked(api.fetchEvidence).mockResolvedValue({ sectors: [], events: [], invocations: [] })
   vi.mocked(editing.fetchGovernance).mockResolvedValue({ status: 'PASS', issues: [], rules_version: 'v1' })
   vi.mocked(editing.fetchApproval).mockResolvedValue(null)
@@ -118,6 +118,19 @@ it('prevents the source link from leaving a dirty draft', async () => {
   fireEvent.change(await screen.findByLabelText('导语'), { target: { value: '未保存内容' } })
   await userEvent.click(screen.getByRole('link', { name: '查看分析运行' }))
   expect(screen.getByText('当前草稿仍有未保存或冲突的修改，请处理后再离开。')).toBeVisible()
+})
+
+it('saves an edit against the revision the draft was read at', async () => {
+  vi.mocked(editing.applyDraftPatch).mockResolvedValue({ draft_id: 'draft-1', version: 3, status: 'UNREVIEWED', content: {} })
+  render(<MemoryRouter initialEntries={['/review?run=run-1']}><FeedbackProvider><ReviewWorkspacePage /></FeedbackProvider></MemoryRouter>)
+
+  const introduction = await screen.findByLabelText('导语')
+  fireEvent.change(introduction, { target: { value: '人工改写后的导语' } })
+
+  // Without the revision the agent's concurrency guard is unreachable from here.
+  await waitFor(() => expect(editing.applyDraftPatch).toHaveBeenCalledWith(
+    'run-1', 'draft-1', expect.objectContaining({ base_version: 2, base_revision: 5 }),
+  ))
 })
 
 it('does not abort a slow draft load when the default selection is written to the URL', async () => {

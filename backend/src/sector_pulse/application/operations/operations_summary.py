@@ -8,9 +8,10 @@ from decimal import Decimal
 from typing import Literal, Protocol
 
 RunKind = Literal["content", "data"]
+ExecutionEngine = Literal["legacy", "multi_agent"]
 
 CONTENT_ACTIVE = frozenset({"RUNNING"})
-CONTENT_SUCCESS = frozenset({"READY_FOR_HUMAN_REVIEW"})
+CONTENT_SUCCESS = frozenset({"READY_FOR_HUMAN_REVIEW", "WAITING_USER_REVIEW"})
 CONTENT_ATTENTION = frozenset(
     {
         "READY_FOR_HUMAN_REVIEW",
@@ -20,6 +21,11 @@ CONTENT_ATTENTION = frozenset(
         "ATTRIBUTION_BLOCKED",
         "DRAFT_GENERATION_FAILED",
         "FAILED",
+        # Multi-agent runs pause for a human instead of failing.
+        "WAITING",
+        "WAITING_USER_SELECTION",
+        "WAITING_USER_REVIEW",
+        "INTERRUPTED",
     }
 )
 CONTENT_FAILED = frozenset(
@@ -57,6 +63,7 @@ class OperationalRun:
     elapsed_ms: int | None
     total_cost_cny: Decimal | None
     candidate_count: int | None
+    execution_engine: ExecutionEngine = "legacy"
 
 
 @dataclass(frozen=True)
@@ -103,6 +110,29 @@ class OperationsSummaryQueryPort(Protocol):
     ) -> list[OperationalRun]: ...
 
 
+def merge_operational_runs(
+    legacy: Sequence[OperationalRun],
+    multi_agent: Sequence[OperationalRun],
+    *,
+    limit: int | None = None,
+) -> list[OperationalRun]:
+    """Combine both engines newest first, letting the agent snapshot win ties.
+
+    A data run continued into the agent engine keeps its original run ID, so its
+    legacy row must not be counted a second time. Callers apply their own
+    windowing before merging.
+    """
+    if limit is not None and limit < 1:
+        raise ValueError("limit must be at least 1")
+    superseded = {record.run_id for record in multi_agent}
+    merged = [
+        *multi_agent,
+        *(record for record in legacy if record.run_id not in superseded),
+    ]
+    merged.sort(key=lambda record: as_utc(record.requested_at), reverse=True)
+    return merged[:limit] if limit is not None else merged
+
+
 def classify_status(status: str, kind: RunKind) -> RunClassification:
     if kind == "content":
         return RunClassification(
@@ -132,7 +162,7 @@ def build_operations_snapshot(
         raise ValueError("recent_limit must be at least 1")
 
     today = _utc_date(now)
-    ordered = sorted(records, key=lambda item: _as_utc(item.requested_at), reverse=True)
+    ordered = sorted(records, key=lambda item: as_utc(item.requested_at), reverse=True)
     classifications = [(record, classify_status(record.status, record.kind)) for record in records]
     summary = OperationsCoreSummary(
         total=len(records),
@@ -179,11 +209,12 @@ def build_operations_snapshot(
     )
 
 
-def _as_utc(value: datetime) -> datetime:
+def as_utc(value: datetime) -> datetime:
+    """Normalize a possibly naive timestamp so records from both engines sort together."""
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
 
 
 def _utc_date(value: datetime) -> date:
-    return _as_utc(value).date()
+    return as_utc(value).date()

@@ -265,7 +265,8 @@ it('generates the article with only the candidates selected by the user', async 
   expect(api.confirmDataRunSelection).toHaveBeenCalledWith(
     'run-1', ['industry-1', 'industry-3', 'industry-4'], 1,
   )
-  expect(api.generateDataRunArticle).toHaveBeenCalledWith('run-1', { attribution_mode: 'workflow' })
+  expect(api.generateDataRunArticle).toHaveBeenCalledWith('run-1')
+  expect(screen.queryByRole('radio', { name: /工作流模式|Agent 模式/ })).not.toBeInTheDocument()
 })
 
 it('requires at least three selected candidates before generation', async () => {

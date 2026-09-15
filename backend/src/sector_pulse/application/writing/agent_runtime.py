@@ -30,6 +30,7 @@ class AgentRuntime:
     detail: NewsDetailPort
     limits: AgentLimits
     prompt: PromptDefinition | None = None
+    feedback_prompt: PromptDefinition | None = None
 
     async def run(
         self,
@@ -150,6 +151,7 @@ class AgentRuntime:
                     record_step=step,
                     refresh_state=refresh,
                     prompt=self.prompt,
+                    feedback_prompt=self.feedback_prompt,
                 )
                 return AttributionAgentResult(
                     result.card, None if result.stop_reason == "finished" else result.stop_reason

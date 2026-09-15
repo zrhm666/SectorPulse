@@ -1,13 +1,5 @@
-from dataclasses import dataclass
-
+from sector_pulse.domain.review.review import GovernanceReport
 from sector_pulse.domain.writing.article import ArticleDraft
-
-
-@dataclass(frozen=True)
-class GovernanceReport:
-    status: str
-    issues: tuple[dict[str, str], ...]
-    rules_version: str = "phase2b-v1"
 
 
 class GovernanceService:

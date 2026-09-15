@@ -18,7 +18,7 @@ export interface RegistryRow {
 
 export function registryRows(runs: RunSummary[], dataRuns: DataRunView[]): RegistryRow[] {
   return [
-    ...runs.map(run => ({ id: run.run_id, status: run.status, scene: 'content', mode: run.attribution_mode === 'agent' ? '内容生成 · Agent 模式' : '内容生成 · 工作流模式', provider: run.provider, requestedAt: run.requested_at, elapsed: run.elapsed_ms, cost: run.total_cost_cny, href: `/runs/${encodeURIComponent(run.run_id)}`, error: run.error_message, retryable: run.retryable })),
+    ...runs.map(run => ({ id: run.run_id, status: run.status, scene: 'content', mode: run.execution_engine === 'multi_agent' ? '内容生成 · 父子 Agent' : '内容生成 · 历史运行', provider: run.provider, requestedAt: run.requested_at, elapsed: run.elapsed_ms, cost: run.total_cost_cny, href: `/runs/${encodeURIComponent(run.run_id)}`, error: run.error_message, retryable: run.retryable })),
     ...dataRuns.map(run => ({ id: run.run_id, status: run.status, scene: run.mode, mode: run.mode === 'post_close' ? '盘后复盘' : '盘中分析', provider: run.provider ?? '', requestedAt: run.requested_at, elapsed: null, cost: null, href: `/data-runs/${encodeURIComponent(run.run_id)}`, error: run.error_code, retryable: false })),
   ]
 }

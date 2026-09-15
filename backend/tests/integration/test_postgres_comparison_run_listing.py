@@ -84,8 +84,14 @@ def test_postgres_terminal_statuses_provider_and_mode_filters(comparison_postgre
                 else excluded
             )
             target.add(run.run_id)
-    page, total = repo.list_comparison_runs(provider="fixture", mode="intraday", limit=100)
-    listed = {run.run_id for run in page}
+    _, total = repo.list_comparison_runs(provider="fixture", mode="intraday", limit=100)
+    listed = {
+        run.run_id
+        for offset in range(0, total, 100)
+        for run in repo.list_comparison_runs(
+            provider="fixture", mode="intraday", offset=offset, limit=100
+        )[0]
+    }
     assert total == before + len(expected)
     assert expected <= listed
     assert not (excluded & listed)

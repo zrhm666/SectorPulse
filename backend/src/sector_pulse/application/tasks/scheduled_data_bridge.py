@@ -3,6 +3,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from sector_pulse.application.tasks.schedule_service import ScheduleView
+from sector_pulse.domain.market.candidate_selection import CandidateSelection
 from sector_pulse.domain.runs.real_data_run import RealDataRunRequest, RealDataRunStatus
 from sector_pulse.domain.runs.task import TaskRunStatus
 from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort, RealDataRunRepositoryPort
@@ -15,18 +16,22 @@ class DataRunStarter(Protocol):
     ) -> UUID: ...
 
 
-class WritingStarter(Protocol):
-    def generate(
-        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None
+class MultiAgentScheduleStarter(Protocol):
+    def create(
+        self,
+        input_json: dict[str, object],
+        provider: Literal["fixture", "live"] = "live",
+        *,
+        selection_policy: Literal["manual", "server_default"] = "manual",
     ) -> UUID: ...
 
 
-class SelectionResult(Protocol):
-    selected_sector_ids: tuple[str, ...]
+class WritingStarter(Protocol):
+    def generate(self, run_id: UUID, selection: CandidateSelection) -> UUID: ...
 
 
 class DefaultSelectionService(Protocol):
-    def confirm_default(self, run_id: UUID) -> SelectionResult: ...
+    def confirm_default(self, run_id: UUID) -> CandidateSelection: ...
 
 
 class ScheduledDataRunBridge:
@@ -41,6 +46,7 @@ class ScheduledDataRunBridge:
         selection_service: DefaultSelectionService | None = None,
         *,
         content_runs: Phase1BRunsRepositoryPort | None = None,
+        multi_agent_commands: MultiAgentScheduleStarter | None = None,
     ) -> None:
         self._tasks = task_repository
         self._real_runs = real_repository
@@ -48,9 +54,19 @@ class ScheduledDataRunBridge:
         self._writing = writing_service
         self._selections = selection_service
         self._content_runs = content_runs
+        self._multi_agent_commands = multi_agent_commands
 
     def start(self, task_run_id: UUID, schedule: ScheduleView) -> UUID:
         values = schedule.input_template
+        if self._multi_agent_commands is not None:
+            goal = values.get("goal", f"scheduled sector analysis ({schedule.mode})")
+            if not isinstance(goal, str) or not goal.strip():
+                raise ValueError("scheduled multi-agent goal is required")
+            return self._multi_agent_commands.create(
+                {"goal": goal},
+                "live",
+                selection_policy="server_default",
+            )
         request = RealDataRunRequest.model_validate(
             {
                 "mode": (
@@ -76,10 +92,9 @@ class ScheduledDataRunBridge:
                 continue
             try:
                 if self._selections is None:
-                    self._writing.generate(data_run_id)
-                else:
-                    selection = self._selections.confirm_default(data_run_id)
-                    self._writing.generate(data_run_id, selection.selected_sector_ids)
+                    raise RuntimeError("candidate selection service is required")
+                selection = self._selections.confirm_default(data_run_id)
+                self._writing.generate(data_run_id, selection)
             except Exception:
                 self._tasks.fail_claimed_run(task_run_id, "CONTENT_GENERATION_FAILED")
                 continue

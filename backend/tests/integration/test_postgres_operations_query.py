@@ -5,6 +5,9 @@ from uuid import uuid4
 import pytest
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.postgres.operations_query import PostgresOperationsQuery
+from sector_pulse.storage.postgres.orchestration.repository import (
+    PostgresOrchestrationRepository,
+)
 from sector_pulse.storage.postgres.runs.phase1b_runs_repository import (
     PostgresPhase1BRunsRepository,
 )
@@ -32,16 +35,17 @@ def test_postgres_operations_query_returns_the_normalized_contract() -> None:
             )
         )
 
-        records = PostgresOperationsQuery(database).list_records(
-            since=requested_at - timedelta(minutes=1), limit=1
+        query = PostgresOperationsQuery(database, PostgresOrchestrationRepository(database))
+        records = query.list_records(
+            since=requested_at - timedelta(minutes=1)
         )
+        matching = [record for record in records if record.run_id == str(run_id)]
 
-        assert len(records) == 1
-        assert records[0].run_id == str(run_id)
-        assert records[0].kind == "content"
-        assert records[0].mode == "内容生成"
-        assert records[0].provider == "postgres-test"
-        assert records[0].candidate_count == 0
+        assert len(matching) == 1
+        assert matching[0].kind == "content"
+        assert matching[0].mode == "内容生成"
+        assert matching[0].provider == "postgres-test"
+        assert matching[0].candidate_count == 0
     finally:
         with database.start().begin() as connection:
             connection.execute(

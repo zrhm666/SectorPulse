@@ -178,7 +178,7 @@ async def run_phase1a2_probe(
     """执行 Phase 1A.2 的真实数据链路；Provider 由依赖注入提供，编排器不创建具体实现。"""
     started = time.perf_counter()
     database = dependencies.database
-    if isinstance(database, (SQLiteDatabase, PostgresDatabase)):
+    if isinstance(database, SQLiteDatabase | PostgresDatabase):
         database.initialize()
     run = AnalysisRun.create_live(request.requested_at, request.run_id)
     industry, concept = await __import__("asyncio").gather(
@@ -310,8 +310,9 @@ async def run_phase1a2_probe(
             source_id=source_id,
             started_at=min(item.started_at for item in source_items),
             completed_at=max(item.completed_at for item in source_items),
-            call_count=len(source_items),
+            call_count=sum(item.attempts for item in source_items),
             retry_count=sum(max(item.attempts - 1, 0) for item in source_items),
+            result_count=sum(len(item.documents) for item in source_items),
             status=source_statuses[source_id],
             duration_ms=sum(item.duration_ms for item in source_items),
             error_code=(

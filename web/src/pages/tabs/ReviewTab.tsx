@@ -35,6 +35,10 @@ export default function ReviewTab({ runId }: { runId: string }) {
       <p>
         决策：<strong>{review.decision ?? '暂无'}</strong>，返工轮次：{review.revision_round ?? '暂无'}
       </p>
+      <p>
+        {/* A PASS only means something against the version it reviewed. */}
+        审核版本：<strong>{review.draft_version == null ? '未记录' : `第 ${review.draft_version} 版`}</strong>
+      </p>
       {review.issues.length === 0 && <p>无审核问题。</p>}
       {review.issues.map((issue) => (
         <div key={issue.issue_id} className="card">

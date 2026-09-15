@@ -128,14 +128,10 @@ class DataRunActions:
 class WritingActions:
     def __init__(self, generated_id: UUID) -> None:
         self.generated_id = generated_id
-        self.generate_call: tuple[UUID, tuple[str, ...] | None] | None = None
+        self.generate_call = None
 
-    def generate(
-        self, run_id: UUID, sector_ids: tuple[str, ...] | None = None,
-        *, attribution_mode="workflow",
-    ) -> UUID:
-        self.attribution_mode = attribution_mode
-        self.generate_call = (run_id, sector_ids)
+    def generate(self, run_id: UUID, selection) -> UUID:
+        self.generate_call = (run_id, selection)
         return self.generated_id
 
 
@@ -178,6 +174,19 @@ def test_health_endpoint() -> None:
     resp = client.get("/api/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+def test_default_web_app_creates_new_runs_with_the_multi_agent_engine(tmp_path) -> None:
+    with TestClient(
+        create_app(database_path=tmp_path / "multi-agent-default.db", static_dir=None)
+    ) as client:
+        response = client.post(
+            "/api/runs",
+            json={"input_json": {"goal": "fixture analysis"}, "provider": "fixture"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["execution_engine"] == "multi_agent"
 
 
 def test_static_spa_fallback_keeps_unknown_api_routes_as_404(tmp_path) -> None:
@@ -280,6 +289,7 @@ def test_retry_returns_new_data_run_id(tmp_path) -> None:
             overrides={
                 "data_run_service": DataRunActions(retry_id),
                 "workbench_queries": WorkbenchQueries(),
+                "multi_agent_service": None,
             },
         )
     )
@@ -288,6 +298,38 @@ def test_retry_returns_new_data_run_id(tmp_path) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"run_id": str(retry_id)}
+
+
+def test_default_data_run_retry_creates_a_multi_agent_run_with_lineage(tmp_path) -> None:
+    from sector_pulse.domain.runs.real_data_run import (
+        RealDataRun,
+        RealDataRunRequest,
+        RealDataRunStatus,
+    )
+    from sector_pulse.storage.sqlite.database import SQLiteDatabase
+    from sector_pulse.storage.sqlite.runs.real_data_run_repository import (
+        SQLiteRealDataRunRepository,
+    )
+
+    database_path = tmp_path / "historical-retry.db"
+    database = SQLiteDatabase(database_path)
+    database.initialize()
+    source = RealDataRun(
+        request=RealDataRunRequest(mode="post_close"),
+        provider="fixture",
+        status=RealDataRunStatus.FAILED,
+        error_code="HISTORICAL_FAILURE",
+    )
+    SQLiteRealDataRunRepository(database).insert(source)
+
+    with TestClient(create_app(database_path=database_path, static_dir=None)) as client:
+        response = client.post(f"/api/data-runs/{source.run_id}/retry")
+        detail = client.get(f"/api/runs/{response.json()['run_id']}")
+
+    assert response.status_code == 200
+    assert detail.status_code == 200
+    assert detail.json()["execution_engine"] == "multi_agent"
+    assert detail.json()["retry_of_run_id"] == str(source.run_id)
 
 
 def test_selection_preview_can_be_confirmed_as_a_version(tmp_path) -> None:
@@ -323,8 +365,7 @@ def test_selection_preview_can_be_confirmed_as_a_version(tmp_path) -> None:
     )
 
 
-@pytest.mark.parametrize("mode", ["workflow", "agent"])
-def test_generate_uses_confirmed_selection_instead_of_transient_candidates(tmp_path, mode) -> None:
+def test_generate_uses_server_confirmed_selection_without_an_execution_mode(tmp_path) -> None:
     run_id = uuid4()
     generated_id = uuid4()
     writing = WritingActions(generated_id)
@@ -342,15 +383,42 @@ def test_generate_uses_confirmed_selection_instead_of_transient_candidates(tmp_p
         )
     )
 
-    response = client.post(
-        f"/api/data-runs/{run_id}/generate",
-        json={"sector_ids": ["sector-3", "sector-1", "sector-2"], "attribution_mode": mode},
-    )
+    response = client.post(f"/api/data-runs/{run_id}/generate")
 
     assert response.status_code == 200
     assert response.json() == {"run_id": str(generated_id)}
-    assert writing.generate_call == (run_id, ("sector-1", "sector-2", "sector-3"))
-    assert writing.attribution_mode == mode
+    assert writing.generate_call is not None
+    called_run_id, selection = writing.generate_call
+    assert called_run_id == run_id
+    assert selection.version == 1
+    assert selection.selected_sector_ids == ("sector-1", "sector-2", "sector-3")
+
+
+@pytest.mark.parametrize("mode", ["workflow", "agent"])
+def test_generate_rejects_removed_execution_mode(tmp_path, mode) -> None:
+    run_id = uuid4()
+    writing = WritingActions(uuid4())
+    client = TestClient(
+        create_app(
+            database_path=tmp_path / "app.db",
+            static_dir=None,
+            overrides={
+                "data_run_service": DataRunActions(uuid4()),
+                "workbench_queries": WorkbenchQueries(),
+                "writing_service": writing,
+                "candidate_selection_service": SelectionActions(run_id, confirmed=True),
+            },
+        )
+    )
+
+    response = client.post(
+        f"/api/data-runs/{run_id}/generate",
+        json={"attribution_mode": mode},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "LEGACY_EXECUTION_MODE_REMOVED"
+    assert writing.generate_call is None
 
 
 def test_generate_without_a_confirmed_selection_is_rejected(tmp_path) -> None:

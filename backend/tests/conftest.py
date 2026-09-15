@@ -2,6 +2,19 @@ from pathlib import Path
 
 import pytest
 
+from backend.tests.postgres_isolation import isolate_configured_postgres_url
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_business_database() -> None:
+    """Applied to every test, not only `postgres`-marked ones.
+
+    Several contract tests read `SECTOR_PULSE_DATABASE_URL` without carrying the
+    marker, so a marker-scoped guard would leave them exposed to the business
+    connection once `.env` reaches the process environment.
+    """
+    isolate_configured_postgres_url()
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(

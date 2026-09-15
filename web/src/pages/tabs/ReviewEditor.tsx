@@ -11,6 +11,8 @@ export default function ReviewEditor(props: {
   runId: string
   draftId: string
   version: number
+  /** Revision the draft was read at; null when the run has no snapshot to guard. */
+  baseRevision?: number | null
   sectionId: string
   heading: string
   body: string
@@ -26,6 +28,7 @@ export default function ReviewEditor(props: {
     try {
       await applyDraftPatch(props.runId, props.draftId, {
         base_version: props.version,
+        ...(props.baseRevision == null ? {} : { base_revision: props.baseRevision }),
         path: `sections/${props.sectionId}/body`,
         old_value_hash: await sha256(props.body),
         value,

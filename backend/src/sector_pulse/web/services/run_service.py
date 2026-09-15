@@ -81,8 +81,13 @@ class RunService:
         provider: str,
         run_id: UUID | None = None,
         *,
+        selection_policy: str = "manual",
         retry_of_run_id: UUID | None = None,
     ) -> UUID:
+        if selection_policy != "manual":
+            raise ProviderUnavailable(
+                "legacy run service does not support server default selection"
+            )
         # 先做同步预检，避免未配置 Live 任务先落库为 RUNNING。
         self._preflight(provider)
         mode = TypeAdapter(AttributionMode).validate_python(
@@ -514,11 +519,21 @@ class RunService:
     def get_review(self, run_id: UUID) -> dict[str, Any]:
         review = self._phase1b_repo.get_review(run_id)
         if review is None:
-            return {"decision": None, "revision_round": None, "issues": []}
+            return {
+                "decision": None,
+                "revision_round": None,
+                "issues": [],
+                "draft_id": None,
+                "draft_version": None,
+            }
         return {
             "decision": review.decision.value,
             "revision_round": review.revision_round,
             "issues": [issue.model_dump(mode="json") for issue in review.issues],
+            # The version this decision was written against, so the reader never
+            # has to assume it was the current draft.
+            "draft_id": review.draft_id,
+            "draft_version": review.draft_version,
         }
 
     def _ready_draft(self, run_id: UUID) -> ArticleDraft | None:

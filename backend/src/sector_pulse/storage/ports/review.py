@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from sector_pulse.domain.review.editing import (
@@ -24,6 +24,16 @@ class DraftEditRepositoryPort(Protocol):
     def latest_version(self, draft_id: UUID) -> ArticleDraft: ...
 
     def latest_for_run(self, run_id: UUID) -> ArticleDraft: ...
+
+    def apply_patch_in_transaction(
+        self,
+        connection: Any,
+        draft_id: UUID,
+        base_version: int,
+        operations: tuple[DraftPatch, ...],
+        *,
+        actor: str,
+    ) -> ArticleDraft: ...
 
     def apply_patch(
         self,

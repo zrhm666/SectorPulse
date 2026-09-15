@@ -16,7 +16,7 @@ describe('DraftTab', () => {
   it('distinguishes request failure from an empty draft and allows retry', async () => {
     vi.mocked(fetchDraft)
       .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce({ versions: [] })
+      .mockResolvedValueOnce({ versions: [], revision: null })
     vi.mocked(fetchRun).mockResolvedValue({} as never)
     vi.mocked(fetchGovernance).mockRejectedValue(new Error('not ready'))
     vi.mocked(fetchReviewMetrics).mockRejectedValue(new Error('not ready'))

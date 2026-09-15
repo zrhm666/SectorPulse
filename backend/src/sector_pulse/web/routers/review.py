@@ -11,6 +11,7 @@ from sector_pulse.application.review.evidence_decision_service import EvidenceDe
 from sector_pulse.application.review.governance_service import GovernanceService
 from sector_pulse.domain.review.release_audit import DraftApproval, DraftExport
 from sector_pulse.domain.writing.article import ArticleDraft
+from sector_pulse.ports.orchestration import RevisionConflict
 from sector_pulse.storage.ports.review import (
     DraftEditRepositoryPort,
     GovernanceRepositoryPort,
@@ -43,6 +44,8 @@ class ReviewRouterDependencies:
     release_audit: ReleaseAuditRepositoryPort
     evidence_repository: GovernanceRepositoryPort
     evidence_service: EvidenceDecisionService
+    orchestration_queries: Any | None = None
+    draft_edits_service: Any | None = None
 
 
 
@@ -51,12 +54,45 @@ def build_review_governance_router(dependencies: ReviewRouterDependencies) -> AP
 
     def latest_owned_draft(run_id: UUID, draft_id: UUID) -> ArticleDraft:
         try:
-            draft = dependencies.draft_edits.latest_version(draft_id)
+            resolved: ArticleDraft | None = dependencies.draft_edits.latest_version(draft_id)
         except KeyError as exc:
-            raise HTTPException(404, "draft not found") from exc
-        if draft.run_id != run_id:
+            resolved = None
+            if dependencies.orchestration_queries is not None:
+                candidate = dependencies.orchestration_queries.latest_draft(run_id)
+                if candidate is not None and candidate.draft_id == draft_id:
+                    # Compatibility projection: human editing remains owned by the
+                    # existing CAS repository and its audit trail.
+                    dependencies.draft_edits.save_draft(candidate)
+                    resolved = candidate
+            if resolved is None:
+                raise HTTPException(404, "draft not found") from exc
+        if resolved is None or resolved.run_id != run_id:
             raise HTTPException(404, "draft not found")
-        return draft
+        return resolved
+
+    def require_current_version_review(run_id: UUID, draft: ArticleDraft) -> None:
+        """Refuse to approve a version the agent never reviewed.
+
+        An A4 PASS is bound to one immutable draft version. A human edit creates
+        a higher version, so reusing the earlier verdict would approve text no
+        reviewer ever read. Legacy runs have no orchestration review at all and
+        keep their original governance-only gate.
+        """
+        queries = dependencies.orchestration_queries
+        if queries is None:
+            return
+        detail = queries.get_run(run_id)
+        if detail is None or getattr(detail, "execution_engine", "legacy") != "multi_agent":
+            return
+        review = queries.get_review(run_id)
+        if review.get("decision") is None:
+            raise HTTPException(409, "draft has no independent review yet")
+        if review.get("draft_version") != draft.version:
+            raise HTTPException(
+                409,
+                "draft version changed since the last independent review; "
+                "a new review is required before approval",
+            )
 
     @router.get("/api/analytics/summary", response_model=ReviewSummaryResponse)
     async def analytics_summary(from_at: str, to_at: str) -> ReviewSummaryResponse:
@@ -86,10 +122,20 @@ def build_review_governance_router(dependencies: ReviewRouterDependencies) -> AP
     ) -> DraftPatchResponse:
         latest_owned_draft(run_id, draft_id)
         try:
-            draft = dependencies.draft_edits.apply_patch(
-                draft_id, request.base_version, request.operations, actor=actor
-            )
-        except DraftVersionConflict as exc:
+            if dependencies.draft_edits_service is None:
+                draft = dependencies.draft_edits.apply_patch(
+                    draft_id, request.base_version, request.operations, actor=actor
+                )
+            else:
+                draft = dependencies.draft_edits_service.apply(
+                    run_id,
+                    draft_id,
+                    request.base_version,
+                    request.operations,
+                    actor=actor,
+                    base_revision=request.base_revision,
+                )
+        except (DraftVersionConflict, RevisionConflict) as exc:
             raise HTTPException(409, str(exc)) from exc
         if draft.run_id != run_id:
             raise HTTPException(404, "draft not found")
@@ -103,9 +149,12 @@ def build_review_governance_router(dependencies: ReviewRouterDependencies) -> AP
     @router.get("/api/runs/{run_id}/governance", response_model=GovernanceResponse)
     async def get_governance(run_id: UUID) -> GovernanceResponse:
         drafts = dependencies.phase1b.get_drafts(run_id)
-        if not drafts:
+        draft = drafts[-1] if drafts else None
+        if draft is None and dependencies.orchestration_queries is not None:
+            draft = dependencies.orchestration_queries.latest_draft(run_id)
+        if draft is None:
             raise HTTPException(404, "draft not found")
-        report = dependencies.governance_service.check(drafts[-1])
+        report = dependencies.governance_service.check(draft)
         return GovernanceResponse(
             status=report.status, issues=report.issues, rules_version=report.rules_version
         )
@@ -117,6 +166,7 @@ def build_review_governance_router(dependencies: ReviewRouterDependencies) -> AP
         actor: str = Header(default="local-user", alias="X-Actor"),
     ) -> ApprovalResponse:
         draft = latest_owned_draft(run_id, draft_id)
+        require_current_version_review(run_id, draft)
         report = dependencies.governance_service.check(draft)
         if report.status != "PASS":
             raise HTTPException(422, "governance check must pass before approval")

@@ -241,11 +241,11 @@ export default function DataRunPage() {
     return () => { cancelled = true }
   }, [activeTab, quality, runId])
 
-  const generate = async (mode: 'workflow' | 'agent' = 'workflow') => {
+  const generate = async () => {
     setActionBusy(true)
     setActionError(null)
     try {
-      const result = await generateDataRunArticle(runId, { attribution_mode: mode })
+      const result = await generateDataRunArticle(runId)
       setContentRun({
         run_id: result.run_id,
         status: 'RUNNING',
@@ -384,7 +384,7 @@ export default function DataRunPage() {
       <Panel title="数据处理进度" description="阶段状态来自已持久化的运行记录，刷新页面后仍可恢复。"><DataRunTimeline run={run} /></Panel>
       <AcquisitionSummary data={acquisition} loading={acquisitionLoading} error={null} />
     </details>
-    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} selectionConfirmed={Boolean(selection?.confirmed)} selectionDirty={selectionDirty} onGenerate={(mode) => void generate(mode)} onRetry={() => void retry()} onCancel={() => void cancel()} cancelling={cancelling} />
+    <DataRunActionPanel run={run} contentRun={contentRun} busy={actionBusy} error={actionError} candidateCount={selectedCandidateIds.length} candidatesLoading={candidatesLoading} selectionConfirmed={Boolean(selection?.confirmed)} selectionDirty={selectionDirty} onGenerate={() => void generate()} onRetry={() => void retry()} onCancel={() => void cancel()} cancelling={cancelling} />
     <div className="workbench-tabs" role="tablist" aria-label="数据运行详情">{tabs.map((tab, index) => <button key={tab.id} id={`tab-${tab.id}`} role="tab" type="button" tabIndex={activeTab === tab.id ? 0 : -1} aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => setActiveTab(tab.id)} onKeyDown={event => {
       const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1
       if (next < 0) return

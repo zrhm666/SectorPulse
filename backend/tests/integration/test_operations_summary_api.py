@@ -118,3 +118,65 @@ def test_operations_summary_adds_real_unified_metrics_without_changing_legacy_ru
         f"/data-runs/{data_run.run_id}"
     )
     assert payload["recent_runs"][1]["detail_path"] == f"/runs/{content_id}"
+
+
+def test_operations_summary_reports_the_agent_engine_and_leaves_unknown_cost_unknown(
+    tmp_path,
+) -> None:
+    """A multi-agent run must be visible to operations without inventing a cost.
+
+    The orchestration snapshot records no wall-clock duration and no settled
+    price while a call is still unpriced, so the projection has to say "unknown"
+    rather than default to zero.
+    """
+    from sector_pulse.domain.orchestration.models import (
+        BudgetLedger,
+        BudgetReservation,
+        RunSnapshot,
+        TaskRecord,
+        TaskStatus,
+    )
+    from sector_pulse.storage.sqlite.orchestration.repository import SQLiteOrchestrationRepository
+
+    database_path = tmp_path / "operations-with-agent-run.db"
+    database = SQLiteDatabase(database_path)
+    database.initialize()
+    requested_at = datetime.now(UTC)
+    run_id = uuid4()
+    SQLiteOrchestrationRepository(database).save(
+        RunSnapshot(
+            run_id=run_id,
+            requested_at=requested_at,
+            deadline=requested_at + timedelta(minutes=10),
+            tasks=(
+                TaskRecord(
+                    task_id=uuid4(),
+                    role="A0",
+                    scope="分析半导体板块",
+                    status=TaskStatus.WAITING_USER_REVIEW,
+                ),
+            ),
+            ledger=BudgetLedger(
+                reservations=(BudgetReservation(call_id="m1", reserved_tokens=10),),
+            ),
+        ),
+        -1,
+        "run.created",
+    )
+    client = TestClient(create_app(database_path=database_path))
+
+    response = client.get("/api/operations/summary")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["summary"]["total"] == 1
+    assert payload["summary"]["attention"] == 1
+    runs = payload["recent_runs"]
+    assert len(runs) == 1
+    assert runs[0]["run_id"] == str(run_id)
+    assert runs[0]["execution_engine"] == "multi_agent"
+    assert runs[0]["mode"] == "多 Agent 分析"
+    assert runs[0]["status"] == "WAITING_USER_REVIEW"
+    assert runs[0]["total_cost_cny"] is None
+    assert runs[0]["elapsed_ms"] is None
+    assert runs[0]["detail_path"] == f"/runs/{run_id}"

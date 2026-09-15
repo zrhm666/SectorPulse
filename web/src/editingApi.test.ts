@@ -38,3 +38,39 @@ describe('review API errors', () => {
     expect(fetch).toHaveBeenCalledWith('/api/runs/run-1/governance', { signal: controller.signal })
   })
 })
+
+describe('draft patch concurrency', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function capturedBody(): Record<string, unknown> {
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit]
+    return JSON.parse(init.body as string) as Record<string, unknown>
+  }
+
+  function stubOk() {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ draft_id: 'draft-1', version: 2, status: 'UNREVIEWED', content: {} }),
+      { status: 201 },
+    )))
+  }
+
+  it('states the snapshot revision so the agent and the editor share one guard', async () => {
+    stubOk()
+
+    await applyDraftPatch('run-1', 'draft-1', {
+      base_version: 1, base_revision: 7, path: 'introduction', old_value_hash: 'a', value: 'new',
+    })
+
+    expect(capturedBody()).toMatchObject({ base_version: 1, base_revision: 7 })
+  })
+
+  it('omits the revision for a run that has no snapshot to guard against', async () => {
+    stubOk()
+
+    await applyDraftPatch('run-1', 'draft-1', {
+      base_version: 1, path: 'introduction', old_value_hash: 'a', value: 'new',
+    })
+
+    expect(capturedBody()).not.toHaveProperty('base_revision')
+  })
+})

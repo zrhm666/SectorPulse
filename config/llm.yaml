@@ -9,13 +9,34 @@ agent_limits:
   max_observation_chars: 12000
 max_agent_calls: 80
 max_agent_tokens: 500000
+max_orchestration_tool_calls: 120
+orchestration_timeout_seconds: 1200
 routes:
   attribution: {provider: fixture, model: fixture-low}
   editorial: {provider: fixture, model: fixture-high}
   writing: {provider: fixture, model: fixture-high}
   review: {provider: fixture, model: fixture-review}
   revision: {provider: fixture, model: fixture-high}
+role_routes:
+  A0: {provider: fixture, model: fixture-high}
+  A1: {provider: fixture, model: fixture-low}
+  A2: {provider: fixture, model: fixture-low}
+  A3: {provider: fixture, model: fixture-high}
+  A4: {provider: fixture, model: fixture-review}
 pricing:
+  fixture-low:
+    input_cny_per_million: "0"
+    output_cny_per_million: "0"
+  fixture-high:
+    input_cny_per_million: "0"
+    output_cny_per_million: "0"
+  fixture-review:
+    input_cny_per_million: "0"
+    output_cny_per_million: "0"
   gpt-4o-mini:
     input_cny_per_million: "2.5"
     output_cny_per_million: "10.0"
+  # Conservative official peak price; cached-input discounts are not inferred.
+  deepseek-flash:
+    input_cny_per_million: "3.0"
+    output_cny_per_million: "9.0"

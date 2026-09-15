@@ -8,6 +8,7 @@ from sector_pulse.domain.review.editing import DraftPatch
 
 class DraftPatchRequest(BaseModel):
     base_version: int = Field(ge=1)
+    base_revision: int | None = Field(default=None, ge=0)
     operations: tuple[DraftPatch, ...]
 
 

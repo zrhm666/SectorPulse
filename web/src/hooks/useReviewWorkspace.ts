@@ -16,6 +16,8 @@ export type ReviewWorkspaceState = {
   selectedId: string | null
   selectedRun: RunSummary | null
   versions: DraftVersionView[]
+  /** Revision the next human edit must be based on; null when the run has no snapshot. */
+  revision: number | null
   governance: GovernanceResponse | null
   approval: ApprovalView | null
   decisions: EvidenceDecisionView[]
@@ -48,6 +50,7 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [versions, setVersions] = useState<DraftVersionView[]>([])
+  const [revision, setRevision] = useState<number | null>(null)
   const [governance, setGovernance] = useState<GovernanceResponse | null>(null)
   const [approval, setApproval] = useState<ApprovalView | null>(null)
   const [decisions, setDecisions] = useState<EvidenceDecisionView[]>([])
@@ -87,6 +90,7 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
         setSelectedId(null)
         setRuns([])
         setVersions([])
+        setRevision(null)
       }
       setQueueError(requestedId
         ? '无法打开指定运行的草稿，请检查运行 ID、草稿是否存在，或重试。'
@@ -113,6 +117,7 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
     workspaceGenerationRef.current = generation
     if (!retainData) {
       setVersions([])
+      setRevision(null)
       setGovernance(null)
       setApproval(null)
       setDecisions([])
@@ -128,6 +133,7 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
       if (!mountedRef.current || controller.signal.aborted
         || generation !== workspaceGenerationRef.current) return
       setVersions(draft.versions)
+      setRevision(draft.revision ?? null)
       setGovernance(report)
       setApproval(currentApproval)
       setDecisions(decisionItems)
@@ -191,7 +197,7 @@ export default function useReviewWorkspace(requestedId?: string | null): ReviewW
   }, [loadWorkspace, selectedRun?.draft_id, selectedRun?.run_id])
 
   return {
-    runs, selectedId, selectedRun, versions, governance, approval, decisions,
+    runs, selectedId, selectedRun, versions, revision, governance, approval, decisions,
     initialLoading, workspaceLoading, queueError, workspaceError, stale,
     selectRun: setSelectedId, refreshQueue, refreshWorkspace,
     refreshGovernance, refreshApproval, refreshDecisions,

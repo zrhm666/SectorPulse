@@ -130,6 +130,7 @@ class SourceRunMetric(BaseModel):
     status: DataStatus
     duration_ms: int
     error_code: str | None = None
+    result_count: int = 0
 
     @model_validator(mode="after")
     def validate_times(self) -> "SourceRunMetric":

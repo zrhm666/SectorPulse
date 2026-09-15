@@ -4,12 +4,18 @@
 幂等键和审计记录，而不把这些横切逻辑塞进 FastAPI 路由。
 """
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from uuid import UUID
 
 
 class _RunCommandPort(Protocol):
-    def create_run(self, input_json: dict[str, Any], provider: str) -> UUID: ...
+    def create_run(
+        self,
+        input_json: dict[str, Any],
+        provider: str,
+        *,
+        selection_policy: Literal["manual", "server_default"] = "manual",
+    ) -> UUID: ...
 
     def cancel_run(self, run_id: UUID) -> bool: ...
 
@@ -17,11 +23,25 @@ class _RunCommandPort(Protocol):
 
 
 class RunCommandService:
+    execution_engine: Literal["legacy"] = "legacy"
+
     def __init__(self, port: _RunCommandPort) -> None:
         self._port = port
 
-    def create(self, input_json: dict[str, Any], provider: str = "fixture") -> UUID:
-        return self._port.create_run(input_json, provider)
+    def create(
+        self,
+        input_json: dict[str, Any],
+        provider: str = "fixture",
+        *,
+        selection_policy: Literal["manual", "server_default"] = "manual",
+    ) -> UUID:
+        if selection_policy == "manual":
+            return self._port.create_run(input_json, provider)
+        return self._port.create_run(
+            input_json,
+            provider,
+            selection_policy=selection_policy,
+        )
 
     def cancel(self, run_id: UUID) -> bool:
         return self._port.cancel_run(run_id)

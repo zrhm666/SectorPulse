@@ -12,6 +12,50 @@ from sector_pulse.domain.writing.attribution import (
     AttributionGateResult,
     SectorAnalysisCard,
 )
+from sector_pulse.domain.writing.editorial import (
+    DraftRulesArtifact,
+    EditorialDraftArtifact,
+    EditorialOutlineArtifact,
+    IndependentReviewArtifact,
+)
+from sector_pulse.domain.writing.research import (
+    EvidenceInspectionReport,
+    SectorAnalysisArtifact,
+)
+
+
+@runtime_checkable
+class EvidenceInspectionRepositoryPort(Protocol):
+    def get(self, report_id: UUID) -> EvidenceInspectionReport | None: ...
+
+
+@runtime_checkable
+class SectorAnalysisRepositoryPort(Protocol):
+    def get(self, analysis_id: UUID) -> SectorAnalysisArtifact | None: ...
+
+
+@runtime_checkable
+class EditorialOutlineRepositoryPort(Protocol):
+    def get(self, outline_id: UUID) -> EditorialOutlineArtifact | None: ...
+
+
+@runtime_checkable
+class EditorialDraftRepositoryPort(Protocol):
+    def get(self, artifact_id: UUID) -> EditorialDraftArtifact | None: ...
+
+    def get_version(self, draft_id: UUID, version: int) -> EditorialDraftArtifact | None: ...
+
+    def latest_version(self, draft_id: UUID) -> EditorialDraftArtifact | None: ...
+
+
+@runtime_checkable
+class DraftRulesRepositoryPort(Protocol):
+    def get(self, artifact_id: UUID) -> DraftRulesArtifact | None: ...
+
+
+@runtime_checkable
+class IndependentReviewRepositoryPort(Protocol):
+    def get(self, artifact_id: UUID) -> IndependentReviewArtifact | None: ...
 
 
 @runtime_checkable

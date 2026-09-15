@@ -1,10 +1,8 @@
 // web/src/api.ts
 const BASE = '/api'
 
-export type AttributionMode = 'workflow' | 'agent'
-
 export interface RunSummary {
-  attribution_mode?: AttributionMode
+  execution_engine?: 'multi_agent' | 'legacy'
   run_id: string
   requested_at: string
   provider: string
@@ -69,6 +67,8 @@ export interface DraftVersionView {
 
 export interface DraftView {
   versions: DraftVersionView[]
+  /** Snapshot revision the edit must be based on; null when the run has none. */
+  revision: number | null
 }
 
 export interface RadarClaimView {
@@ -105,6 +105,8 @@ export interface ReviewView {
   decision: string | null
   revision_round: number | null
   issues: ReviewIssueView[]
+  /** The draft version this decision was written against; absent on older payloads. */
+  draft_version?: number | null
 }
 
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {

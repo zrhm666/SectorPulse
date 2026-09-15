@@ -1,8 +1,9 @@
+from datetime import datetime
 from uuid import UUID
 
 from sector_pulse.domain.market.market import SectorKind, SectorUniverseSnapshot
 from sector_pulse.domain.provider import DataStatus, ProviderResult
-from sector_pulse.domain.runs.time import AnalysisRun, InvalidCutoffError
+from sector_pulse.domain.runs.time import AnalysisMode, AnalysisRun, InvalidCutoffError
 from sector_pulse.ports.market_snapshot import SnapshotAfterCutoffError
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
@@ -88,3 +89,21 @@ class SQLiteMarketSnapshotRepository:
         if row is None:
             return None
         return SectorUniverseSnapshot.model_validate_json(row[0])
+
+    def get_run(self, run_id: UUID) -> AnalysisRun | None:
+        with self._database.connection() as connection:
+            row = connection.execute(
+                "SELECT mode, requested_at, requested_cutoff_at, run_cutoff_at, "
+                "cutoff_locked_at FROM analysis_runs WHERE run_id = ?",
+                (str(run_id),),
+            ).fetchone()
+        if row is None:
+            return None
+        return AnalysisRun(
+            run_id=run_id,
+            mode=AnalysisMode(row[0]),
+            requested_at=datetime.fromisoformat(row[1]),
+            requested_cutoff_at=datetime.fromisoformat(row[2]) if row[2] else None,
+            run_cutoff_at=datetime.fromisoformat(row[3]) if row[3] else None,
+            cutoff_locked_at=datetime.fromisoformat(row[4]) if row[4] else None,
+        )

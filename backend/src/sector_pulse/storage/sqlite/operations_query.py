@@ -4,7 +4,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sector_pulse.application.operations.operations_summary import OperationalRun
+from sector_pulse.application.operations.operations_summary import (
+    OperationalRun,
+    as_utc,
+    merge_operational_runs,
+)
+from sector_pulse.application.operations.orchestration_projection import (
+    project_multi_agent_runs,
+)
+from sector_pulse.ports.orchestration import SnapshotRepository
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
 _UNIFIED_OPERATIONS_SQL = """
@@ -48,8 +56,13 @@ FROM (
 
 
 class SQLiteOperationsQuery:
-    def __init__(self, database: SQLiteDatabase) -> None:
+    def __init__(
+        self,
+        database: SQLiteDatabase,
+        orchestration: SnapshotRepository,
+    ) -> None:
         self._database = database
+        self._orchestration = orchestration
         self._database.initialize()
 
     def list_records(
@@ -57,18 +70,29 @@ class SQLiteOperationsQuery:
     ) -> list[OperationalRun]:
         if limit is not None and limit < 1:
             raise ValueError("limit must be at least 1")
+        return merge_operational_runs(
+            self._legacy_records(since),
+            self._multi_agent_records(since),
+            limit=limit,
+        )
+
+    def _legacy_records(self, since: datetime | None) -> list[OperationalRun]:
         statement = _UNIFIED_OPERATIONS_SQL
         parameters: list[object] = []
         if since is not None:
             statement += " WHERE requested_at >= ?"
             parameters.append(since.isoformat())
         statement += " ORDER BY requested_at DESC"
-        if limit is not None:
-            statement += " LIMIT ?"
-            parameters.append(limit)
         with self._database.connection() as connection:
             rows = connection.execute(statement, parameters).fetchall()
         return [_row_to_operational_run(row) for row in rows]
+
+    def _multi_agent_records(self, since: datetime | None) -> list[OperationalRun]:
+        records = project_multi_agent_runs(self._orchestration.list_snapshots(limit=None))
+        if since is None:
+            return records
+        threshold = as_utc(since)
+        return [record for record in records if as_utc(record.requested_at) >= threshold]
 
 
 def _row_to_operational_run(row: Any) -> OperationalRun:

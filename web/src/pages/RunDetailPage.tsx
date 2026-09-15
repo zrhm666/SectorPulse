@@ -1,6 +1,6 @@
 import { registryReturnTo } from './run-registry/registryModel'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { fetchRadar, fetchRun, retryRun, RunSummary } from '../api'
 import { useRunSSE } from '../useRuns'
 import DraftTab from './tabs/DraftTab'
@@ -17,16 +17,25 @@ import SummaryStrip from '../components/ui/SummaryStrip'
 import { formatDate, formatDuration, providerLabel, runCost } from '../runPresentation'
 import ContentRunStageRail from '../components/runs/ContentRunStageRail'
 import AgentTrace from '../components/runs/AgentTrace'
+import RunTaskTree from '../components/runs/RunTaskTree'
 
 const TABS = [
   ['overview', '概览'], ['radar', '板块雷达'], ['evidence', '证据'], ['draft', '草稿'], ['review', '审核'], ['governance', '治理'],
 ] as const
 type Tab = (typeof TABS)[number][0]
 
+// 任务树里的产物链接直达对应视图，因此当前标签以 URL 为准，而不是组件内部状态。
+function tabFromSearch(search: string): Tab {
+  const requested = new URLSearchParams(search).get('tab')
+  return TABS.some(([key]) => key === requested) ? requested as Tab : 'overview'
+}
+
 export default function RunDetailPage() {
   const returnTo = registryReturnTo(useLocation().state)
   const { runId } = useParams()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = tabFromSearch(searchParams.toString())
+  const setTab = (next: Tab) => setSearchParams(next === 'overview' ? {} : { tab: next })
   const [run, setRun] = useState<RunSummary | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [loadError, setLoadError] = useState(false)
@@ -81,10 +90,10 @@ export default function RunDetailPage() {
       {run && <>
         <SummaryStrip label="内容运行摘要" items={[
           { label: '状态', value: <StatusBadge status={run.status} /> },
-          { label: '数据来源 / 归因方式', value: <><span>{providerLabel(run.provider)}</span><br /><span>{run.attribution_mode === 'agent' ? 'Agent 模式' : '工作流模式'}</span></> },
+          { label: '数据来源 / 执行引擎', value: <><span>{providerLabel(run.provider)}</span><br /><span>{run.execution_engine === 'multi_agent' ? '父子 Multi-Agent' : '历史运行'}</span></> },
           { label: '创建时间', value: formatDate(run.requested_at) },
           { label: '耗时', value: formatDuration(run.elapsed_ms, run.status) },
-          { label: '成本', value: run.attribution_mode === 'agent' && run.total_cost_cny === null ? '费用未知' : runCost(run.total_cost_cny, run.status) },
+          { label: '成本', value: run.execution_engine === 'multi_agent' && run.total_cost_cny === null ? '费用未知' : runCost(run.total_cost_cny, run.status) },
           { label: '板块数', value: run.sector_count ?? '未记录' },
         ]} />
         {run.status === 'FAILED' && <InlineAlert tone="error" title="运行未完成"><p>{run.error_message ?? '本次运行未能完成，请检查系统状态。'}</p>{run.input_json_hash && <p>已保留输入快照，可使用相同输入重新运行。</p>}</InlineAlert>}
@@ -95,8 +104,12 @@ export default function RunDetailPage() {
         {retryError && <InlineAlert tone="error" title="重试未能启动">请检查 Provider 和系统配置后再试。</InlineAlert>}
         <div className="detail-actions">{run.draft_id && run.status !== 'RUNNING' && <Link className="button button-primary" to={`/review?run=${encodeURIComponent(run.run_id)}`}>进入审核工作台</Link>}{run.retryable && <button className="button button-secondary" onClick={handleRetry} disabled={retrying}>{retrying ? '正在重试…' : '重新运行'}</button>}</div>
         {stageLoadError && <InlineAlert tone="warning" title="历史归因记录暂时无法加载">阶段条保留已确认的草稿状态；其余记录未被标记为未执行。可刷新页面重试。</InlineAlert>}
-        <ContentRunStageRail events={events} done={done} run={run} hasAttribution={savedAttribution === run.run_id} />
-        {run.attribution_mode === 'agent' && <AgentTrace runId={run.run_id} active={!done && run.status === 'RUNNING'} />}
+        {run.execution_engine === 'multi_agent'
+          ? <>
+            <RunTaskTree runId={run.run_id} active={!done && run.status === 'RUNNING'} />
+            <AgentTrace runId={run.run_id} active={!done && run.status === 'RUNNING'} />
+          </>
+          : <ContentRunStageRail events={events} done={done} run={run} hasAttribution={savedAttribution === run.run_id} />}
         <div className="tabbar" role="tablist" aria-label="运行详情视图">{TABS.map(([key, label]) => <button key={key} id={`content-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`content-panel-${key}`} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
         <div id={`content-panel-${tab}`} role="tabpanel" aria-labelledby={`content-tab-${tab}`} className="tab-panel">
           {tab === 'overview' && <OverviewTab events={events} done={done} run={run} />}

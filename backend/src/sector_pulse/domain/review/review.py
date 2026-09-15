@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -41,3 +42,10 @@ class ReviewReport(BaseModel):
         if self.decision is ReviewDecision.PASS and has_blocking:
             raise ValueError("PASS review cannot contain blocking issues")
         return self
+
+
+@dataclass(frozen=True)
+class GovernanceReport:
+    status: str
+    issues: tuple[dict[str, str], ...]
+    rules_version: str = "phase2b-v1"

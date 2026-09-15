@@ -1,11 +1,12 @@
 # ruff: noqa: E501
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import text
 
 from sector_pulse.domain.market.market import SectorKind, SectorUniverseSnapshot
 from sector_pulse.domain.provider import DataStatus, ProviderResult
-from sector_pulse.domain.runs.time import AnalysisRun, InvalidCutoffError
+from sector_pulse.domain.runs.time import AnalysisMode, AnalysisRun, InvalidCutoffError
 from sector_pulse.ports.market_snapshot import SnapshotAfterCutoffError
 from sector_pulse.storage.postgres.database import PostgresDatabase
 
@@ -54,3 +55,29 @@ class PostgresMarketSnapshotRepository:
             )
             row = result.first()
         return SectorUniverseSnapshot.model_validate_json(row[0]) if row else None
+
+    def get_run(self, run_id: UUID) -> AnalysisRun | None:
+        with self._database.start().connect() as connection:
+            row = connection.execute(
+                text("SELECT mode, requested_at, requested_cutoff_at, run_cutoff_at, cutoff_locked_at FROM analysis_runs WHERE run_id = :run_id"),
+                {"run_id": str(run_id)},
+            ).first()
+        if row is None:
+            return None
+
+        def parsed(value: object) -> datetime | None:
+            if value is None or isinstance(value, datetime):
+                return value
+            return datetime.fromisoformat(str(value))
+
+        requested_at = parsed(row[1])
+        if requested_at is None:
+            raise ValueError("stored analysis run requested_at is missing")
+        return AnalysisRun(
+            run_id=run_id,
+            mode=AnalysisMode(row[0]),
+            requested_at=requested_at,
+            requested_cutoff_at=parsed(row[2]),
+            run_cutoff_at=parsed(row[3]),
+            cutoff_locked_at=parsed(row[4]),
+        )

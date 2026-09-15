@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { createRun, fetchFixtureInput } from '../api'
+import { createRun } from '../api'
 import InlineAlert from '../components/ui/InlineAlert'
 import LoadingState from '../components/ui/LoadingState'
 import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
 import AppIcon from '../components/ui/AppIcon'
-import { createDataRun } from '../dataRunsApi'
 import { fetchOperationsSummary, type OperationsSummary } from '../operationsApi'
 
 type Mode = 'intraday' | 'post_close'
@@ -57,14 +56,13 @@ export default function NewAnalysisPage() {
     setSubmitting(true)
     setSubmitError(false)
     try {
-      if (provider === 'fixture') {
-        const input = await fetchFixtureInput()
-        const result = await createRun(input, 'fixture')
-        navigate(`/runs/${result.run_id}`)
-      } else {
-        const result = await createDataRun({ mode, provider: 'live', precandidate_limit: 30, final_candidate_limit: 12 })
-        navigate(`/data-runs/${result.run_id}`)
-      }
+      const result = await createRun({
+        goal: `完成${mode === 'intraday' ? '盘中' : '盘后'}板块分析`,
+        mode,
+        precandidate_limit: 30,
+        final_candidate_limit: 12,
+      }, provider)
+      navigate(`/runs/${result.run_id}`)
     } catch {
       setSubmitError(true)
       setSubmitting(false)

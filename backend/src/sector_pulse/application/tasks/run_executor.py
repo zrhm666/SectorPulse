@@ -24,7 +24,7 @@ class RetryPolicy:
         self.backoff_seconds = backoff_seconds
 
     def classify(self, error: Exception, *, attempt_no: int) -> RetryDecision:
-        if isinstance(error, (TimeoutError, ConnectionError)) and attempt_no < self.max_attempts:
+        if isinstance(error, TimeoutError | ConnectionError) and attempt_no < self.max_attempts:
             return RetryDecision(
                 retryable=True,
                 delay_seconds=self.backoff_seconds * (2 ** (attempt_no - 1)),

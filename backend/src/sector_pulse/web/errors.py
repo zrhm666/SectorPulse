@@ -40,7 +40,20 @@ async def http_error_handler(_request: Request, exc: HTTPException) -> JSONRespo
     )
 
 
-async def validation_error_handler(_request: Request, _exc: RequestValidationError) -> JSONResponse:
+async def validation_error_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    errors = exc.errors()
+    removed_mode = any(
+        "attribution_mode" in tuple(str(part) for part in item.get("loc", ()))
+        or "attribution_mode has been removed" in str(item.get("msg", ""))
+        for item in errors
+    )
+    if removed_mode:
+        return _error_response(
+            status_code=422,
+            code="LEGACY_EXECUTION_MODE_REMOVED",
+            message="attribution_mode 已移除；所有新运行统一使用 multi_agent 执行引擎",
+            retryable=False,
+        )
     return _error_response(
         status_code=422,
         code="INVALID_REQUEST",

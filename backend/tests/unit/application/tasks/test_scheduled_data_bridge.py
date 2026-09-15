@@ -97,7 +97,10 @@ def test_scheduled_bridge_confirms_default_selection_before_writing(tmp_path: Pa
     assert bridge.advance() == 1
     assert bridge.advance() == 0
     assert selections.confirmed == [run.run_id]
-    assert writing.generated == [(run.run_id, ("a", "b", "c"))]
+    assert len(writing.generated) == 1
+    generated_run_id, generated_selection = writing.generated[0]
+    assert generated_run_id == run.run_id
+    assert generated_selection.selected_sector_ids == ("a", "b", "c")
 
 
 @pytest.mark.parametrize("data_status,target", [

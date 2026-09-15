@@ -4,6 +4,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -18,6 +19,7 @@ from sector_pulse.domain.llm import (
     MoneyCny,
     TokenUsage,
 )
+from sector_pulse.infrastructure.llm.prompt_registry import PromptDefinition, PromptRegistry
 
 
 class ModelPrice(BaseModel):
@@ -40,11 +42,15 @@ class OpenAICompatibleProvider:
         pricing: Mapping[str, ModelPrice],
         client: httpx.AsyncClient | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        structured_prompt: PromptDefinition | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout_seconds = timeout_seconds
         self._pricing = dict(pricing)
+        self._structured_prompt = structured_prompt or PromptRegistry(Path("config/prompts")).get(
+            "structured_output"
+        )
         self._client = client or httpx.AsyncClient(timeout=timeout_seconds)
         self._sleep = sleep
 
@@ -55,10 +61,8 @@ class OpenAICompatibleProvider:
             "messages": [
                 {
                     "role": "system",
-                    "content": (
-                        f"{request.system_prompt}\n\n"
-                        "必须严格返回一个 JSON 对象，不得输出 Markdown 或解释文字。"
-                        f"返回值必须符合以下 JSON Schema：\n{schema}"
+                    "content": self._structured_prompt.render(
+                        system_prompt=request.system_prompt, schema=schema
                     ),
                 },
                 {"role": "user", "content": json.dumps(request.user_payload, ensure_ascii=False)},

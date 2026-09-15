@@ -272,7 +272,10 @@ for (const state of ['active', 'degraded', 'empty', 'stale', 'failed'] as const)
     await openWorkbench(page, { width: 768, height: 1024 }, state)
     if (state === 'active') await expect(page.getByText('进行中').first()).toBeVisible()
     if (state === 'degraded' || state === 'stale') await expect(page.getByText('本次运行存在数据降级')).toBeVisible()
-    if (state === 'empty') await expect(page.getByText('行情板块尚未产生，当前运行可能仍在采集阶段。')).toBeVisible()
+    // The `empty` fixture describes a *finished* run (`finished_at` set, `terminal: true`),
+    // so the panel must not tell the reader it may still be collecting — that would be the
+    // same kind of invented status this suite exists to prevent elsewhere.
+    if (state === 'empty') await expect(page.getByText('本次运行已结束，没有保存可展示的行情快照。请检查上方原因后重新采集。')).toBeVisible()
     if (state === 'failed') await expect(page.getByRole('button', { name: '按原参数重新采集' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })

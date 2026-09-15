@@ -99,6 +99,7 @@ class OperationsRecentRun(BaseModel):
     mode: str
     status: str
     provider: str
+    execution_engine: Literal["legacy", "multi_agent"] = "legacy"
     requested_at: datetime
     finished_at: datetime | None
     elapsed_ms: int | None

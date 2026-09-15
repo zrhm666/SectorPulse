@@ -12,10 +12,10 @@ from sector_pulse.application.data_runs.candidate_selection_service import (
 )
 from sector_pulse.application.data_runs.data_run_workbench_queries import DataRunWorkbenchQueries
 from sector_pulse.application.data_runs.real_data_queries import RealDataRunQueries
+from sector_pulse.application.orchestration.commands import MultiAgentRunCommands
 from sector_pulse.domain.market.candidate_selection import CandidateSelectionVersionConflict
 from sector_pulse.domain.market.market import SectorKind
 from sector_pulse.domain.provider import DataStatus
-from sector_pulse.domain.runs.real_data_run import RealDataRunRequest
 from sector_pulse.web.schemas.data_run import (
     CandidateSelectionConfirmRequest,
     CandidateSelectionResponse,
@@ -26,7 +26,7 @@ from sector_pulse.web.schemas.data_run import (
     NewDataRunRequest,
 )
 from sector_pulse.web.services.data_run_service import DataRunService
-from sector_pulse.web.services.data_run_writing_service import DataRunWritingService
+from sector_pulse.web.services.data_run_writing_service import DataRunArticleStarter
 
 
 def build_data_runs_router(
@@ -35,25 +35,18 @@ def build_data_runs_router(
     real_queries: RealDataRunQueries,
     workbench_queries: DataRunWorkbenchQueries,
     candidate_selection_service: CandidateSelectionService,
-    writing_service: DataRunWritingService,
+    writing_service: DataRunArticleStarter,
+    multi_agent_commands: MultiAgentRunCommands | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/data-runs", tags=["data-runs"])
 
     @router.post("")
     async def create_data_run(req: NewDataRunRequest) -> dict[str, object]:
-        try:
-            run_id = data_run_service.create(
-                RealDataRunRequest(
-                    mode=req.mode,
-                    lookback_hours=req.lookback_hours,
-                    precandidate_limit=req.precandidate_limit,
-                    final_candidate_limit=req.final_candidate_limit,
-                ),
-                req.provider,
-            )
-        except ValueError as exc:
-            raise HTTPException(409, str(exc)) from exc
-        return {"run_id": run_id}
+        del req
+        raise HTTPException(
+            410,
+            "data-run creation has moved to /api/runs multi-agent execution",
+        )
 
     @router.get("")
     async def list_data_runs() -> list[dict[str, object]]:
@@ -178,7 +171,11 @@ def build_data_runs_router(
     @router.post("/{run_id}/retry")
     async def retry_data_run(run_id: UUID) -> dict[str, object]:
         try:
-            retried_id = data_run_service.retry(run_id)
+            retried_id = (
+                multi_agent_commands.retry_data_run(run_id)
+                if multi_agent_commands is not None
+                else data_run_service.retry(run_id)
+            )
         except KeyError as exc:
             raise HTTPException(404, "run not found") from exc
         except ValueError as exc:
@@ -197,10 +194,7 @@ def build_data_runs_router(
     ) -> dict[str, object]:
         try:
             selection = candidate_selection_service.require_confirmed(run_id)
-            generated_id = writing_service.generate(
-                run_id, selection.selected_sector_ids,
-                attribution_mode=(_req or GenerateDataRunRequest()).attribution_mode,
-            )
+            generated_id = writing_service.generate(run_id, selection)
         except CandidateSelectionNotFound as exc:
             raise HTTPException(404, str(exc)) from exc
         except CandidateSelectionRequired as exc:
