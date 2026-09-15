@@ -1,0 +1,4 @@
+# Versions exercised by the embedded framework regression suite, 2026-09-12.
+openai==3.13.0
+anthropic==1.5.0
+pydantic-settings==2.15.0

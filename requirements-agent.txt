@@ -1,0 +1,3 @@
+# Run from the SectorPulse repository root; this installs the local framework.
+-c vendor/aidynamic-agent/sectorpulse-constraints.txt
+-e ./vendor/aidynamic-agent

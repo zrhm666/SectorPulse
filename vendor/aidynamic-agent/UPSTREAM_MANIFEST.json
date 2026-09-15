@@ -1,0 +1,454 @@
+{
+  "source": "D:/work/project/agent",
+  "files": [
+    {
+      "path": ".codeup/codeup.yml",
+      "sha256": "f2f22c84f2743443b7430d063c924c5bae87a03decb542cc364cde5524836ac5"
+    },
+    {
+      "path": ".env.example",
+      "sha256": "edba6f2e1e7928a5fce829df945ab30901dea9d7db0bb6bf9f5f6b37b7c912c4"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "5c91c95ed44353379178cb80b686443dd6c39b0ac2ee4385153054a286a43f42"
+    },
+    {
+      "path": ".pre-commit-config.yaml",
+      "sha256": "52f5d3647ef33ba7b398789af57d969ade0497c78bc26840c49b32a6893c9b0a"
+    },
+    {
+      "path": ".python-version",
+      "sha256": "ceba8fa5c10f40fbed8feb7eb5238b63dda568908acfd874ee413747b29936c8"
+    },
+    {
+      "path": "2026-04-30-agent-oop-refactor-design.md",
+      "sha256": "2deb0368206c52a64b93caac20489609d88a0658d5ab6edf09d42688a0cbeecf"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "f7fb27d91c7123071a741e6228e3df254b70ae9ba5965b6319114e89d5446e8d"
+    },
+    {
+      "path": "CODE_OF_CONDUCT.md",
+      "sha256": "e8e45adabda086e5d923099b9633a92dbbe9961771a432282f6326d46cfae6a1"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "68416a2c502939a527e91b4df6799d7a5234c4619a42d3883a9cddbd3ef6f1e9"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a2873f87b7de1d9027b160636ad294bf4945f7c1b9c302d356eaeb7c8cd3e791"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "fce9044f34f7f5ba8b65838764c12ac5f31828964ce908b7a8d55f519bd72543"
+    },
+    {
+      "path": "_import_check.py",
+      "sha256": "d604724b9e14b1ca525796a3ef8eae9263cc39bcf6f626ae1f19a2ccc9ba4267"
+    },
+    {
+      "path": "aidynamic_agent/__init__.py",
+      "sha256": "1846ddec606ea34cff6c3b7e42b96e33b240d78366988c054c7d2b9b173a0e4b"
+    },
+    {
+      "path": "aidynamic_agent/agents/__init__.py",
+      "sha256": "b70018718a188f1ad69637d00140982acf4721218be5adcf4acde805d9930ded"
+    },
+    {
+      "path": "aidynamic_agent/agents/factory.py",
+      "sha256": "1ccd6fded141ccb5025896176593c28e41950290ae8e49dc6bbc1070b1210f16"
+    },
+    {
+      "path": "aidynamic_agent/agents/parent.py",
+      "sha256": "467ada8eadf40c115ca95d2e5ef40d69cff2bf1d64f3f6f80c580069b6c43cd6"
+    },
+    {
+      "path": "aidynamic_agent/agents/sub.py",
+      "sha256": "31a1e5c9eefc71e00e5a857802147ffbfa5b3ad925f121cdb7d24ba29fd6639f"
+    },
+    {
+      "path": "aidynamic_agent/config.py",
+      "sha256": "45ce035f6cecb06cf82a36f22f0ef9b6e908455991af32cdb16e672faec49f7b"
+    },
+    {
+      "path": "aidynamic_agent/core/__init__.py",
+      "sha256": "2fd0a3bc41366165a6213a091abf6173b9adf325319d5c3e32644d840ee96852"
+    },
+    {
+      "path": "aidynamic_agent/core/agent.py",
+      "sha256": "f62af926910df52a720a35033c86bd43df58f463ba446c8a9f4b71e0f890f8d2"
+    },
+    {
+      "path": "aidynamic_agent/core/context.py",
+      "sha256": "5301c93fb28d40fb0188bb43ef73e1016e77d37b2ef640e1c25251f584dd4053"
+    },
+    {
+      "path": "aidynamic_agent/core/message.py",
+      "sha256": "31f104099b95ae6dc8bbfd8788881e6018de59dc586516b772eb2abc3eaddb45"
+    },
+    {
+      "path": "aidynamic_agent/hooks/__init__.py",
+      "sha256": "cb5d5f7b2818c3c34e2ab3e82bc6cdc6f53fa2ff93bc09dd936e62ac4ae3331a"
+    },
+    {
+      "path": "aidynamic_agent/hooks/base.py",
+      "sha256": "a3541c9a1c91737bdedcefc38b7eebba5f0f0afaf11cd8c6940f264e9b716b4a"
+    },
+    {
+      "path": "aidynamic_agent/hooks/builtin.py",
+      "sha256": "a4fd9b39109012a3169aa74f79659645578b101acec42f6cf8555222f54125b8"
+    },
+    {
+      "path": "aidynamic_agent/legacy/__init__.py",
+      "sha256": "9deb328412e1fc5d7c3cdb45f8da8944ba69e35511ca25b14531a06cf229d0d1"
+    },
+    {
+      "path": "aidynamic_agent/legacy/adapter.py",
+      "sha256": "387152f787fa95649c0e2879f06a38ace0e60fe2cbd36951cd7c13528163a31d"
+    },
+    {
+      "path": "aidynamic_agent/llm/__init__.py",
+      "sha256": "803dfbe7abebdd63346bcab5c1c93ad25a19c74781355b2f3cfb0aa97259cc93"
+    },
+    {
+      "path": "aidynamic_agent/llm/adapters/__init__.py",
+      "sha256": "2f40f14dded8aebf035a9feec6fd678f9fb9e67978351082625814a37d42e493"
+    },
+    {
+      "path": "aidynamic_agent/llm/adapters/anthropic_adapter.py",
+      "sha256": "0c417c573cfdcc377d1f8c861d1d1324e996160d24ddde126683d12912177cc2"
+    },
+    {
+      "path": "aidynamic_agent/llm/adapters/base.py",
+      "sha256": "39d7b71bd02a4137f617d8907b25a822d834197acc390904773dc56a05c326db"
+    },
+    {
+      "path": "aidynamic_agent/llm/adapters/dashscope_adapter.py",
+      "sha256": "767364641ee36e115af9c7b00f1b80d3c6953fc5091112a1991a114b146dd5ae"
+    },
+    {
+      "path": "aidynamic_agent/llm/adapters/openai_adapter.py",
+      "sha256": "f20d088e75348635397afc9f9fcee80c8c820fb54c6ee58abf88949628998475"
+    },
+    {
+      "path": "aidynamic_agent/llm/base.py",
+      "sha256": "52dcb0a5c699b0043e04ad2abc64c40135e2a5485f02c5b3a5f55eaa2fecf701"
+    },
+    {
+      "path": "aidynamic_agent/llm/exceptions.py",
+      "sha256": "63c6b3277cd4acfa1501a8c6e9d3c137a992e51a74ae78722a88c4f2bc1aa94a"
+    },
+    {
+      "path": "aidynamic_agent/llm/factory.py",
+      "sha256": "3c17d439da26fe1478417dd88f93f9dc39cf4956b94007422b78aab16e5109f1"
+    },
+    {
+      "path": "aidynamic_agent/llm/providers/__init__.py",
+      "sha256": "db9056ce29d400ec60b03b3b432d7edfa4429398f6d6cfb1c8165b64dd7df996"
+    },
+    {
+      "path": "aidynamic_agent/llm/providers/anthropic.py",
+      "sha256": "41e6faaec9b31677e368ff383094ebe49d6064d48e7e9d40ad36659c10ff3388"
+    },
+    {
+      "path": "aidynamic_agent/llm/providers/dashscope.py",
+      "sha256": "82bebc728902f882386d954d39ce615fde6df217e6bbe03bb24c96959482dce7"
+    },
+    {
+      "path": "aidynamic_agent/llm/providers/openai.py",
+      "sha256": "2cfb32bbe2f415a40e3ded940e5ef23615dfa11f8dfeae431c7bdc28c996ea30"
+    },
+    {
+      "path": "aidynamic_agent/managers/__init__.py",
+      "sha256": "17473dd39ef3917ac571281fbf186d3fdd384850d7e033f9ca63cc0a18f85f9d"
+    },
+    {
+      "path": "aidynamic_agent/managers/history.py",
+      "sha256": "e768164087dab6829d00f5e99eb4a086524220d4a1300adefc34762761eb3879"
+    },
+    {
+      "path": "aidynamic_agent/managers/skill.py",
+      "sha256": "37b442758df07ca89187a3f70aadded9d6c961c1c4337cb01993b9f0a471fd4a"
+    },
+    {
+      "path": "aidynamic_agent/managers/state.py",
+      "sha256": "3286976a519a4e21fd4ec4ca4b9d9f8b8db88a14f0df893a5308ef961a4c5cdf"
+    },
+    {
+      "path": "aidynamic_agent/managers/todo.py",
+      "sha256": "739ffe53a2faedef58b2df2b2283ab6634a7de25090353770eb01c9f3bfa974b"
+    },
+    {
+      "path": "aidynamic_agent/py.typed",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "aidynamic_agent/tools/__init__.py",
+      "sha256": "a6eaedfb20a56798584da6c61d5e1613aeaf4a16207b0187e5bf40c4d39d400d"
+    },
+    {
+      "path": "aidynamic_agent/tools/base.py",
+      "sha256": "c84293ed1bff78b0ed5695a21b21f7cab01987905eb7ca13e389573d3ac1cfad"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/__init__.py",
+      "sha256": "830a36cddae780cee1795189f2a3f19aa41ef64e478da3c065babdce00e4f48e"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/bash.py",
+      "sha256": "db368b0e0718787596dc9d1cba9f8c23dc2c305b520cbbebcb49298ec09ddd57"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/file_ops.py",
+      "sha256": "fd6f19e621fbf35bc7173158550ef3ec97a7409243fd0ad9dedec8d95a2e17b1"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/glob.py",
+      "sha256": "aefccfb07d30db258b3ab0fb83bba483887c88a7ce73fa646048ec7a8d838b7f"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/history.py",
+      "sha256": "bde16f87e65ccc4821e5a8819225aca7cb41476067a2501a0b0a478c4ca34198"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/skill.py",
+      "sha256": "b1897f27e33d4ca5f9d27f139fee42286e8f856fca5fc2b0420eb2b9bc171c70"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/task.py",
+      "sha256": "6c253e2cf58d4f1bbacadbcdc18630d70a5ea82a6dae3d99d91f3a8edf579de1"
+    },
+    {
+      "path": "aidynamic_agent/tools/builtins/todo.py",
+      "sha256": "c9cf8d2654a769213379773f5495dc95f656dc5d8f5a5e4f27aa73e11521c9bc"
+    },
+    {
+      "path": "aidynamic_agent/tools/context.py",
+      "sha256": "02004c919d527f403a47503a0dc29efa01e9215c9e6eb9032543d5c3098770a4"
+    },
+    {
+      "path": "aidynamic_agent/tools/registry.py",
+      "sha256": "1201a84d5e347d849e715a9b790691f7c0c2db25ac1df16c4c2f3efebb078ff4"
+    },
+    {
+      "path": "conftest.py",
+      "sha256": "16b10db78b8a3f7e12b0c5c1861d420fcabaf2145be10a91fdad5338142850a0"
+    },
+    {
+      "path": "docs/MR_TEMPLATE.md",
+      "sha256": "74275050c70d872f572f22393ca96c6855079437eff7089a46b5d8a361e9da00"
+    },
+    {
+      "path": "examples/basic_usage.py",
+      "sha256": "fbc022280e9153265e52c1df2a6f17de07f24e223b2bdbc8a2e9bddbb66332f2"
+    },
+    {
+      "path": "examples/streaming_react_agent.py",
+      "sha256": "9501df500be7883c01f6d655ea7e914def8403cf23f88f0f4b829723ed1b206c"
+    },
+    {
+      "path": "publish.py",
+      "sha256": "5e0fa055726099e6d70e7c073e44941d6335252c97752a3d41210315f1a44a1a"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "0d7949dfdc5d78b5ea86edd6892b2806efe27b254b89209f0b533c901cf63562"
+    },
+    {
+      "path": "tests/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/integration/__init__.py",
+      "sha256": "ce8418a01bc9fae2e43c9acbf2698edf11ecb30b27dce1953a017cae03c72313"
+    },
+    {
+      "path": "tests/integration/test_agent_loop.py",
+      "sha256": "0110980bd7dc769797b06b105a5fef39ccf1ae4229ed432d61a52cb3ddb93a07"
+    },
+    {
+      "path": "tests/integration/test_state_persist.py",
+      "sha256": "921ccaddc16f1f534ef7213ae7f818aaaea882329879941a5461c6c137d91aeb"
+    },
+    {
+      "path": "tests/integration/test_subagent.py",
+      "sha256": "cbb83db52723e2456948bed34251611d7afe8320bda98a3d6c42a4d1ebcd4a0a"
+    },
+    {
+      "path": "tests/integration/test_tool_concurrent.py",
+      "sha256": "99ec2c4906c706bb7b08d21f7197bf3afb3c547abe113c9b89b49c3e7abaf713"
+    },
+    {
+      "path": "tests/mocks/__init__.py",
+      "sha256": "ffa731419dfe2566bf239aee71e54f2e37e7a4f350349c647106056be3c5d74b"
+    },
+    {
+      "path": "tests/mocks/fixtures.py",
+      "sha256": "f84dad57e043a6696b17d6d28b9de3c1b48e3b8a3c47610521c06adaaff14e23"
+    },
+    {
+      "path": "tests/mocks/mock_llm.py",
+      "sha256": "580bcdf8cb2fbe99a4dabb4c236632e21efaf7ecd46a5ff9fa581082eb2cf3bf"
+    },
+    {
+      "path": "tests/mocks/mock_tools.py",
+      "sha256": "35b1f020f65b9c7f59912ef598d8b69aef1ab03ba0441ebe33adaa7f3c0f1586"
+    },
+    {
+      "path": "tests/unit/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/agents/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/agents/test_agent_factory.py",
+      "sha256": "a82515f4aaeefe619da6a9bfc7a7a29e3d9290d04ccde8f2192ac1162a8119d8"
+    },
+    {
+      "path": "tests/unit/agents/test_parent_agent.py",
+      "sha256": "ac579cc0d709b21c2efef8c30ebb02436110d42d726ddbe39bb1940abd9b18a3"
+    },
+    {
+      "path": "tests/unit/agents/test_retry.py",
+      "sha256": "791997b45081e7edcdcc2f0f439356125cfe27cedcb64831e4b72d2524521052"
+    },
+    {
+      "path": "tests/unit/agents/test_sub_agent.py",
+      "sha256": "ee674149b75dac2e45045958699237dcfa72ebafb5d37fb15c41f48aa83c5ff3"
+    },
+    {
+      "path": "tests/unit/agents/test_termination.py",
+      "sha256": "d41b40a458481da5223e10aa57eedf1ea010ed89843a3e683285013dfd75a1dc"
+    },
+    {
+      "path": "tests/unit/core/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/core/test_context.py",
+      "sha256": "f7e5b305cb6fc5e28e7ebb863d925838a439f1f464b318c0b29ec227e4efa431"
+    },
+    {
+      "path": "tests/unit/core/test_message.py",
+      "sha256": "cdc9c008e5622451d91adb87a8cde63ba9d7b94e501137664692df7e0cf2ee7e"
+    },
+    {
+      "path": "tests/unit/hooks/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/hooks/test_base.py",
+      "sha256": "8849c65d2ada9d95a49481e7a0511a9d2f7634c8b6b1d3b756f9a27e9e1a0d93"
+    },
+    {
+      "path": "tests/unit/hooks/test_builtin_hooks.py",
+      "sha256": "8c206007ffec8ce6ba8c05ccf8c77fa1866df7092dcadfcc05b83bd772d6f6bc"
+    },
+    {
+      "path": "tests/unit/llm/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/llm/test_adapters.py",
+      "sha256": "234003f757825790a7aea3615fe5d530363aa23cc7fa7a6bded03dbc9ab8b5d8"
+    },
+    {
+      "path": "tests/unit/llm/test_base.py",
+      "sha256": "9821940c6c44ff0858501379e77fe0472f27c54a292a5d601b6336544c38151b"
+    },
+    {
+      "path": "tests/unit/llm/test_exceptions.py",
+      "sha256": "d25a8d965adb13832ee66483d1fca7e3e1d3ab57870f5cac019b69923cb1e981"
+    },
+    {
+      "path": "tests/unit/llm/test_factory.py",
+      "sha256": "599762615e761bdb0cb00c0f06293b65eec8ef05466c859bbe50479a06a56636"
+    },
+    {
+      "path": "tests/unit/llm/test_provider.py",
+      "sha256": "5b873130b43c1a18014950483004d76499f91527506a7a7322bb15fca81337d5"
+    },
+    {
+      "path": "tests/unit/llm/test_providers.py",
+      "sha256": "8dfc65248d688c33d71f27f28e220019de2933fef9febe08d8d30f84292d4841"
+    },
+    {
+      "path": "tests/unit/managers/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/managers/test_history.py",
+      "sha256": "acd2ddb0b13dbf3a05170791cfde5f02f61e679f4f36577d1ba5b11ed988a260"
+    },
+    {
+      "path": "tests/unit/managers/test_skill.py",
+      "sha256": "f31ca884c6bfce47832ad6cf832fc96345da1d06f93a9574e2a13df7b6b05f3c"
+    },
+    {
+      "path": "tests/unit/managers/test_state.py",
+      "sha256": "c4bd5f6eeedd050e31f0de06f4067c4e6ecf95f6de507457b888769ee2cade9e"
+    },
+    {
+      "path": "tests/unit/managers/test_todo.py",
+      "sha256": "bc100f561feed6008c4289a84944906a24be0c3a5d09d72403370b0a6eeb92a8"
+    },
+    {
+      "path": "tests/unit/tools/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/unit/tools/test_base.py",
+      "sha256": "ca928ec312c998d1c65435d785b59357b5e15e69547197f422dd6dead31abace"
+    },
+    {
+      "path": "tests/unit/tools/test_bash.py",
+      "sha256": "e0f556e2d18ca05ef831eb786ea3b60ed4dc56ca2f729c6cf3a831939bf04415"
+    },
+    {
+      "path": "tests/unit/tools/test_context.py",
+      "sha256": "9c33742d12440f9deb150ad67c9788e6be203cd2e6e4fe1bf70fbe390de8806f"
+    },
+    {
+      "path": "tests/unit/tools/test_file_ops.py",
+      "sha256": "a3744c55a3f0709944130f909bdb153ccb20a1df6b8f1c6594298eb326513cd9"
+    },
+    {
+      "path": "tests/unit/tools/test_glob.py",
+      "sha256": "03d907f120efd2d7f81b2d32d996cd81c6912b6db5c240b9a3cab81bad5385cb"
+    },
+    {
+      "path": "tests/unit/tools/test_history_tool.py",
+      "sha256": "4ef9772db2525091c35d0fe1af900eafccd943715f41733b84ccc40fc41a776d"
+    },
+    {
+      "path": "tests/unit/tools/test_registry.py",
+      "sha256": "b3bfe39f21340d0ba06aae5b650eecd0ec4d31fa58c85b869f635fb0e5cf735d"
+    },
+    {
+      "path": "tests/unit/tools/test_skill_tool.py",
+      "sha256": "261b760e95c9bb3385ad6d5ad771b8e44741244f8b0c1b6102333c752e0bd850"
+    },
+    {
+      "path": "tests/unit/tools/test_task_tool.py",
+      "sha256": "a34c9028168b8566cdcf6a4d1793d72f78a9c54320e5abf1b3c7c2221134b028"
+    },
+    {
+      "path": "tests/unit/tools/test_todo_tool.py",
+      "sha256": "e3354e2e38a48327378e232eee84891bf6efe1ca0df05629cc7a3fb436aea0d2"
+    },
+    {
+      "path": "tests/unit/tools/test_validation.py",
+      "sha256": "7cf8b6c3d457d3694f0f78e26ccefb1e7e840047aceac29482922f94753a1c47"
+    },
+    {
+      "path": "uv.lock",
+      "sha256": "d9e38f72124e9aae9233f8cc9813e3cd2dd7c40ca9d9bb41acf06ed1b5456dff"
+    }
+  ],
+  "commit": "5abc18c906c806f9efa6956e6a4362870f4b1c6c"
+}
