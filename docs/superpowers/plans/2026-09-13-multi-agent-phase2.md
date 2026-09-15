@@ -157,3 +157,18 @@ Phase 2 的历史放行结论不变。完成 P3b 后，使用本机隔离 Postgr
 ## 2026-09-15 后续整体验证注记
 
 Phase 2 的历史放行结论继续不变。P4 单元 C 唯一入口切换后，全量离线回归为 697 passed、19 skipped、36 deselected；本机 PostgreSQL 18 专用 `sector_pulse_run_comparison_test` 标记合同为 28 passed、724 deselected；Ruff 通过，Mypy 301 个源文件通过。新增数量属于 P3/P4，不倒算为 Phase 2 实施范围，也不表示 P4 或完整迁移已经完成。
+
+## 2026-09-15 当前工作区验证注记
+
+本轮继续补齐父 Agent 恢复入口：应用启动时通过 `MultiAgentRunCommands.recover_expired` 扫描编排快照，仅对根任务租约已过期且仍为 `running`/`interrupted` 的任务调度 `MultiAgentRunService.recover`；恢复使用新的 worker 和 attempt，未过期租约不会接管。新增 SQLite 集成测试覆盖过期恢复及重复恢复保护。
+
+当前工作区后端离线回归为 748 passed、55 skipped；Ruff 和 Mypy 通过。55 个跳过项包含未配置专用 PostgreSQL 测试连接、真实数据和真实 LLM 场景，因此本轮没有宣称 PostgreSQL 或真实 LLM 重新验收。文档中的历史 PostgreSQL 数字保留为历史记录，不代表当前环境已经重新执行。
+
+### 2026-09-15 真实 A0→A4 长链路验收
+
+- 新增显式 opt-in 的 `live_llm` 长链路验收：真实 `deepseek-flash` 负责 A0 调度、A1 选题、三个 A2 归因、A3 大纲与草稿、A4 独立审校；行情、新闻仍使用确定性 sandbox，持久化使用临时 SQLite。最终验收 1 passed，136.99 秒，根任务进入 `waiting_user_review`，没有自动批准。
+- 真实运行暴露并修复：A3 输入产物服务端规范化、证据检查跨任务 ID 冲突、编辑产物身份比较、角色按 scope 精确装配工具、A3 权威板块 ID 注入、A3 8192 输出上限、可操作的提纲/草稿校验反馈，以及 A3/A4 缺必需产物时同一租约/attempt 内最多两次纠错回合。
+- A4 的 review scope 不再信任父模型填写；生产组合从唯一草稿产物及草稿仓库生成精确 `draft_id/version`，错误或多份输入仍拒绝。A4 PASS 仍只进入人工审阅状态。
+- 当前代码全量离线回归为 750 passed、25 skipped、31 deselected；Ruff 全仓通过；Mypy 306 个源文件通过。跳过项是未在该命令中注入数据库变量的 PostgreSQL合同及真实外部数据场景。
+- 本机 PostgreSQL 18 服务真实验收使用两个专用库：核心合同 `sectorpulse_test` 19 passed，比较合同 `sector_pulse_run_comparison_test` 9 passed，共 28 passed；未连接或写入 `sectorpulse_runtime`。
+- 本轮未提交、未合并、未推送。当前检出分支实际为 `main`（ahead 7），与早期记录中的 `codex/attribution-agent-modes` 不一致；为保护未提交有效改动，未执行 checkout/reset/stash。

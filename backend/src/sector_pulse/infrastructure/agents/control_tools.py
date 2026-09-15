@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import asdict
+from datetime import datetime
 from uuid import UUID
 
 from aidynamic_agent.tools.base import Tool, ToolResult
@@ -17,9 +18,11 @@ from sector_pulse.application.orchestration.controls import (
 def _json_default(value: object) -> str:
     if isinstance(value, UUID):
         return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
     if hasattr(value, "value"):
         return str(value.value)
-    raise TypeError(f"unsupported control result type: {type(value).__name__}")
+    return str(value)
 
 
 class InspectArtifactsTool(Tool):
@@ -81,7 +84,11 @@ class InspectTasksTool(Tool):
     name = "inspect_tasks"
     description = "Read exact persisted task states and safe artifact references for this run."
     tags = ["parent_only", "read_only", "server_bound"]
-    parameters = {"type": "object", "properties": {}, "additionalProperties": False}
+    parameters = {
+        "type": "object",
+        "properties": {"_": {"type": "string"}},
+        "additionalProperties": False,
+    }
 
     def __init__(self, inspector: TaskInspector, *, task_id: UUID, attempt: int) -> None:
         super().__init__()
@@ -90,7 +97,7 @@ class InspectTasksTool(Tool):
         self.attempt = attempt
 
     async def execute(self, **kwargs: object) -> ToolResult:
-        if kwargs:
+        if set(kwargs) - {"_"}:
             raise ValueError("run and task identity are server controlled")
         results = self.inspector.inspect(self.task_id, attempt=self.attempt)
         content = json.dumps(

@@ -1,5 +1,6 @@
 """Background command adapter for the single multi-agent run service."""
 
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -138,6 +139,70 @@ class MultiAgentRunCommands:
         except KeyError:
             return False
         return True
+
+    def recover_expired(self, now: datetime | None = None) -> int:
+        """Requeue expired root leases so the next worker owns a fresh attempt."""
+        observed = now or datetime.now(UTC)
+        recovered = 0
+        for state in self._repository.list_snapshots(limit=None):
+            root = next((task for task in state.tasks if task.parent_id is None), None)
+            if root is None or root.status.value not in {"running", "interrupted"}:
+                continue
+            if root.lease_expires_at is None or root.lease_expires_at > observed:
+                continue
+            root_record = root
+            async def execute(run_id: UUID = state.run_id, attempt: int = root_record.attempt,
+                              observed_at: datetime = observed) -> None:
+                await self._service.recover(
+                    run_id,
+                    expected_attempt=attempt,
+                    now=observed_at,
+                )
+            self._tasks.start(state.run_id, execute())
+            recovered += 1
+        return recovered
+
+    def candidate_proposal(self, run_id: UUID) -> tuple[Any, Any, int, int]:
+        return self._service.candidate_proposal(run_id)
+
+    async def confirm_selection(
+        self,
+        *,
+        run_id: UUID,
+        proposal_id: UUID,
+        sector_ids: tuple[str, ...],
+        expected_selection_version: int,
+        expected_attempt: int,
+    ) -> int:
+        # WAITING_USER_SELECTION becomes visible inside the control Tool before
+        # that Tool/model turn has finished settling its audit records. Joining
+        # the old attempt prevents the human confirmation CAS from racing those
+        # final writes.
+        await self._tasks.wait(run_id)
+        proposal, _, actual_version, actual_attempt = self._service.candidate_proposal(run_id)
+        if proposal.proposal_id != proposal_id:
+            raise ValueError("candidate proposal is stale")
+        if actual_version != expected_selection_version:
+            raise ValueError("candidate selection version is stale")
+        if actual_attempt != expected_attempt:
+            raise ValueError("candidate selection task attempt is stale")
+        allowed = {item.provider_sector_id for item in proposal.items}
+        if not 3 <= len(sector_ids) <= 12 or len(set(sector_ids)) != len(sector_ids):
+            raise ValueError("candidate selection must contain 3 to 12 unique sectors")
+        if not set(sector_ids).issubset(allowed):
+            raise ValueError("candidate selection contains an unknown sector")
+
+        async def execute() -> None:
+            await self._service.confirm_selection(
+                run_id=run_id,
+                proposal_id=proposal_id,
+                sector_ids=sector_ids,
+                expected_selection_version=expected_selection_version,
+                expected_attempt=expected_attempt,
+            )
+
+        self._tasks.start(run_id, execute())
+        return expected_attempt + 1
 
     def retry(self, run_id: UUID) -> UUID:
         return self.retry_run(run_id)

@@ -51,6 +51,7 @@ async def test_runtime_t16_creates_real_child_with_server_bound_context(tmp_path
         RequiredArtifactsFinalizationPolicy,
     )
     from sector_pulse.application.orchestration.runtime import OrchestrationRunStarter
+    from sector_pulse.application.orchestration.tasks import TaskCoordinator
     from sector_pulse.config.llm_config import load_llm_config
     from sector_pulse.domain.orchestration.models import ArtifactRef, TaskStatus
     from sector_pulse.infrastructure.agents.roles import AgentRole
@@ -99,7 +100,21 @@ async def test_runtime_t16_creates_real_child_with_server_bound_context(tmp_path
         description = "fixture business tool"
         parameters = {"type": "object", "properties": {}}
 
+        def __init__(self, context):
+            super().__init__()
+            self.bound = context
+
         async def execute(self, **kwargs):
+            TaskCoordinator(repository, run_id).submit_artifact(
+                ArtifactRef(
+                    artifact_id=uuid4(),
+                    task_id=self.bound.task_id,
+                    attempt=self.bound.attempt,
+                    kind="sector_analysis",
+                    reference=f"sector-analysis:{uuid4()}",
+                ),
+                worker_id=self.bound.worker_id,
+            )
             return ToolResult(content="analysis submitted")
 
     class Endpoint:
@@ -152,7 +167,7 @@ async def test_runtime_t16_creates_real_child_with_server_bound_context(tmp_path
 
     def build_submit_analysis(context):
         tool_contexts.append(context)
-        return NamedTool()
+        return NamedTool(context)
 
     runtime = ParentAgentRuntime(
         repository=repository,
@@ -577,13 +592,19 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
         )
         for task in research_tasks
     )
+    unrelated = ArtifactRef(
+        artifact_id=uuid4(),
+        task_id=root_id,
+        kind="candidate_proposal",
+        reference=f"candidate-proposal:{uuid4()}",
+    )
     current = repository.load(run_id)
     repository.save(
         current.model_copy(
             update={
                 "revision": current.revision + 1,
                 "tasks": (*current.tasks, *research_tasks),
-                "artifacts": (selection, *analyses),
+                "artifacts": (selection, *analyses, unrelated),
             }
         ),
         current.revision,
@@ -609,6 +630,8 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
 
         async def execute(self, **kwargs):
             traces.setdefault(self.bound.scope, []).append(self.name)
+            if self.name == "submit_draft" and kwargs.get("fail_once"):
+                return ToolResult(content="fix the draft", success=False, error="DRAFT_INVALID")
             if self.name == "submit_review" and kwargs.get("decision") == "PASS_INVALID":
                 return ToolResult(content="", success=False, error="PROGRAM_FINDINGS")
             artifact_id = uuid4()
@@ -651,6 +674,7 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
             )
 
     role_instances = {AgentRole.A3: 0, AgentRole.A4: 0}
+    specialist_prompts = []
 
     class ScriptedEndpoint:
         def __init__(self, role, instance=0):
@@ -674,6 +698,8 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
 
         async def create(self, *args, **kwargs):
             self.calls += 1
+            if self.role is AgentRole.A3 and self.calls == 1:
+                specialist_prompts.append(args[0][-1].content[0].text)
             if self.role is AgentRole.A0:
                 if self.calls == 1:
                     return self.tool_response(
@@ -685,6 +711,7 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
                             "artifact_refs": [
                                 str(selection.artifact_id),
                                 *(str(item.artifact_id) for item in analyses),
+                                str(unrelated.artifact_id),
                             ],
                         },
                     )
@@ -694,7 +721,7 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
                         {
                             "role": "A4",
                             "goal": "independently review v1",
-                            "scope": f"review:{draft_id}:1",
+                            "scope": "review:model-invented-id",
                             "artifact_refs": [str(values["draft_v1"])],
                         },
                     )
@@ -742,11 +769,12 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
                 )
 
             if self.role is AgentRole.A3 and self.instance == 1:
-                sequence = (
-                    ("skill", {"operation": "load", "name": "analysis-writing"}),
-                    ("submit_outline", {}),
-                    ("submit_draft", {}),
-                )
+                sequence = {
+                    1: ("skill", {"operation": "load", "name": "analysis-writing"}),
+                    2: ("submit_outline", {}),
+                    3: ("submit_draft", {"fail_once": True}),
+                    5: ("submit_draft", {}),
+                }
             elif self.role is AgentRole.A3:
                 sequence = (
                     ("skill", {"operation": "load", "name": "analysis-writing"}),
@@ -765,7 +793,10 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
                     ("check_draft_rules", {}),
                     ("submit_review", {"decision": "PASS"}),
                 )
-            if self.calls <= len(sequence):
+            if isinstance(sequence, dict) and self.calls in sequence:
+                name, inputs = sequence[self.calls]
+                return self.tool_response(name, inputs)
+            if not isinstance(sequence, dict) and self.calls <= len(sequence):
                 name, inputs = sequence[self.calls - 1]
                 return self.tool_response(name, inputs)
             return LLMResponse(
@@ -834,11 +865,22 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
             },
         ),
         selection_version=12,
+        review_scope_resolver=lambda artifact_id: (
+            f"review:{draft_id}:2"
+            if artifact_id == values.get("draft_v2")
+            else f"review:{draft_id}:1"
+        ),
     )
     result = await runtime.run("coordinate writing and independent review")
 
     assert result.text == "editorial review complete"
-    assert traces[f"article:{run_id}"] == ["submit_outline", "submit_draft"]
+    assert traces[f"article:{run_id}"] == [
+        "submit_outline",
+        "submit_draft",
+        "submit_draft",
+    ]
+    initial_writer_prompt = json.loads(specialist_prompts[0])
+    assert initial_writer_prompt["authoritative_sector_ids"] == ["1", "2", "3"]
     assert traces[f"review:{draft_id}:1"] == [
         "check_draft_rules",
         "submit_review",
@@ -849,6 +891,11 @@ async def test_real_framework_runs_a3_a4_revision_loop_without_legacy_agents(
     state = repository.load(run_id)
     children = [item for item in state.tasks if item.role in {"A3", "A4"}]
     assert all(item.status is TaskStatus.COMPLETED for item in children)
+    initial_writer = next(item for item in children if item.scope == f"article:{run_id}")
+    assert set(initial_writer.input_artifact_ids) == {
+        selection.artifact_id,
+        *(item.artifact_id for item in analyses),
+    }
     assert state.tasks[0].status is TaskStatus.WAITING_USER_REVIEW
     assert not any(item.kind in {"approval", "revocation"} for item in state.artifacts)
     assert {item.role for item in state.ledger.reservations} >= {"A0", "A3", "A4"}

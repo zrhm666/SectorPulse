@@ -1,5 +1,6 @@
 # backend/tests/unit/web/test_app.py
 from datetime import UTC, datetime
+from time import monotonic, sleep
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -187,6 +188,87 @@ def test_default_web_app_creates_new_runs_with_the_multi_agent_engine(tmp_path) 
 
     assert response.status_code == 200
     assert response.json()["execution_engine"] == "multi_agent"
+
+
+def test_default_fixture_run_executes_a1_tools_and_waits_for_human_selection(tmp_path) -> None:
+    with TestClient(
+        create_app(database_path=tmp_path / "multi-agent-business.db", static_dir=None)
+    ) as client:
+        created = client.post(
+            "/api/runs",
+            json={"input_json": {"goal": "fixture analysis"}, "provider": "fixture"},
+        )
+        run_id = created.json()["run_id"]
+        deadline = monotonic() + 5
+        while monotonic() < deadline:
+            detail = client.get(f"/api/runs/{run_id}").json()
+            if detail["status"] != "RUNNING":
+                break
+            sleep(0.02)
+        trace = client.get(f"/api/runs/{run_id}/tasks").json()
+
+    assert detail["status"] == "WAITING_USER_SELECTION", ", ".join(
+        f"{item['tool_name']}={item['status']}" for item in trace["tool_invocations"]
+    )
+    assert [task["role"] for task in trace["tasks"]] == ["A0", "A1"]
+    assert [call["tool_name"] for call in trace["tool_invocations"]] == [
+        "delegate",
+        "collect_market",
+        "inspect_data_quality",
+        "inspect_data_quality",
+        "rank_sector_candidates",
+        "collect_initial_news",
+        "propose_candidates",
+        "request_selection",
+    ]
+    assert len(trace["artifacts"]) >= 6
+
+
+def test_multi_agent_candidate_proposal_can_be_read_and_confirmed(tmp_path) -> None:
+    with TestClient(
+        create_app(database_path=tmp_path / "multi-agent-selection.db", static_dir=None)
+    ) as client:
+        created = client.post(
+            "/api/runs",
+            json={"input_json": {"goal": "fixture analysis"}, "provider": "fixture"},
+        )
+        run_id = created.json()["run_id"]
+        deadline = monotonic() + 5
+        while monotonic() < deadline:
+            detail = client.get(f"/api/runs/{run_id}").json()
+            if detail["status"] == "WAITING_USER_SELECTION":
+                break
+            sleep(0.02)
+
+        proposal_response = client.get(f"/api/runs/{run_id}/selection")
+        proposal = proposal_response.json()
+        selected = [item["sector_id"] for item in proposal["items"][:3]]
+        confirmed = client.put(
+            f"/api/runs/{run_id}/selection",
+            json={
+                "proposal_id": proposal["proposal_id"],
+                "sector_ids": selected,
+                "expected_selection_version": 0,
+                "expected_attempt": 1,
+            },
+        )
+        deadline = monotonic() + 10
+        while monotonic() < deadline:
+            final_detail = client.get(f"/api/runs/{run_id}").json()
+            task_payload = client.get(f"/api/runs/{run_id}/tasks").json()
+            tasks = task_payload["tasks"]
+            if final_detail["status"] != "RUNNING" and tasks[0]["attempt"] == 2:
+                break
+            sleep(0.02)
+
+    assert proposal_response.status_code == 200
+    assert proposal["selection_version"] == 0
+    assert proposal["attempt"] == 1
+    assert len(proposal["items"]) >= 3
+    assert confirmed.status_code == 202
+    assert confirmed.json() == {"run_id": run_id, "accepted": True, "next_attempt": 2}
+    assert tasks[0]["attempt"] == 2
+    assert final_detail["status"] in {"RUNNING", "WAITING_USER_REVIEW", "FAILED"}
 
 
 def test_static_spa_fallback_keeps_unknown_api_routes_as_404(tmp_path) -> None:

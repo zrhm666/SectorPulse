@@ -129,7 +129,8 @@ def test_an_upgraded_database_serves_its_old_run_and_accepts_a_new_one(tmp_path:
         # file, rather than the row merely existing.
         tasks = client.get(f"/api/runs/{new_run}/tasks").json()
         assert tasks["recording"] == "recorded"
-        assert [task["role"] for task in tasks["tasks"]] == ["A0"]
+        assert [task["role"] for task in tasks["tasks"]] == ["A0", "A1"]
+        assert detail["status"] == "WAITING_USER_SELECTION"
 
         # The old row is still there after the new engine wrote its own snapshot.
         assert client.get(f"/api/runs/{historical}").json()["execution_engine"] == "legacy"

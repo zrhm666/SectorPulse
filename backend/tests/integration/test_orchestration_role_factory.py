@@ -457,14 +457,21 @@ async def test_a3_a4_get_only_editorial_review_tools_and_allowlisted_skills(tmp_
     reviewer = TaskRecord(
         task_id=uuid4(), parent_id=root.task_id, role="A4", scope="review:test:1"
     )
+    reviser = TaskRecord(
+        task_id=uuid4(), parent_id=root.task_id, role="A3", scope="revision:test:1"
+    )
     snapshot = RunSnapshot(
         run_id=uuid4(),
         deadline=datetime.now(UTC) + timedelta(minutes=10),
-        tasks=(root, writer, reviewer),
+        tasks=(root, writer, reviewer, reviser),
     )
     repository.save(snapshot, -1, "created")
     coordinator = TaskCoordinator(repository, snapshot.run_id)
-    for task, worker in ((writer, "writer"), (reviewer, "reviewer")):
+    for task, worker in (
+        (writer, "writer"),
+        (reviewer, "reviewer"),
+        (reviser, "reviser"),
+    ):
         coordinator.start(
             task.task_id,
             attempt=1,
@@ -520,21 +527,31 @@ async def test_a3_a4_get_only_editorial_review_tools_and_allowlisted_skills(tmp_
     )
     writer_agent = factory.create(writer.task_id, attempt=1)
     reviewer_agent = factory.create(reviewer.task_id, attempt=1)
+    reviser_agent = factory.create(reviser.task_id, attempt=1)
+    assert writer_agent.config.max_loops == 24
+    assert writer_agent.config.total_timeout == 300
+    assert reviewer_agent.config.max_loops == 18
+    assert reviewer_agent.config.total_timeout == 300
+    assert reviser_agent.config.max_loops == 18
+    assert reviser_agent.config.total_timeout == 300
+    assert writer_agent.provider.output_limit == 8192
+    assert reviser_agent.provider.output_limit == 8192
+    assert reviewer_agent.provider.output_limit == 4096
     assert {tool.name for tool in writer_agent.tool_registry.list_all()} == {
         "inspect_artifacts",
-        "inspect_evidence",
         "submit_outline",
         "submit_draft",
-        "submit_revision",
-        "check_draft_rules",
         "skill",
     }
     assert {tool.name for tool in reviewer_agent.tool_registry.list_all()} == {
         "inspect_artifacts",
-        "read_news_detail",
-        "inspect_evidence",
         "check_draft_rules",
         "submit_review",
+        "skill",
+    }
+    assert {tool.name for tool in reviser_agent.tool_registry.list_all()} == {
+        "inspect_artifacts",
+        "submit_revision",
         "skill",
     }
     writer_skills = await writer_agent.tool_registry.get("skill").run(operation="list")

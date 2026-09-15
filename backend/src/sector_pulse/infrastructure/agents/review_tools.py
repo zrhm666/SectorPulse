@@ -100,7 +100,7 @@ class SubmitReviewTool(Tool):
         "properties": {
             "draft_artifact_id": {"type": "string", "format": "uuid"},
             "rules_artifact_id": {"type": "string", "format": "uuid"},
-            "submission": {"type": "object"},
+            "submission": ReviewSubmission.model_json_schema(),
         },
         "required": ["draft_artifact_id", "rules_artifact_id", "submission"],
         "additionalProperties": False,

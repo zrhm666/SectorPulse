@@ -64,9 +64,30 @@ class InspectEvidenceTool(Tool):
         values = kwargs["artifact_ids"]
         if not isinstance(values, list) or not values:
             raise ValueError("artifact_ids must be a non-empty list")
-        artifact_ids = tuple(UUID(item) for item in values if isinstance(item, str))
-        if len(artifact_ids) != len(values):
+        requested_ids = tuple(UUID(item) for item in values if isinstance(item, str))
+        if len(requested_ids) != len(values):
             raise ValueError("artifact_ids must contain UUID strings")
+        allowed_input_kinds = {"candidate_batch", "news_batch"}
+        input_artifacts = {
+            item.artifact_id: item for item in self._context.input_artifacts
+        }
+        artifact_ids = tuple(
+            dict.fromkeys(
+                (
+                    *(
+                        item.artifact_id
+                        for item in self._context.input_artifacts
+                        if item.kind in allowed_input_kinds
+                    ),
+                    *(
+                        item
+                        for item in requested_ids
+                        if item not in input_artifacts
+                        or input_artifacts[item].kind in allowed_input_kinds
+                    ),
+                )
+            )
+        )
         report = self._service.inspect(
             context=self._context,
             artifact_ids=artifact_ids,
@@ -114,7 +135,7 @@ class SubmitAnalysisTool(Tool):
         "type": "object",
         "properties": {
             "inspection_artifact_id": {"type": "string", "format": "uuid"},
-            "submission": {"type": "object"},
+            "submission": SectorAnalysisSubmission.model_json_schema(),
         },
         "required": ["inspection_artifact_id", "submission"],
         "additionalProperties": False,

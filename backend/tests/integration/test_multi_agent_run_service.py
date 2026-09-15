@@ -81,7 +81,8 @@ async def test_fixture_create_runs_real_parent_and_a1_without_legacy_pipeline(
     assert root.role == "A0"
     assert root.status is TaskStatus.WAITING
     assert child.role == "A1"
-    assert child.status is TaskStatus.COMPLETED
+    assert child.status is TaskStatus.FAILED
+    assert child.public_error_code == "AGENT_EXECUTION_FAILED"
     assert [(call.role, call.attempt) for call in state.ledger.reservations] == [
         ("A0", 1),
         ("A1", 1),
@@ -364,7 +365,7 @@ async def test_postgres_fixture_create_has_same_parent_a1_and_audit_contract():
         assert [task.role for task in state.tasks] == ["A0", "A1"]
         assert [task.status for task in state.tasks] == [
             TaskStatus.WAITING,
-            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
         ]
         assert [call.role for call in state.ledger.reservations] == ["A0", "A1", "A0"]
         assert [call.tool_name for call in state.ledger.tool_invocations] == ["delegate"]

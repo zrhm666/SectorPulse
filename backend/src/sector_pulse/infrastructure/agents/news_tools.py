@@ -3,7 +3,7 @@
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from aidynamic_agent.tools.base import Tool, ToolResult
 
@@ -70,7 +70,7 @@ class CollectInitialNewsTool(Tool):
             retry_backoff=self._retry_backoff,
         )
         return ToolResult(
-            content=self._content(batch),
+            content=self._content(batch, self._artifact_id(batch)),
             metadata={"result_reference": f"news-batch:{batch.batch_id}"},
         )
 
@@ -81,15 +81,22 @@ class CollectInitialNewsTool(Tool):
         batch = self._batches.get(UUID(reference[len(prefix) :]))
         if batch is None:
             raise KeyError("persisted news batch is unavailable")
-        return ToolResult(content=self._content(batch))
+        return ToolResult(content=self._content(batch, self._artifact_id(batch)))
+
+    def _artifact_id(self, batch: NewsBatch) -> UUID:
+        return uuid5(
+            NAMESPACE_URL,
+            f"news-artifact:{batch.batch_id}:{self._task_id}:{self._attempt}",
+        )
 
     @staticmethod
-    def _content(batch: NewsBatch) -> str:
+    def _content(batch: NewsBatch, artifact_id: UUID) -> str:
         return json.dumps(
             {
                 "status": batch.quality.status.value,
-                "artifact_refs": [str(batch.batch_id)],
+                "artifact_refs": [str(artifact_id)],
                 "summary": {
+                    "news_batch_id": str(batch.batch_id),
                     "document_count": batch.document_count,
                     "event_count": batch.event_count,
                     "link_count": batch.link_count,

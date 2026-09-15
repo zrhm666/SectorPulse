@@ -206,6 +206,14 @@ async def test_multi_agent_service_continues_same_root_after_human_confirmation(
     from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 
     _, repository, snapshot, root, proposal, proposals = _setup(tmp_path)
+    short_deadline = datetime.now(UTC) + timedelta(seconds=1)
+    repository.save(
+        snapshot.model_copy(
+            update={"revision": snapshot.revision + 1, "deadline": short_deadline}
+        ),
+        snapshot.revision,
+        "test.selection_wait_consumed_deadline",
+    )
     service = MultiAgentRunService(
         repository=repository,
         config=load_llm_config(Path("config/llm.yaml")),
@@ -233,6 +241,7 @@ async def test_multi_agent_service_continues_same_root_after_human_confirmation(
     assert state.tasks[0].attempt == 2
     assert state.tasks[0].selection_version == 1
     assert state.tasks[0].status is TaskStatus.WAITING
+    assert state.deadline > short_deadline
     assert [(call.role, call.attempt) for call in state.ledger.reservations] == [("A0", 2)]
 
 

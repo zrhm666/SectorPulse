@@ -62,6 +62,60 @@ async def test_commands_create_retry_and_cancel_use_only_multi_agent_snapshots(t
     assert repository.load(retry).tasks[0].status is TaskStatus.CANCELLED
 
 
+@pytest.mark.asyncio
+async def test_commands_recover_expired_multi_agent_root_once(tmp_path):
+    from sector_pulse.application.orchestration.commands import MultiAgentRunCommands
+    from sector_pulse.application.orchestration.multi_agent_run_service import MultiAgentRunService
+    from sector_pulse.config.llm_config import load_llm_config
+    from sector_pulse.domain.orchestration.models import TaskStatus
+    from sector_pulse.infrastructure.agents.provider_factory import (
+        AgentProviderFactory,
+        FixtureAgentTurn,
+    )
+    from sector_pulse.infrastructure.agents.roles import AgentRole
+    from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
+    from sector_pulse.storage.sqlite.database import SQLiteDatabase
+    from sector_pulse.storage.sqlite.orchestration.repository import SQLiteOrchestrationRepository
+
+    database = SQLiteDatabase(tmp_path / "multi-agent-recovery.db")
+    database.initialize()
+    repository = SQLiteOrchestrationRepository(database)
+    service = MultiAgentRunService(
+        repository=repository,
+        config=load_llm_config(Path("config/llm.yaml")),
+        prompt_registry=PromptRegistry(Path("config/prompts")),
+        provider_factory=AgentProviderFactory(
+            fixture_turns={AgentRole.A0: (FixtureAgentTurn(text="recovered"),)}
+        ),
+    )
+    commands = MultiAgentRunCommands(service=service, repository=repository)
+    run_id = commands.create_run({"goal": "recover me"}, "fixture")
+    await commands.wait(run_id)
+    state = repository.load(run_id)
+    root = state.tasks[0]
+    expired = state.model_copy(
+        update={
+            "revision": state.revision + 1,
+            "tasks": (
+                root.model_copy(
+                    update={
+                        "status": TaskStatus.INTERRUPTED,
+                        "worker_id": "stale-worker",
+                        "lease_expires_at": datetime.now(UTC),
+                    }
+                ),
+            )
+        }
+    )
+    repository.save(expired, state.revision)
+
+    assert commands.recover_expired(datetime.now(UTC)) == 1
+    await commands.wait(run_id)
+    recovered = repository.load(run_id)
+    assert recovered.tasks[0].attempt == root.attempt + 1
+    assert commands.recover_expired(datetime.now(UTC)) == 0
+
+
 def test_commands_live_preflight_is_synchronous_and_writes_nothing(tmp_path):
     from sector_pulse.application.orchestration.commands import MultiAgentRunCommands
     from sector_pulse.application.orchestration.multi_agent_run_service import MultiAgentRunService

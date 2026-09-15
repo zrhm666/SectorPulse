@@ -11,8 +11,8 @@ from sector_pulse.domain.orchestration.models import ArtifactRef
 from sector_pulse.ports.orchestration import SnapshotRepository
 from sector_pulse.storage.ports.market import (
     CandidateBatchRepositoryPort,
-    CandidateSelectionRepositoryPort,
     MarketSnapshotRepositoryPort,
+    OrchestrationSelectionRepositoryPort,
 )
 
 
@@ -54,7 +54,7 @@ class BoundSectorResearchContextReader:
         self,
         *,
         orchestration: SnapshotRepository,
-        selections: CandidateSelectionRepositoryPort,
+        selections: OrchestrationSelectionRepositoryPort,
         candidate_batches: CandidateBatchRepositoryPort,
         market_snapshots: MarketSnapshotRepositoryPort,
         run_id: UUID,

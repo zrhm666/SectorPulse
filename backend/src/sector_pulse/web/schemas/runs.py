@@ -1,9 +1,9 @@
 # backend/src/sector_pulse/web/schemas.py
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from sector_pulse.domain.writing.attribution_mode import AttributionMode
 
@@ -15,13 +15,19 @@ class NewRunRequest(BaseModel):
     provider: Literal["fixture", "live"] = "fixture"
     selection_policy: Literal["manual", "server_default"] = "manual"
 
-    @model_validator(mode="after")
-    def reject_removed_execution_mode(self) -> Self:
-        if "attribution_mode" in self.input_json:
-            raise ValueError(
-                "attribution_mode has been removed; all new runs use the multi-agent engine"
-            )
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def reject_removed_execution_mode(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        nested = value.get("input_json")
+        nested_input = nested if isinstance(nested, dict) else {}
+        for legacy_key in ("attribution_mode", "workflow", "agent"):
+            if legacy_key in value or legacy_key in nested_input:
+                raise ValueError(
+                    f"{legacy_key} has been removed; all new runs use the multi-agent engine"
+                )
+        return value
 
 
 class NewRunResponse(BaseModel):
@@ -29,8 +35,39 @@ class NewRunResponse(BaseModel):
     execution_engine: Literal["multi_agent", "legacy"]
 
 
+class RunCandidateItem(BaseModel):
+    sector_id: str
+    sector_kind: str
+    name: str
+    rank: int
+    score: str
+    explanation: str
+
+
+class RunSelectionProposalResponse(BaseModel):
+    run_id: UUID
+    proposal_id: UUID
+    proposal_artifact_id: UUID
+    selection_version: int
+    attempt: int
+    items: tuple[RunCandidateItem, ...]
+
+
+class RunSelectionConfirmRequest(BaseModel):
+    proposal_id: UUID
+    sector_ids: tuple[str, ...] = Field(min_length=3, max_length=12)
+    expected_selection_version: int = Field(ge=0)
+    expected_attempt: int = Field(ge=1)
+
+
+class RunSelectionAcceptedResponse(BaseModel):
+    run_id: UUID
+    accepted: Literal[True] = True
+    next_attempt: int
+
+
 class RunSummary(BaseModel):
-    attribution_mode: AttributionMode = AttributionMode.WORKFLOW
+    attribution_mode: AttributionMode | None = None
     run_id: UUID
     execution_engine: Literal["multi_agent", "legacy"] = "legacy"
     requested_at: datetime

@@ -33,7 +33,7 @@ class SubmitOutlineTool(Tool):
     tags = ["A3", "deterministic", "server_bound"]
     parameters = {
         "type": "object",
-        "properties": {"submission": {"type": "object"}},
+        "properties": {"submission": ArticleOutlineSubmission.model_json_schema()},
         "required": ["submission"],
         "additionalProperties": False,
     }
@@ -64,8 +64,12 @@ class SubmitOutlineTool(Tool):
                 submission=ArticleOutlineSubmission.model_validate(payload),
                 now=self._clock(),
             )
-        except (KeyError, ValueError):
-            return ToolResult(content="", success=False, error="OUTLINE_SUBMISSION_INVALID")
+        except (KeyError, ValueError) as exc:
+            return ToolResult(
+                content=f"OUTLINE_SUBMISSION_INVALID: {str(exc)[:500]}",
+                success=False,
+                error="OUTLINE_SUBMISSION_INVALID",
+            )
         return self._result(outline)
 
     def replay(self, reference: str) -> ToolResult:
@@ -102,7 +106,7 @@ class SubmitDraftTool(Tool):
         "type": "object",
         "properties": {
             "outline_artifact_id": {"type": "string", "format": "uuid"},
-            "submission": {"type": "object"},
+            "submission": ArticleDraftSubmission.model_json_schema(),
         },
         "required": ["outline_artifact_id", "submission"],
         "additionalProperties": False,
@@ -136,8 +140,12 @@ class SubmitDraftTool(Tool):
                 submission=ArticleDraftSubmission.model_validate(payload),
                 now=self._clock(),
             )
-        except (KeyError, ValueError):
-            return ToolResult(content="", success=False, error="DRAFT_SUBMISSION_INVALID")
+        except (KeyError, ValueError) as exc:
+            return ToolResult(
+                content=f"DRAFT_SUBMISSION_INVALID: {str(exc)[:500]}",
+                success=False,
+                error="DRAFT_SUBMISSION_INVALID",
+            )
         return self._draft_result(draft)
 
     def replay(self, reference: str) -> ToolResult:

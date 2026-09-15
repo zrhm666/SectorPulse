@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -19,6 +20,7 @@ from sector_pulse.application.orchestration.runtime import OrchestrationRunStart
 from sector_pulse.application.orchestration.selection_resume import SelectionResumeService
 from sector_pulse.application.orchestration.tasks import TaskCoordinator
 from sector_pulse.config.llm_config import LLMRuntimeConfig
+from sector_pulse.domain.market.candidate_proposal import CandidateProposal
 from sector_pulse.domain.market.candidate_selection import CandidateSelection
 from sector_pulse.domain.orchestration.models import ArtifactRef, TaskStatus
 from sector_pulse.infrastructure.agents.composition import BusinessToolFactory
@@ -26,7 +28,7 @@ from sector_pulse.infrastructure.agents.provider_factory import AgentProviderFac
 from sector_pulse.infrastructure.agents.roles import ContextToolBuilder
 from sector_pulse.infrastructure.agents.runtime import ParentAgentRuntime
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
-from sector_pulse.ports.orchestration import SnapshotRepository
+from sector_pulse.ports.orchestration import RevisionConflict, SnapshotRepository
 from sector_pulse.storage.ports.market import CandidateProposalRepositoryPort
 
 
@@ -66,6 +68,7 @@ class MultiAgentRunService:
         artifact_reader: ArtifactReader | None = None,
         finalization_policy: RequiredArtifactsFinalizationPolicy | None = None,
         candidate_proposals: CandidateProposalRepositoryPort | None = None,
+        review_scope_resolver: Callable[[UUID], str] | None = None,
     ) -> None:
         self.repository = repository
         self.config = config
@@ -75,11 +78,9 @@ class MultiAgentRunService:
         self.business_tool_factory = business_tool_factory
         self.tool_reserved_cny = dict(tool_reserved_cny or {})
         self.artifact_reader = artifact_reader or _UnavailableArtifactReader()
-        self.finalization_policy = finalization_policy or RequiredArtifactsFinalizationPolicy(
-            goal=CompletionGoal.DATA_PREPARATION,
-            is_current=lambda artifact: True,
-        )
+        self.finalization_policy = finalization_policy
         self.candidate_proposals = candidate_proposals
+        self.review_scope_resolver = review_scope_resolver
 
     def preflight(self, provider: Literal["fixture", "live"]) -> None:
         self.provider_factory.resolve_runtime_config(self.config, provider)
@@ -133,6 +134,7 @@ class MultiAgentRunService:
             provider=provider,
             runtime_config=runtime_config,
             selection_version=selection_version,
+            selected_sectors=(),
         )
         return run_id
 
@@ -142,6 +144,25 @@ class MultiAgentRunService:
             raise KeyError("orchestration run not found")
         root = next(task for task in state.tasks if task.parent_id is None)
         TaskCoordinator(self.repository, run_id).cancel(root.task_id)
+
+    def candidate_proposal(self, run_id: UUID) -> tuple[CandidateProposal, ArtifactRef, int, int]:
+        if self.candidate_proposals is None:
+            raise RuntimeError("candidate proposal repository is not configured")
+        state = self.repository.load(run_id)
+        if state is None:
+            raise KeyError("orchestration run not found")
+        root = next(task for task in state.tasks if task.parent_id is None)
+        artifacts = [item for item in state.artifacts if item.kind == "candidate_proposal"]
+        if not artifacts:
+            raise KeyError("candidate proposal not found")
+        artifact = artifacts[-1]
+        prefix = "candidate-proposal:"
+        if not artifact.reference.startswith(prefix):
+            raise ValueError("candidate proposal reference is invalid")
+        proposal = self.candidate_proposals.get(UUID(artifact.reference[len(prefix) :]))
+        if proposal is None or proposal.run_id != run_id:
+            raise KeyError("candidate proposal not found")
+        return proposal, artifact, root.selection_version or 0, root.attempt
 
     async def recover(
         self,
@@ -179,6 +200,7 @@ class MultiAgentRunService:
             provider=state.provider,
             runtime_config=runtime_config,
             selection_version=root.selection_version,
+            selected_sectors=(),
         )
         return run_id
 
@@ -199,8 +221,38 @@ class MultiAgentRunService:
         runtime_config = self.provider_factory.resolve_runtime_config(
             self.config, state.provider
         )
-        root = next(task for task in state.tasks if task.parent_id is None)
         observed_at = datetime.now(UTC)
+        resumed_deadline = observed_at + timedelta(
+            seconds=runtime_config.orchestration_timeout_seconds
+        )
+        if state.deadline < resumed_deadline:
+            for _ in range(32):
+                state = self.repository.load(run_id)
+                if state is None:
+                    raise KeyError("orchestration run not found")
+                if state.deadline >= resumed_deadline:
+                    break
+                try:
+                    self.repository.save(
+                        state.model_copy(
+                            update={
+                                "revision": state.revision + 1,
+                                "deadline": resumed_deadline,
+                            }
+                        ),
+                        state.revision,
+                        "run.deadline_refreshed_after_selection",
+                    )
+                    state = self.repository.load(run_id)
+                    break
+                except RevisionConflict:
+                    continue
+            else:
+                raise RevisionConflict("could not refresh run deadline")
+        state = self.repository.load(run_id)
+        if state is None:
+            raise KeyError("orchestration run not found")
+        root = next(task for task in state.tasks if task.parent_id is None)
         worker_id = f"root-agent-{uuid4()}"
         claimed = SelectionResumeService(
             orchestration=self.repository,
@@ -218,6 +270,14 @@ class MultiAgentRunService:
             ),
             now=observed_at,
         )
+        proposal = self.candidate_proposals.get(proposal_id)
+        if proposal is None:  # pragma: no cover - atomically validated above
+            raise KeyError("candidate proposal not found")
+        by_id = {item.provider_sector_id: item for item in proposal.items}
+        selected_sectors = tuple(
+            (sector_id, by_id[sector_id].kind.value, by_id[sector_id].name)
+            for sector_id in sector_ids
+        )
         await self._run_owned(
             run_id=run_id,
             root_id=root.task_id,
@@ -227,6 +287,7 @@ class MultiAgentRunService:
             provider=state.provider,
             runtime_config=runtime_config,
             selection_version=claimed.selection_version,
+            selected_sectors=selected_sectors,
         )
         return run_id
 
@@ -267,7 +328,9 @@ class MultiAgentRunService:
         provider: Literal["fixture", "live"],
         runtime_config: LLMRuntimeConfig,
         selection_version: int | None,
+        selected_sectors: tuple[tuple[str, str, str], ...],
     ) -> None:
+        run_provider_factory = self.provider_factory.create_run_scope()
         prices: dict[str, Decimal | int] = {
             "delegate": 0,
             "inspect_artifacts": 0,
@@ -276,6 +339,17 @@ class MultiAgentRunService:
             "request_finish": 0,
             **self.tool_reserved_cny,
         }
+        finalization_policy = self.finalization_policy or RequiredArtifactsFinalizationPolicy(
+            goal=(
+                CompletionGoal.FULL_ANALYSIS
+                if selection_version is not None
+                else CompletionGoal.DATA_PREPARATION
+            ),
+            required_analysis_scopes=tuple(
+                f"sector:{kind}:{sector_id}" for sector_id, kind, _name in selected_sectors
+            ),
+            is_current=lambda artifact: True,
+        )
         runtime = ParentAgentRuntime(
             repository=self.repository,
             run_id=run_id,
@@ -284,7 +358,7 @@ class MultiAgentRunService:
             root_worker_id=worker_id,
             config=runtime_config,
             prompt_registry=self.prompt_registry,
-            provider_builder=lambda role, configured: self.provider_factory.build(
+            provider_builder=lambda role, configured: run_provider_factory.build(
                 role, configured, provider
             ),
             business_tool_builders=(
@@ -294,12 +368,37 @@ class MultiAgentRunService:
             ),
             tool_reserved_cny=prices,
             artifact_reader=self.artifact_reader,
-            finalization_policy=self.finalization_policy,
+            finalization_policy=finalization_policy,
             selection_version=selection_version,
+            allowed_analysis_scopes=tuple(
+                f"sector:{kind}:{sector_id}" for sector_id, kind, _name in selected_sectors
+            ),
+            review_scope_resolver=self.review_scope_resolver,
         )
         coordinator = TaskCoordinator(self.repository, run_id)
         try:
-            result = await runtime.run(goal)
+            current_state = self.repository.load(run_id)
+            if current_state is None:
+                raise KeyError("orchestration run disappeared")
+            result = await runtime.run(
+                json.dumps(
+                    {
+                        "run_id": str(run_id),
+                        "goal": goal,
+                        "selection_version": selection_version,
+                        "selected_sectors": [
+                            {"sector_id": sector_id, "kind": kind, "name": name}
+                            for sector_id, kind, name in selected_sectors
+                        ],
+                        "research_artifact_refs": [
+                            str(artifact.artifact_id)
+                            for artifact in current_state.artifacts
+                            if artifact.kind in {"candidate_batch", "news_batch"}
+                        ],
+                    },
+                    ensure_ascii=False,
+                )
+            )
             current = self.repository.load(run_id)
             if current is None:  # pragma: no cover - repository contract violation
                 raise KeyError("orchestration run disappeared")
@@ -332,4 +431,4 @@ class MultiAgentRunService:
                     )
             raise
         finally:
-            await self.provider_factory.close()
+            await run_provider_factory.close()

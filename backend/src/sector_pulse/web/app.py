@@ -60,6 +60,8 @@ def create_app(
         storage.task.recover_expired_leases()
         if run_coordinator is not None:
             run_coordinator.recover_startup(datetime.now(UTC))
+        if isinstance(router_dependencies.commands, MultiAgentRunCommands):
+            router_dependencies.commands.recover_expired(datetime.now(UTC))
         if scheduler is not None:
             scheduler.reconcile_finished()
             scheduler.recover()

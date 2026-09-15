@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 from uuid import UUID
 
 from sector_pulse.application.comparison.run_comparison_queries import RunComparisonQueries
@@ -31,6 +33,7 @@ from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.domain.news.news_retrieval import SectorEntityConfig
 from sector_pulse.domain.writing.agent_execution import AgentLimits
 from sector_pulse.infrastructure.agents.composition import (
+    REQUIRED_BUSINESS_TOOL_NAMES,
     A1BusinessToolFactory,
     A1ToolDependencies,
     A2BusinessToolFactory,
@@ -40,11 +43,14 @@ from sector_pulse.infrastructure.agents.composition import (
     BusinessToolFactory,
     CompositeBusinessToolFactory,
 )
-from sector_pulse.infrastructure.agents.provider_factory import (
-    AgentProviderFactory,
-    FixtureAgentTurn,
+from sector_pulse.infrastructure.agents.default_fixture_agent import (
+    default_fixture_strategies,
 )
-from sector_pulse.infrastructure.agents.roles import AgentRole, ContextToolBuilder
+from sector_pulse.infrastructure.agents.provider_factory import AgentProviderFactory
+from sector_pulse.infrastructure.agents.reference_artifact_reader import (
+    ReferenceArtifactReader,
+)
+from sector_pulse.infrastructure.agents.roles import ContextToolBuilder
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_responses
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.infrastructure.news.fixture_agent_news import FixtureAgentNewsSearch
@@ -60,7 +66,7 @@ from sector_pulse.ports.news_sources import (
 )
 from sector_pulse.storage.database_runtime import Database, build_database
 from sector_pulse.storage.ports.tasks import RuntimeTaskRepositoryPort
-from sector_pulse.storage.ports.writing import AgentTracePort
+from sector_pulse.storage.ports.writing import AgentTracePort, EditorialDraftRepositoryPort
 from sector_pulse.storage.postgres.database import PostgresDatabase
 from sector_pulse.storage.postgres.writing.agent_execution_repository import (
     PostgresAgentExecutionRepository,
@@ -132,6 +138,13 @@ class _RealDataDependencies:
     entity_config: SectorEntityConfig
 
 
+def _review_scope(drafts: EditorialDraftRepositoryPort, artifact_id: UUID) -> str:
+    draft = drafts.get(artifact_id)
+    if draft is None:
+        raise ValueError("review draft artifact is unavailable")
+    return f"review:{draft.draft.draft_id}:{draft.draft.version}"
+
+
 def _require_task_repository(storage: RuntimeStorageBundle) -> RuntimeTaskRepositoryPort:
     if storage.task is None:
         raise RuntimeError("task repository is not configured")
@@ -149,7 +162,14 @@ def _build_default_business_tool_factory(
         run_id: UUID, provider: Literal["fixture", "live"]
     ) -> Mapping[str, ContextToolBuilder]:
         fixture_bundle = build_fixture_provider_bundle()
-        real_bundle = real_factory.build() if provider == "live" else None
+        sandbox_live = os.getenv("SECTOR_PULSE_LIVE_DATA_SANDBOX", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        real_bundle = (
+            real_factory.build() if provider == "live" and not sandbox_live else None
+        )
         bundle = fixture_bundle if real_bundle is None else real_bundle
         detail = fixture_bundle.detail if real_bundle is None else PublicNewsDetailReader()
         a1 = A1BusinessToolFactory(
@@ -160,8 +180,8 @@ def _build_default_business_tool_factory(
                 candidate_proposals=storage.candidate_proposals,
                 news_batches=storage.news_batches,
                 news=storage.news,
-                market=cast(MarketDataPort, bundle.market),
-                constituents=cast(SectorConstituentPort, bundle.constituents),
+                market=bundle.market,
+                constituents=bundle.constituents,
                 global_news=bundle.global_news,
                 keyword_news=bundle.keyword_news,
                 disclosure_news=bundle.disclosure_news,
@@ -171,7 +191,7 @@ def _build_default_business_tool_factory(
         a2 = A2BusinessToolFactory(
             A2ToolDependencies(
                 orchestration=storage.orchestration,
-                selections=storage.candidate_selections,
+                selections=storage.orchestration_selections,
                 candidate_batches=storage.candidate_batches,
                 market_snapshots=storage.market_snapshots,
                 news=storage.news,
@@ -187,7 +207,7 @@ def _build_default_business_tool_factory(
         a34 = A3A4BusinessToolFactory(
             A3A4ToolDependencies(
                 orchestration=storage.orchestration,
-                selections=storage.candidate_selections,
+                selections=storage.orchestration_selections,
                 analyses=storage.sector_analyses,
                 outlines=storage.editorial_outlines,
                 drafts=storage.editorial_drafts,
@@ -315,7 +335,7 @@ def build_runtime_dependencies(
         )
     if agent_provider_factory is None and (enable_multi_agent or business_tool_factory is not None):
         agent_provider_factory = AgentProviderFactory(
-            fixture_turns={AgentRole.A0: (FixtureAgentTurn(text="fixture run waiting"),)},
+            fixture_strategies=default_fixture_strategies(),
             base_url=settings.llm_base_url,
             api_key=(
                 settings.llm_api_key.get_secret_value()
@@ -335,7 +355,12 @@ def build_runtime_dependencies(
             prompt_registry=prompts,
             provider_factory=agent_provider_factory,
             business_tool_factory=business_tool_factory,
+            tool_reserved_cny={name: Decimal("0") for name in REQUIRED_BUSINESS_TOOL_NAMES},
+            artifact_reader=ReferenceArtifactReader(),
             candidate_proposals=storage.candidate_proposals,
+            review_scope_resolver=lambda artifact_id: _review_scope(
+                storage.editorial_drafts, artifact_id
+            ),
         )
     return RuntimeDependencies(
         database=database,

@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from aidynamic_agent.core.agent import AgentResult
+from aidynamic_agent.core.agent import AgentResult, TerminationReason
 from aidynamic_agent.llm.base import LLMProvider
 from aidynamic_agent.tools.base import Tool, ToolResult
 from aidynamic_agent.tools.builtins.skill import SkillTool
@@ -43,6 +43,7 @@ from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.ports.orchestration import SnapshotRepository
 
 RuntimeProviderBuilder = Callable[[AgentRole, RoleRuntime], LLMProvider]
+ReviewScopeResolver = Callable[[UUID], str]
 
 
 class ParentAgentRuntime:
@@ -62,6 +63,8 @@ class ParentAgentRuntime:
         artifact_reader: ArtifactReader,
         finalization_policy: RequiredArtifactsFinalizationPolicy,
         selection_version: int | None = None,
+        allowed_analysis_scopes: tuple[str, ...] = (),
+        review_scope_resolver: ReviewScopeResolver | None = None,
     ) -> None:
         self.repository = repository
         self.run_id = run_id
@@ -74,6 +77,8 @@ class ParentAgentRuntime:
         self.artifact_reader = artifact_reader
         self.finalization_policy = finalization_policy
         self.selection_version = selection_version
+        self.allowed_analysis_scopes = allowed_analysis_scopes
+        self.review_scope_resolver = review_scope_resolver
         self.business_tool_builders = dict(business_tool_builders)
         self.tool_reserved_cny = {
             name: value if isinstance(value, Decimal) else Decimal(value)
@@ -181,17 +186,99 @@ class ParentAgentRuntime:
         state = self.repository.load(self.run_id)
         if state is None:
             raise KeyError("orchestration run not found")
+        if role is AgentRole.A2 and self.allowed_analysis_scopes:
+            used = {task.scope for task in state.tasks if task.role == AgentRole.A2.value}
+            if scope not in self.allowed_analysis_scopes:
+                matching = tuple(
+                    candidate
+                    for candidate in self.allowed_analysis_scopes
+                    if candidate not in used and candidate.rsplit(":", 1)[-1] in goal
+                )
+                remaining = tuple(
+                    candidate for candidate in self.allowed_analysis_scopes if candidate not in used
+                )
+                if matching:
+                    scope = matching[0]
+                elif remaining:
+                    scope = remaining[0]
+        elif role is AgentRole.A3 and not scope.startswith("revision:"):
+            scope = f"article:{self.run_id}"
+        failed_delegates = sum(
+            1
+            for call in state.ledger.tool_invocations
+            if call.task_id == self.root_task_id
+            and call.tool_name == "delegate"
+            and call.status.value == "failed"
+        )
+        if failed_delegates >= 3:
+            TaskCoordinator(self.repository, self.run_id).fail(
+                self.root_task_id,
+                attempt=self.root_attempt,
+                worker_id=self.root_worker_id,
+                public_error_code="SPECIALIST_RETRY_LIMIT",
+            )
+            return ToolResult(
+                content="specialist retry limit reached",
+                success=False,
+                error="specialist retry limit reached",
+            )
         by_reference = {
             value: artifact
             for artifact in state.artifacts
             for value in (str(artifact.artifact_id), artifact.reference)
         }
+        authoritative_sector_ids: tuple[str, ...] = ()
+        if role is AgentRole.A3 and scope == f"article:{self.run_id}":
+            tasks_by_id = {task.task_id: task for task in state.tasks}
+            selections = tuple(
+                artifact
+                for artifact in state.artifacts
+                if artifact.kind == "candidate_selection"
+            )
+            current_analyses = tuple(
+                artifact
+                for artifact in state.artifacts
+                if artifact.kind == "sector_analysis"
+                and (owner := tasks_by_id.get(artifact.task_id)) is not None
+                and owner.role == AgentRole.A2.value
+                and owner.status is TaskStatus.COMPLETED
+                and artifact.attempt == owner.attempt
+            )
+            artifact_refs = tuple(
+                str(artifact.artifact_id)
+                for artifact in (*selections[-1:], *current_analyses)
+            )
+            authoritative_sector_ids = tuple(
+                tasks_by_id[artifact.task_id].scope.rsplit(":", 1)[-1]
+                for artifact in current_analyses
+            )
+        elif not artifact_refs:
+            fallback_kinds = {
+                AgentRole.A2: {"candidate_batch", "news_batch", "candidate_selection"},
+                AgentRole.A3: {"candidate_selection", "sector_analysis", "evidence_inspection"},
+                AgentRole.A4: {"article_draft", "draft_rules"},
+            }.get(role, set())
+            artifact_refs = tuple(
+                str(artifact.artifact_id)
+                for artifact in state.artifacts
+                if artifact.kind in fallback_kinds
+            )
         try:
             input_artifact_ids = tuple(by_reference[value].artifact_id for value in artifact_refs)
         except KeyError as exc:
             raise ValueError("delegation references an unknown artifact") from exc
+        if role is AgentRole.A4 and self.review_scope_resolver is not None:
+            draft_inputs = tuple(
+                by_reference[value]
+                for value in artifact_refs
+                if by_reference[value].kind == "article_draft"
+            )
+            if len(draft_inputs) != 1 or len(artifact_refs) != 1:
+                raise ValueError("A4 delegation requires exactly one draft artifact")
+            scope = self.review_scope_resolver(draft_inputs[0].artifact_id)
         now = datetime.now(UTC)
-        lease_expires_at = min(state.deadline, now + timedelta(seconds=120))
+        lease_seconds = 300 if role in {AgentRole.A3, AgentRole.A4} else 120
+        lease_expires_at = min(state.deadline, now + timedelta(seconds=lease_seconds))
         child_id = uuid4()
         child_worker_id = f"agent-{uuid4()}"
         child = TaskCoordinator(self.repository, self.run_id).delegate_child(
@@ -207,14 +294,51 @@ class ParentAgentRuntime:
             selection_version=self.selection_version,
             now=now,
         )
-        prompt = json.dumps(
-            {"goal": goal, "scope": scope, "artifact_refs": artifact_refs},
-            ensure_ascii=False,
-        )
+        prompt_payload: dict[str, object] = {
+            "goal": goal,
+            "scope": scope,
+            "artifact_refs": artifact_refs,
+        }
+        if authoritative_sector_ids:
+            prompt_payload["authoritative_sector_ids"] = authoritative_sector_ids
+            prompt_payload["identity_instruction"] = (
+                "Use these exact sector IDs in outline and draft submissions; do not "
+                "substitute names, ranks, or artifact IDs."
+            )
+        prompt = json.dumps(prompt_payload, ensure_ascii=False)
+        required_output_kind = {
+            AgentRole.A1: "candidate_proposal",
+            AgentRole.A2: "sector_analysis",
+            AgentRole.A3: "article_draft",
+            AgentRole.A4: "independent_review",
+        }[role]
+
+        def has_required_output() -> bool:
+            current = self.repository.load(self.run_id)
+            return current is not None and any(
+                artifact.task_id == child.task_id
+                and artifact.attempt == child.attempt
+                and artifact.kind == required_output_kind
+                for artifact in current.artifacts
+            )
+
         try:
-            result = await self.factory.create(child.task_id, attempt=child.attempt).run(prompt)
+            agent = self.factory.create(child.task_id, attempt=child.attempt)
+            result = await agent.run(prompt)
+            continuation_limit = 2 if role in {AgentRole.A3, AgentRole.A4} else 0
+            for _ in range(continuation_limit):
+                if has_required_output() or result.error is not None:
+                    break
+                if result.termination_reason is not TerminationReason.END_TURN:
+                    break
+                result = await agent.run(
+                    f"Required output '{required_output_kind}' is still missing. "
+                    "Use the validation feedback already in context, correct the payload, "
+                    "and call the required submission tool now. Do not end with prose only."
+                )
         except Exception:
-            TaskCoordinator(self.repository, self.run_id).fail(
+            failed_coordinator = TaskCoordinator(self.repository, self.run_id)
+            failed_coordinator.fail(
                 child.task_id,
                 attempt=child.attempt,
                 worker_id=child_worker_id,
@@ -226,7 +350,11 @@ class ParentAgentRuntime:
                 error="specialist execution failed",
                 metadata={"result_reference": f"task:{child.task_id}"},
             )
-        target = TaskStatus.COMPLETED if result.error is None else TaskStatus.FAILED
+        target = (
+            TaskStatus.COMPLETED
+            if result.error is None and has_required_output()
+            else TaskStatus.FAILED
+        )
         coordinator = TaskCoordinator(self.repository, self.run_id)
         if target is TaskStatus.COMPLETED:
             coordinator.transition(
@@ -242,6 +370,35 @@ class ParentAgentRuntime:
                 worker_id=child_worker_id,
                 public_error_code="AGENT_EXECUTION_FAILED",
             )
+            latest = self.repository.load(self.run_id)
+            if latest is not None and sum(
+                1
+                for task in latest.tasks
+                if task.parent_id == self.root_task_id and task.status is TaskStatus.FAILED
+            ) >= 3:
+                failed_coordinator.fail(
+                    self.root_task_id,
+                    attempt=self.root_attempt,
+                    worker_id=self.root_worker_id,
+                    public_error_code="SPECIALIST_RETRY_LIMIT",
+                )
+            latest = self.repository.load(self.run_id)
+            failed_children = (
+                sum(
+                    1
+                    for task in latest.tasks
+                    if task.parent_id == self.root_task_id and task.status is TaskStatus.FAILED
+                )
+                if latest is not None
+                else 0
+            )
+            if failed_children >= 3:
+                coordinator.fail(
+                    self.root_task_id,
+                    attempt=self.root_attempt,
+                    worker_id=self.root_worker_id,
+                    public_error_code="SPECIALIST_RETRY_LIMIT",
+                )
         return ToolResult(
             content=result.text[:4000],
             success=result.error is None,

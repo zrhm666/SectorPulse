@@ -6,6 +6,9 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from sector_pulse.application.orchestration.data_tools import require_live_task_owner
+from sector_pulse.application.orchestration.evidence_tools import (
+    sector_analysis_artifact_id,
+)
 from sector_pulse.domain.market.candidate_selection import CandidateSelection
 from sector_pulse.domain.orchestration.models import ArtifactRef, TaskStatus
 from sector_pulse.domain.review.review import ReviewDecision
@@ -15,7 +18,7 @@ from sector_pulse.domain.writing.editorial import (
 )
 from sector_pulse.domain.writing.research import SectorAnalysisArtifact
 from sector_pulse.ports.orchestration import SnapshotRepository
-from sector_pulse.storage.ports.market import CandidateSelectionRepositoryPort
+from sector_pulse.storage.ports.market import OrchestrationSelectionRepositoryPort
 from sector_pulse.storage.ports.writing import (
     EditorialDraftRepositoryPort,
     EditorialOutlineRepositoryPort,
@@ -41,7 +44,7 @@ class BoundEditorialContextReader:
         self,
         *,
         orchestration: SnapshotRepository,
-        selections: CandidateSelectionRepositoryPort,
+        selections: OrchestrationSelectionRepositoryPort,
         analyses: SectorAnalysisRepositoryPort,
         run_id: UUID,
     ) -> None:
@@ -128,7 +131,7 @@ class BoundEditorialContextReader:
             analysis = self._analyses.get(analysis_id)
             if analysis is None:
                 raise ValueError("analysis is unavailable")
-            if analysis.analysis_id != artifact.artifact_id:
+            if sector_analysis_artifact_id(analysis) != artifact.artifact_id:
                 raise ValueError("analysis artifact identity mismatch")
             if analysis.run_id != self._run_id:
                 raise ValueError("analysis is outside this run")

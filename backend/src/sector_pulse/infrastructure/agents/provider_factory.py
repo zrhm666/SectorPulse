@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -96,6 +96,62 @@ class FixtureAgentProvider(LLMProvider):
         yield  # pragma: no cover
 
 
+FixtureTurnStrategy = Callable[
+    [list[Message], list[ToolDefinition] | None], FixtureAgentTurn
+]
+
+
+class AdaptiveFixtureAgentProvider(LLMProvider):
+    """Framework-native deterministic model whose next turn follows observed tools."""
+
+    def __init__(self, model: str, strategy: FixtureTurnStrategy) -> None:
+        self.model = model
+        self._strategy = strategy
+
+    async def create(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        del kwargs
+        turn = self._strategy(messages, tools)
+        content: list[ContentBlockUnion] = (
+            [TextBlock(text=turn.text)]
+            if turn.text is not None
+            else [
+                ToolUseBlock(
+                    tool_call_id=call.tool_call_id,
+                    tool_name=call.tool_name,
+                    tool_input=call.tool_input,
+                )
+                for call in turn.tool_calls
+            ]
+        )
+        return LLMResponse(
+            content=content,
+            stop_reason=(
+                FinishReason.END_TURN if turn.text is not None else FinishReason.TOOL_USE
+            ),
+            model=self.model,
+            usage={
+                "prompt_tokens": 0,
+                "completion_tokens": turn.total_tokens,
+                "total_tokens": turn.total_tokens,
+            },
+        )
+
+    async def stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolDefinition] | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamChunk]:
+        del messages, tools, kwargs
+        raise NotImplementedError("fixture agent streaming is not supported")
+        yield  # pragma: no cover
+
+
 class AgentProviderFactory:
     """Build only providers supported by the embedded aidynamic-agent framework."""
 
@@ -103,6 +159,7 @@ class AgentProviderFactory:
         self,
         *,
         fixture_turns: Mapping[AgentRole, tuple[FixtureAgentTurn, ...]] | None = None,
+        fixture_strategies: Mapping[AgentRole, FixtureTurnStrategy] | None = None,
         base_url: str | None = None,
         api_key: str | None = None,
         live_model: str | None = None,
@@ -112,13 +169,27 @@ class AgentProviderFactory:
         if timeout_seconds <= 0:
             raise ValueError("provider timeout must be positive")
         self.fixture_turns = dict(fixture_turns or {})
+        self.fixture_strategies = dict(fixture_strategies or {})
         self.base_url = base_url
         self.api_key = api_key
         self.live_model = live_model
         self.timeout_seconds = timeout_seconds
         self.consent_file = consent_file
         self._providers: list[LLMProvider] = []
-        self._fixture_providers: dict[AgentRole, FixtureAgentProvider] = {}
+        self._fixture_providers: dict[AgentRole, LLMProvider] = {}
+
+    def create_run_scope(self) -> AgentProviderFactory:
+        """Return an isolated provider owner for one orchestration execution."""
+
+        return AgentProviderFactory(
+            fixture_turns=self.fixture_turns,
+            fixture_strategies=self.fixture_strategies,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            live_model=self.live_model,
+            timeout_seconds=self.timeout_seconds,
+            consent_file=self.consent_file,
+        )
 
     def preflight(
         self,
@@ -176,11 +247,19 @@ class AgentProviderFactory:
             existing = self._fixture_providers.get(role)
             if existing is not None:
                 return existing
-            try:
-                turns = self.fixture_turns[role]
-            except KeyError as exc:
-                raise ValueError(f"fixture turns are not configured for {role.value}") from exc
-            fixture_provider = FixtureAgentProvider(runtime.model, turns)
+            strategy = self.fixture_strategies.get(role)
+            if strategy is not None:
+                fixture_provider: LLMProvider = AdaptiveFixtureAgentProvider(
+                    runtime.model, strategy
+                )
+            else:
+                try:
+                    turns = self.fixture_turns[role]
+                except KeyError as exc:
+                    raise ValueError(
+                        f"fixture turns are not configured for {role.value}"
+                    ) from exc
+                fixture_provider = FixtureAgentProvider(runtime.model, turns)
             self._fixture_providers[role] = fixture_provider
             self._providers.append(fixture_provider)
             return fixture_provider

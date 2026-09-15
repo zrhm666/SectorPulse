@@ -65,6 +65,7 @@ class TaskInspection:
     attempt: int
     status: TaskStatus
     artifact_ids: tuple[UUID, ...]
+    artifacts: tuple[ArtifactRef, ...]
     public_error_code: str | None = None
 
 
@@ -243,6 +244,11 @@ class TaskInspector:
                 status=task.status,
                 artifact_ids=tuple(
                     artifact.artifact_id
+                    for artifact in state.artifacts
+                    if artifact.task_id == task.task_id and artifact.attempt == task.attempt
+                ),
+                artifacts=tuple(
+                    artifact
                     for artifact in state.artifacts
                     if artifact.task_id == task.task_id and artifact.attempt == task.attempt
                 ),

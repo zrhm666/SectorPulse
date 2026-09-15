@@ -89,8 +89,8 @@ from sector_pulse.ports.orchestration import SnapshotRepository
 from sector_pulse.storage.ports.market import (
     CandidateBatchRepositoryPort,
     CandidateProposalRepositoryPort,
-    CandidateSelectionRepositoryPort,
     MarketSnapshotRepositoryPort,
+    OrchestrationSelectionRepositoryPort,
 )
 from sector_pulse.storage.ports.news import (
     NewsBatchRepositoryPort,
@@ -280,7 +280,7 @@ class A1BusinessToolFactory:
 @dataclass(frozen=True)
 class A2ToolDependencies:
     orchestration: SnapshotRepository
-    selections: CandidateSelectionRepositoryPort
+    selections: OrchestrationSelectionRepositoryPort
     candidate_batches: CandidateBatchRepositoryPort
     market_snapshots: MarketSnapshotRepositoryPort
     news: NewsRepositoryPort
@@ -396,7 +396,7 @@ class A2BusinessToolFactory:
 @dataclass(frozen=True)
 class A3A4ToolDependencies:
     orchestration: SnapshotRepository
-    selections: CandidateSelectionRepositoryPort
+    selections: OrchestrationSelectionRepositoryPort
     analyses: SectorAnalysisRepositoryPort
     outlines: EditorialOutlineRepositoryPort
     drafts: EditorialDraftRepositoryPort

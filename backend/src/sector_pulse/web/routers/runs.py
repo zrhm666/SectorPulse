@@ -17,7 +17,11 @@ from sector_pulse.web.events.progress_bus import ProgressBus
 from sector_pulse.web.schemas.runs import (
     NewRunRequest,
     NewRunResponse,
+    RunCandidateItem,
     RunDetail,
+    RunSelectionAcceptedResponse,
+    RunSelectionConfirmRequest,
+    RunSelectionProposalResponse,
     RunSummary,
 )
 from sector_pulse.web.services.run_service import ProviderUnavailable
@@ -77,6 +81,59 @@ def build_runs_review_router(
         if detail is None:
             raise HTTPException(404, "run not found")
         return _retryable(detail).model_dump(mode="json")
+
+    @router.get(
+        "/api/runs/{run_id}/selection", response_model=RunSelectionProposalResponse
+    )
+    async def get_run_selection(run_id: UUID) -> RunSelectionProposalResponse:
+        if not isinstance(commands, MultiAgentRunCommands):
+            raise HTTPException(404, "candidate proposal not found")
+        try:
+            proposal, artifact, selection_version, attempt = commands.candidate_proposal(run_id)
+        except KeyError as exc:
+            raise HTTPException(404, "candidate proposal not found") from exc
+        return RunSelectionProposalResponse(
+            run_id=run_id,
+            proposal_id=proposal.proposal_id,
+            proposal_artifact_id=artifact.artifact_id,
+            selection_version=selection_version,
+            attempt=attempt,
+            items=tuple(
+                RunCandidateItem(
+                    sector_id=item.provider_sector_id,
+                    sector_kind=item.kind.value,
+                    name=item.name,
+                    rank=item.rank,
+                    score=str(item.score),
+                    explanation=item.explanation,
+                )
+                for item in proposal.items
+            ),
+        )
+
+    @router.put(
+        "/api/runs/{run_id}/selection",
+        response_model=RunSelectionAcceptedResponse,
+        status_code=202,
+    )
+    async def confirm_run_selection(
+        run_id: UUID, req: RunSelectionConfirmRequest
+    ) -> RunSelectionAcceptedResponse:
+        if not isinstance(commands, MultiAgentRunCommands):
+            raise HTTPException(404, "candidate proposal not found")
+        try:
+            next_attempt = await commands.confirm_selection(
+                run_id=run_id,
+                proposal_id=req.proposal_id,
+                sector_ids=req.sector_ids,
+                expected_selection_version=req.expected_selection_version,
+                expected_attempt=req.expected_attempt,
+            )
+        except KeyError as exc:
+            raise HTTPException(404, "candidate proposal not found") from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return RunSelectionAcceptedResponse(run_id=run_id, next_attempt=next_attempt)
 
     @router.get("/api/runs/{run_id}/events")
     async def run_events(run_id: UUID) -> StreamingResponse:

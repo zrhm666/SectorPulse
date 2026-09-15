@@ -347,7 +347,11 @@ class SubmitDraftService:
         )
         issues = draft_quality_issues(draft, cards)
         if issues:
-            raise ValueError("draft quality validation failed")
+            details = "; ".join(
+                f"{issue.code}[{issue.section_id or 'global'}]: {issue.message}"
+                for issue in issues
+            )
+            raise ValueError(f"draft quality validation failed: {details}")
         canonical = draft.model_dump_json()
         draft_hash = hashlib.sha256(canonical.encode()).hexdigest()
         fingerprint = hashlib.sha256(

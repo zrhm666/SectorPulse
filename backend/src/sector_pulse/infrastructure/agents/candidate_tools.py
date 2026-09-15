@@ -3,7 +3,7 @@
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from aidynamic_agent.tools.base import Tool, ToolResult
 
@@ -93,7 +93,7 @@ class RankSectorCandidatesTool(Tool):
                 now=self._clock(),
             )
         return ToolResult(
-            content=self._content(batch),
+            content=self._content(batch, self._artifact_id(batch)),
             metadata={"result_reference": f"candidate-batch:{batch.batch_id}"},
         )
 
@@ -104,15 +104,22 @@ class RankSectorCandidatesTool(Tool):
         batch = self._batches.get(UUID(reference[len(prefix) :]))
         if batch is None:
             raise KeyError("persisted candidate batch is unavailable")
-        return ToolResult(content=self._content(batch))
+        return ToolResult(content=self._content(batch, self._artifact_id(batch)))
+
+    def _artifact_id(self, batch: CandidateBatch) -> UUID:
+        return uuid5(
+            NAMESPACE_URL,
+            f"candidate-artifact:{batch.batch_id}:{self._task_id}:{self._attempt}",
+        )
 
     @staticmethod
-    def _content(batch: CandidateBatch) -> str:
+    def _content(batch: CandidateBatch, artifact_id: UUID) -> str:
         return json.dumps(
             {
                 "status": "success",
-                "artifact_refs": [str(batch.batch_id)],
+                "artifact_refs": [str(artifact_id)],
                 "summary": {
+                    "candidate_batch_id": str(batch.batch_id),
                     "candidate_count": len(batch.candidates),
                     "ranking_stage": batch.ranking_stage.value,
                     "candidates": [

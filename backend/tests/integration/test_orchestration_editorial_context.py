@@ -6,6 +6,9 @@ import pytest
 
 
 def build_editorial_context(tmp_path):
+    from sector_pulse.application.orchestration.evidence_tools import (
+        sector_analysis_artifact_id,
+    )
     from sector_pulse.application.orchestration.tasks import TaskCoordinator
     from sector_pulse.domain.market.candidate_selection import (
         CandidateSelection,
@@ -62,7 +65,7 @@ def build_editorial_context(tmp_path):
             claims=(),
             forbidden_inferences=(),
         )
-        analyses[analysis_id] = SectorAnalysisArtifact(
+        analysis = SectorAnalysisArtifact(
             analysis_id=analysis_id,
             run_id=run_id,
             task_id=researcher.task_id,
@@ -73,9 +76,10 @@ def build_editorial_context(tmp_path):
             card=card,
             created_at=now,
         )
+        analyses[analysis_id] = analysis
         analysis_refs.append(
             ArtifactRef(
-                artifact_id=analysis_id,
+                artifact_id=sector_analysis_artifact_id(analysis),
                 task_id=researcher.task_id,
                 kind="sector_analysis",
                 reference=f"sector-analysis:{analysis_id}",
@@ -354,6 +358,27 @@ async def test_t10_tool_schema_is_bounded_and_replays_exact_persisted_outline(tm
         submission={}, run_id=str(snapshot.run_id), worker_id="forged"
     )
     assert not rejected.success
+
+    semantic_rejection = await tool.run(
+        submission={
+            "sector_ids": ["sector-1", "sector-2", "sector-4"],
+            "order_reasons": {
+                "sector-1": "一",
+                "sector-2": "二",
+                "sector-4": "四",
+            },
+            "title_directions": ["方向"],
+            "thesis": "证据边界内的观察",
+            "section_character_budgets": {
+                "sector-1": 300,
+                "sector-2": 300,
+                "sector-4": 300,
+            },
+            "excluded_sector_reasons": {},
+        }
+    )
+    assert not semantic_rejection.success
+    assert "unconfirmed sector" in semantic_rejection.content
 
 
 def test_t10_sqlite_persists_outline_and_artifact_reference_atomically(tmp_path):

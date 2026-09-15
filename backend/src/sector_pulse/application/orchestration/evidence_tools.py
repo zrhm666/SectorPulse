@@ -3,6 +3,7 @@
 import hashlib
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from sector_pulse.application.data_runs.candidate_selection import build_evidence_pack
@@ -17,6 +18,7 @@ from sector_pulse.application.writing.attribution_gate import (
     build_attribution_context,
     evaluate_attribution_gate,
 )
+from sector_pulse.domain.news.evidence import EvidenceLevel
 from sector_pulse.domain.news.research import NewsDetailSnapshot, ResearchSearchBatch
 from sector_pulse.domain.orchestration.models import ArtifactRef
 from sector_pulse.domain.writing.research import (
@@ -259,7 +261,11 @@ class InspectSectorEvidenceService:
             json.dumps([str(item) for item in ordered_ids], separators=(",", ":")).encode()
         ).hexdigest()
         report = EvidenceInspectionReport(
-            report_id=uuid5(NAMESPACE_URL, f"evidence-inspection:{context.run_id}:{fingerprint}"),
+            report_id=uuid5(
+                NAMESPACE_URL,
+                "evidence-inspection:"
+                f"{context.run_id}:{context.task_id}:{context.attempt}:{fingerprint}",
+            ),
             run_id=context.run_id,
             task_id=context.task_id,
             attempt=context.attempt,
@@ -411,6 +417,18 @@ class SubmitSectorAnalysisService:
             None,
         )
         prefix = "evidence-inspection:"
+        if artifact is None or (
+            artifact.task_id != context.task_id or artifact.attempt != context.attempt
+        ):
+            candidates = tuple(
+                item
+                for item in state.artifacts
+                if item.kind == "evidence_inspection"
+                and item.task_id == context.task_id
+                and item.attempt == context.attempt
+            )
+            if len(candidates) == 1:
+                artifact = candidates[0]
         if (
             artifact is None
             or artifact.kind != "evidence_inspection"
@@ -429,6 +447,20 @@ class SubmitSectorAnalysisService:
             or report.selection_version != context.selection_version
         ):
             raise ValueError("inspection report does not match current scope")
+        if report.gate.allowed_max_level is EvidenceLevel.NO_RELIABLE_EXPLANATION:
+            submission = submission.model_copy(
+                update={
+                    "attribution_level": EvidenceLevel.NO_RELIABLE_EXPLANATION,
+                    "confidence": min(submission.confidence, Decimal("0.2")),
+                    "conclusion": "现有材料不足以支持可靠归因。",
+                    "supporting_evidence_ids": (),
+                    "uncertainties": submission.uncertainties
+                    or ("缺少可验证的直接驱动证据",),
+                    "background_event_ids": (),
+                    "claims": (),
+                    "forbidden_inferences": submission.forbidden_inferences,
+                }
+            )
         from sector_pulse.domain.writing.attribution import LEVEL_RANK, SectorAnalysisCard
 
         if LEVEL_RANK[submission.attribution_level] > LEVEL_RANK[report.gate.allowed_max_level]:

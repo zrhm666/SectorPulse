@@ -65,6 +65,12 @@ async def test_t08_inspection_is_scope_bound_order_independent_and_programmatic(
         kind="news_detail",
         reference=f"news-detail:{uuid4()}",
     )
+    unrelated_input = ArtifactRef(
+        artifact_id=uuid4(),
+        task_id=root_id,
+        kind="candidate_proposal",
+        reference=f"candidate-proposal:{uuid4()}",
+    )
     root = TaskRecord(task_id=root_id, role="A0", scope="run")
     task = TaskRecord(
         task_id=task_id,
@@ -81,7 +87,7 @@ async def test_t08_inspection_is_scope_bound_order_independent_and_programmatic(
         run_id=run_id,
         deadline=now + timedelta(minutes=10),
         tasks=(root, task),
-        artifacts=(candidate_artifact, search_artifact, detail_artifact),
+        artifacts=(candidate_artifact, search_artifact, detail_artifact, unrelated_input),
     )
 
     class Orchestration:
@@ -185,7 +191,14 @@ async def test_t08_inspection_is_scope_bound_order_independent_and_programmatic(
         update={"reference": f"news-detail:{detail.detail_id}"}
     )
     state = state.model_copy(
-        update={"artifacts": (candidate_artifact, search_artifact, detail_artifact)}
+        update={
+            "artifacts": (
+                candidate_artifact,
+                search_artifact,
+                detail_artifact,
+                unrelated_input,
+            )
+        }
     )
 
     class CandidateBatches:
@@ -231,7 +244,7 @@ async def test_t08_inspection_is_scope_bound_order_independent_and_programmatic(
         sector_name="文化传媒",
         selection_version=1,
         cutoff_at=now,
-        input_artifacts=(candidate_artifact,),
+        input_artifacts=(candidate_artifact, unrelated_input),
     )
     committer = Committer()
     service = InspectSectorEvidenceService(
@@ -285,6 +298,31 @@ async def test_t08_inspection_is_scope_bound_order_independent_and_programmatic(
         )
     assert len(committer.artifacts) == 2
 
+    sibling_task_id = uuid4()
+    sibling = task.model_copy(
+        update={
+            "task_id": sibling_task_id,
+            "worker_id": "sibling-research-worker",
+        }
+    )
+    state = state.model_copy(update={"tasks": (root, task, sibling)})
+    first_base_report = service.inspect(
+        context=context,
+        artifact_ids=(candidate_artifact.artifact_id,),
+        now=now,
+    )
+    sibling_report = service.inspect(
+        context=context.model_copy(
+            update={
+                "task_id": sibling_task_id,
+                "worker_id": "sibling-research-worker",
+            }
+        ),
+        artifact_ids=(candidate_artifact.artifact_id,),
+        now=now,
+    )
+    assert sibling_report.report_id != first_base_report.report_id
+
     class Reports:
         def get(self, identity):
             return report if identity == report.report_id else None
@@ -304,6 +342,11 @@ async def test_t08_inspection_is_scope_bound_order_independent_and_programmatic(
     ]
     replay = tool.replay(f"evidence-inspection:{report.report_id}")
     assert replay.content == tool_result.content
+    normalized_result = await tool.run(
+        artifact_ids=[str(unrelated_input.artifact_id), str(search_artifact.artifact_id)]
+    )
+    assert normalized_result.success
+    assert "explicit_driver" in normalized_result.content
     injected = await tool.run(
         artifact_ids=[str(item) for item in artifact_ids],
         sector_id="other",

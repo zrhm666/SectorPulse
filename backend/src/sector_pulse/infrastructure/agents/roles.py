@@ -90,6 +90,29 @@ ROLE_TOOL_NAMES: dict[AgentRole, frozenset[str]] = {
 }
 
 
+def _task_tool_names(role: AgentRole, scope: str) -> frozenset[str]:
+    if role is AgentRole.A3:
+        if scope.startswith("revision:"):
+            return frozenset({"inspect_artifacts", "submit_revision", "skill"})
+        return frozenset(
+            {"inspect_artifacts", "submit_outline", "submit_draft", "skill"}
+        )
+    if role is AgentRole.A4:
+        return frozenset(
+            {"inspect_artifacts", "check_draft_rules", "submit_review", "skill"}
+        )
+    return ROLE_TOOL_NAMES[role]
+
+
+def _subagent_limits(role: AgentRole, scope: str) -> tuple[int, int]:
+    """Allow enough turns for bounded inspect/skill/submit sequences."""
+    if role is AgentRole.A3 and not scope.startswith("revision:"):
+        return 24, 300
+    if role in {AgentRole.A3, AgentRole.A4}:
+        return 18, 300
+    return 12, 120
+
+
 @dataclass(frozen=True)
 class RoleRuntime:
     provider: str
@@ -205,6 +228,7 @@ class RoleAgentFactory:
         provider = BudgetedProvider(
             self.provider_builder(runtime),
             budget,
+            output_limit=8192 if role is AgentRole.A3 else 4096,
             pricing=runtime.pricing,
         )
         registry = ToolRegistry()
@@ -221,7 +245,7 @@ class RoleAgentFactory:
             input_artifact_ids=task.input_artifact_ids,
             selection_version=task.selection_version,
         )
-        for name in sorted(ROLE_TOOL_NAMES[role]):
+        for name in sorted(_task_tool_names(role, task.scope)):
             contextual_builder = self.contextual_tool_builders.get(name)
             builder = self.tool_builders.get(name)
             if contextual_builder is None and builder is None:
@@ -258,8 +282,9 @@ class RoleAgentFactory:
         )
         if role is AgentRole.A0:
             return framework_factory.create_parent_agent(system_prompt=runtime.prompt)
+        max_loops, total_timeout = _subagent_limits(role, task.scope)
         return framework_factory.create_sub_agent(
             system_prompt=runtime.prompt,
-            max_loops=12,
-            total_timeout=120,
+            max_loops=max_loops,
+            total_timeout=total_timeout,
         )

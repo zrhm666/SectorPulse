@@ -1,7 +1,7 @@
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from aidynamic_agent.tools.base import Tool, ToolResult
 
@@ -75,7 +75,7 @@ class ProposeCandidatesTool(Tool):
             now=self._clock(),
         )
         return ToolResult(
-            content=self._content(proposal),
+            content=self._content(proposal, self._artifact_id(proposal)),
             metadata={"result_reference": f"candidate-proposal:{proposal.proposal_id}"},
         )
 
@@ -86,15 +86,22 @@ class ProposeCandidatesTool(Tool):
         proposal = self._proposals.get(UUID(reference[len(prefix) :]))
         if proposal is None:
             raise KeyError("persisted candidate proposal is unavailable")
-        return ToolResult(content=self._content(proposal))
+        return ToolResult(content=self._content(proposal, self._artifact_id(proposal)))
+
+    def _artifact_id(self, proposal: CandidateProposal) -> UUID:
+        return uuid5(
+            NAMESPACE_URL,
+            f"candidate-proposal-artifact:{proposal.proposal_id}:{self._task_id}:{self._attempt}",
+        )
 
     @staticmethod
-    def _content(proposal: CandidateProposal) -> str:
+    def _content(proposal: CandidateProposal, artifact_id: UUID) -> str:
         return json.dumps(
             {
                 "status": "awaiting_user_selection",
-                "artifact_refs": [str(proposal.proposal_id)],
+                "artifact_refs": [str(artifact_id)],
                 "summary": {
+                    "proposal_id": str(proposal.proposal_id),
                     "candidate_count": len(proposal.items),
                     "candidates": [
                         {

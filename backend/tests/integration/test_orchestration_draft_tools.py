@@ -151,6 +151,18 @@ def test_t11_submit_draft_rebuilds_identity_version_counts_and_verified_sources(
         section.character_count == len(section.body) for section in result.draft.sections
     )
 
+    from sector_pulse.domain.writing.editorial import ArticleDraftSubmission
+
+    invalid = valid_submission().model_dump(mode="json")
+    invalid["sections"][0]["heading"] = "异动观察"
+    invalid["sections"][0]["body"] = "该方向仍需观察。" + "审慎观察" * 85
+    with pytest.raises(ValueError, match="SECTOR_SUBJECT_MISSING"):
+        service.submit(
+            context=context,
+            outline_artifact_id=outline.outline_id,
+            submission=ArticleDraftSubmission.model_validate(invalid),
+        )
+
 
 def test_t11_rejects_unknown_source_wrong_sector_and_model_owned_fields(tmp_path):
     from pydantic import ValidationError
@@ -268,3 +280,12 @@ async def test_t11_tool_persists_sqlite_draft_and_replays_exact_artifact(tmp_pat
         status="READY_FOR_HUMAN_REVIEW",
     )
     assert not rejected.success
+
+    invalid_submission = valid_submission().model_dump(mode="json")
+    invalid_submission["sections"][0]["source_ids"] = ["event-unknown"]
+    semantic_rejection = await tool.run(
+        outline_artifact_id=str(outline.outline_id),
+        submission=invalid_submission,
+    )
+    assert not semantic_rejection.success
+    assert "unverified source" in semantic_rejection.content

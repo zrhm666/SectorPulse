@@ -44,6 +44,40 @@ async def test_fixture_provider_is_framework_native_and_uses_role_script():
 
 
 @pytest.mark.asyncio
+async def test_run_scopes_do_not_share_fixture_state_or_close_each_other():
+    from aidynamic_agent.core.message import Message, Role, TextBlock
+    from sector_pulse.infrastructure.agents.provider_factory import (
+        AgentProviderFactory,
+        FixtureAgentTurn,
+    )
+    from sector_pulse.infrastructure.agents.roles import AgentRole, RoleRuntime
+
+    runtime = RoleRuntime(
+        provider="fixture",
+        model="fixture-low",
+        prompt="fixed",
+        pricing=None,
+    )
+    factory = AgentProviderFactory(
+        fixture_turns={AgentRole.A0: (FixtureAgentTurn(text="done"),)}
+    )
+    first_scope = factory.create_run_scope()
+    second_scope = factory.create_run_scope()
+    first_provider = first_scope.build(AgentRole.A0, runtime, "fixture")
+    second_provider = second_scope.build(AgentRole.A0, runtime, "fixture")
+
+    assert first_provider is not second_provider
+    assert (await first_provider.create([Message.from_text(Role.USER, "first")])).content == [
+        TextBlock(text="done")
+    ]
+    await first_scope.close()
+    assert (await second_provider.create([Message.from_text(Role.USER, "second")])).content == [
+        TextBlock(text="done")
+    ]
+    await second_scope.close()
+
+
+@pytest.mark.asyncio
 async def test_live_factory_builds_vendor_openai_provider_and_closes_it(tmp_path):
     from aidynamic_agent.llm.providers.openai import OpenAIProvider
     from sector_pulse.config.llm_config import LLMRuntimeConfig
