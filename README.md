@@ -55,16 +55,21 @@ Skill 是维护者审核的只读方法文档，由 `aidynamic-agent` 的 `Skill
 ## 4. 一次运行的生命周期
 
 ```mermaid
-flowchart LR
-    A[采集行情与新闻] --> B[质量检查与候选排序]
+flowchart TD
+    A[确定性采集与质量检查] --> B[候选板块排序]
     B --> C[用户确认板块范围]
-    C --> D[A0 父 Agent]
-    D --> E[A1 数据与选题]
-    E --> F[A2 板块归因研究]
-    F --> G[A3 编辑写作]
-    G --> H[A4 独立审校]
-    H --> I{PASS?}
-    I -->|需修订| G
+    C --> D[A0 父 Agent\n创建任务树并受限委派]
+    D -->|委派| E[A1 数据与选题 Agent]
+    D -->|按板块并行委派| F1[A2 归因 Agent\n板块 1]
+    D -->|按板块并行委派| F2[A2 归因 Agent\n板块 2…N]
+    E -->|候选提案| D
+    F1 -->|证据与归因产物| D
+    F2 -->|证据与归因产物| D
+    D -->|证据齐备后委派| G[A3 编辑写作 Agent]
+    G -->|大纲/草稿| D
+    D -->|委派独立审校| H[A4 独立审校 Agent]
+    H --> I{A4 结果}
+    I -->|需修订：A0 重新委派 A3| G
     I -->|PASS| J[WAITING_USER_REVIEW]
     J --> K[人工编辑、批准或退回]
     K --> L[复制或导出]
