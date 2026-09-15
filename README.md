@@ -4,101 +4,95 @@
 
 **Evidence-first A-share sector analysis and review workspace.**
 
-一个面向本地部署的 A 股板块分析工作台：从行情与新闻采集、候选板块筛选、证据归因，到 LLM 写作和人工审核，保留完整的数据与决策链路。
+一个本地优先的 A 股板块研究与审核工作台：把行情、新闻、候选板块、证据归因、草稿版本和人工治理动作串成可追溯链路。
 
 ![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/Web-React-61DAFB?logo=react&logoColor=111827)
-![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Local first](https://img.shields.io/badge/Deployment-Local--first-2563EB)
 
 </div>
 
 ![SectorPulse 运营总览](docs/screenshots/sectorpulse-operations-dashboard.png)
 
-SectorPulse 不把模型生成的结论当作终点。它将市场快照、新闻记录、候选板块、引用证据、草稿版本和审核动作持久化，让一次分析为什么产生、使用了什么信息、经过了哪些修改都可以回看。
-
 > [!IMPORTANT]
-> SectorPulse 是分析与审核工具，不构成投资建议，不会自动发布内容或执行交易。
+> SectorPulse 是研究与审核工具，不构成投资建议，不自动发布内容，也不执行交易。
 
-## 核心能力
+## 1. 项目定位与安全边界
 
-运行时 LLM 系统提示词集中维护在 [`config/prompts`](config/prompts/README.md)，按业务模块分目录。编辑 YAML 后重启后端即可生效；归因、写作、审核、Agent 纠错及 JSON 输出协议均可在这里找到。
+SectorPulse 解决的是“为什么得到这个结论、用了哪些信息、谁修改或批准了它”的可追溯问题。每次运行都保留数据时间边界、来源摘要、候选版本、证据引用、Agent 任务树、预算账本、草稿版本和审核动作。
 
-- **真实数据工作流**：采集 A 股行业/概念板块行情与新闻，并记录 Provider、时间截点、原始响应摘要和数据质量。
-- **候选板块筛选**：根据行情、新闻和质量规则生成排序候选；写作前可手动选择 3–12 个板块。
-- **证据优先归因**：将新闻事件、来源、板块映射和归因门禁组织成可检查的证据链。
-- **分阶段 LLM 写作**：支持 OpenAI-compatible 接口，覆盖归因、编辑、写作、审核与有限轮次修订。
-- **人工审核工作台**：支持自动保存、章节定位、专注草稿、版本查看和证据决定；批准、退回和导出仍受人工确认与治理规则约束，不自动对外发布。
-- **近期运行检索**：按运行 ID / 场景搜索，结合状态、来源和时间筛选；支持分页、排序，以及查看详情后恢复原筛选位置。
-- **可恢复运行**：任务、阶段进度、失败原因与审核结果持久化；支持定时任务、重试和运行状态查看。
-- **双数据库运行时**：默认 SQLite，也可切换 PostgreSQL；配置 PostgreSQL 后不会静默回退到 SQLite。
-- **Fixture-first**：不访问实时数据、不消耗真实 LLM 额度，也能完成前后端演练和回归测试。
+系统面向单用户、本机或受控环境部署。模型不能直接写 SQL、执行任意文件操作、改变权限、替用户选择板块或批准内容；这些动作由受控 Tool、基础服务和人工界面完成。
 
-## 工作流程
+## 2. 当前架构：A0 调度 A1–A4
 
-### 执行引擎：父 Agent 调度子 Agent
+新运行只有一种执行方式：A0 研究负责人父 Agent 调度专业子 Agent，运行在仓库内置的 `vendor/aidynamic-agent` 上。旧的“工作流 / Agent”双模式已移除；请求中的 `workflow`、`agent` 或 `attribution_mode` 会被明确拒绝，而不是静默兼容。
 
-新运行只有一种执行方式：一个 A0 父 Agent 按任务树调度 A1–A4 子 Agent，运行在仓库内置的 `vendor/aidynamic-agent` 框架上。
+| 角色 | 责任 | 不能做什么 |
+| --- | --- | --- |
+| A0 | 拆解目标、受限委派、读取状态、汇总结果、推进阶段 | 不直接写正文、不批准内容 |
+| A1 | 行情与新闻采集、数据质量、候选板块提案 | 不越权研究、不确认用户选择 |
+| A2 | 新闻核验、证据检查、板块归因分析 | 不写稿、不读取其他板块私有研究 |
+| A3 | 大纲、草稿、有限轮次修订 | 不批准、不撤销、不扩大证据范围 |
+| A4 | 独立审校、规则检查、审校意见 | 不批准、不直接改写草稿 |
 
-| 角色 | 职责 |
-| --- | --- |
-| A0 父 Agent | 拆解目标、创建并委派子任务、汇总结果；不直接写正文 |
-| A1 | 行情与新闻采集、候选板块生成 |
-| A2 | 研究与证据核验（按板块隔离作用域，最多 2 个同时进行） |
-| A3 / A4 | 编辑与写作 / 独立审校与修订 |
+确定性采集、评分、去重、领域校验、预算、租约、数据库事务和审计由 Tool 或基础服务负责。A4 的 PASS 只会把运行推进到 `WAITING_USER_REVIEW`，最终批准、退回、编辑和撤销必须由用户完成。
 
-**原来的“工作流 / Agent”双模式已被移除，不再是一个可选项。**请求里带 `attribution_mode`、`workflow` 或 `agent` 都会得到 **422** 和迁移提示，而不是被静默忽略；`NewRunRequest` 也不接受未知字段。`fixture` / `live` 仍然可选，但它是**数据来源与模型依赖**的选择，不是执行模式。
+## 3. 受控 Skill 方法库
 
-运行详情页按 `parent_id` 展示真实任务树：A0–A4 角色、状态、板块范围、尝试次数、选择版本、租约与停止原因码；Tool 与模型花费按 `task_id` 归到实际花费方，未结算的花费显示“费用未知”而不是 ¥0。
+Skill 是维护者审核的只读方法文档，由 `aidynamic-agent` 的 `SkillManager` / `SkillTool` 按角色白名单加载。Skill 只提供研究、写作和审校方法，不包含权限、凭据、数据库身份、评分阈值或人工决定。
 
-A4 的 PASS 只会把运行推进到 `WAITING_USER_REVIEW`，不会自动批准。Agent 的工具白名单里没有批准、编辑或撤销，actor 只来自请求头、时间只来自服务器时钟。
+| 角色 | 允许加载的 Skill | 方法范围 |
+| --- | --- | --- |
+| A1 | `data-gap-handling`、`sector-selection` | 数据缺口处置、板块选题 |
+| A2 | `causal-evidence`、`news-verification` | 因果证据核验、新闻来源核验 |
+| A3 | `analysis-writing` | 分析结构、表达不确定性、受控写作 |
+| A4 | `independent-review`、`news-verification` | 独立审校、来源与事实核验 |
 
-预算与边界在 `config/llm.yaml` 配置：`budget_cny_per_run`、`max_agent_calls`（默认 80）、`max_agent_tokens`（默认 500000）、`max_orchestration_tool_calls` 与 `orchestration_timeout_seconds`。一次逻辑模型调用可能由适配器重试至多 3 次，因此 80 次并不等于 80 次 HTTP 请求。预算采用保守预留，可能提前停止；模型价格未配置时显示“费用未知”，金额上限无法可靠计算，但调用数与 Token 限制仍生效。
+文件位于 [`config/agent-skills`](config/agent-skills)。A0 不加载业务 Skill；它只使用父 Agent 控制工具。Agent 不能自动读取仓库外的 Codex Skill，也不能通过 Skill 获取 shell、任意 URL、SQL 或审批权限。
 
-**历史运行保持只读。**旧引擎产生的记录继续按 `execution_engine: "legacy"` 读出，草稿、人工补丁、证据决定、批准/撤销与导出都可回看，但不会补造任务树——这类运行的 `/tasks` 返回 `recording: "not_recorded"`，界面显示“本次运行没有记录任务树；未记录不等于未执行”，而不是空树或失败。旧运行也不能被重试为多 Agent 运行（返回 409 与迁移提示），需要新建一次运行。
-
-真实模式继续要求已有的数据及 LLM 授权配置。正文只读取受支持的公开来源；读取失败明确降级为摘要。后来获取的网页仅作为补充背景，不自动升级为历史因果证据。Fixture 是合成演练，不代表真实检索成功。
+## 4. 一次运行的生命周期
 
 ```mermaid
 flowchart LR
-    A[行情与新闻采集] --> B[数据质量检查]
-    B --> C[候选板块排序]
-    C --> D[手动确认写作范围]
-    D --> E[A0 父 Agent]
-    E --> F[A1 采集与候选]
-    F --> G[A2 研究与证据核验]
-    G --> H[A3 编辑与写作]
-    H --> I[A4 独立审校与修订]
-    I --> J{自动审核通过}
-    J -->|PASS| K[WAITING_USER_REVIEW]
-    J -->|需修订| H
-    K --> L[人工审核与治理]
-    L --> M[复制或导出]
+    A[采集行情与新闻] --> B[质量检查与候选排序]
+    B --> C[用户确认板块范围]
+    C --> D[A0 父 Agent]
+    D --> E[A1 数据与选题]
+    E --> F[A2 板块归因研究]
+    F --> G[A3 编辑写作]
+    G --> H[A4 独立审校]
+    H --> I{PASS?}
+    I -->|需修订| G
+    I -->|PASS| J[WAITING_USER_REVIEW]
+    J --> K[人工编辑、批准或退回]
+    K --> L[复制或导出]
 ```
 
-## 快速开始
+任务、尝试次数、worker 租约、预算预留、工具调用、产物引用和失败原因会持久化。父任务取消会传播到未结束子任务；只有租约过期才能恢复接管，恢复会生成新的 attempt，旧 attempt 的迟到模型、工具和产物结果不能覆盖当前状态。
+
+Fixture 与 Live 是**依赖来源选择**，不是执行模式：
+
+- Fixture 使用确定性样例和临时 SQLite，不联网、不消耗真实 LLM 额度。
+- Live 使用配置的数据源和 OpenAI-compatible LLM，必须显式提供授权文件。
+
+## 5. 本地快速启动
 
 ### 环境要求
 
-| 组件 | 版本或用途 |
-| --- | --- |
-| Python | 3.12+ |
-| Node.js | 22.22.2+（22.x）或 24.15.0+（24.x）；完整支持范围见 `web/package.json` |
-| PostgreSQL | 16，可选 |
-| Docker Desktop | 仅容器部署需要 |
+- Python 3.12+
+- Node.js 22.22.2+（22.x）或 24.15.0+（24.x）
+- PostgreSQL 16+（可选；本机服务或容器均可）
+- Windows PowerShell 示例默认从仓库根目录执行
 
-项目默认使用仓库根目录的 `.venv`，不需要额外创建 Conda 环境。
-
-### 1. 获取代码并安装依赖
-
-以下命令适用于 Windows PowerShell：
+### 安装
 
 ```powershell
 git clone https://github.com/zrhm666/SectorPulse.git
 Set-Location SectorPulse
-
 Copy-Item .env.example .env
+
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade "pip>=26.2"
 .\.venv\Scripts\python.exe -m pip install -e ".[dev,postgres]"
@@ -108,92 +102,20 @@ npm.cmd ci
 Set-Location ..
 ```
 
-### 2. 最快启动（推荐先用 Fixture）
+### Fixture 模式（推荐首次运行）
 
 ```powershell
 Set-Location web
 npm.cmd run build
 Set-Location ..
-
 .\.venv\Scripts\python.exe -m sector_pulse.web.server
 ```
 
-打开 <http://127.0.0.1:9000>。FastAPI 会同时提供 API 和已经构建的 React 前端，并在启动时初始化当前数据库所需表结构。
+打开 <http://127.0.0.1:9000>，新建一次 **Fixture 演练**。系统会执行真实的 A0→A4 编排，但行情、新闻、数据库和模型依赖均使用可复现的本地替身。
 
-### 3. 完成第一次分析
+### Live 模式
 
-1. 打开“新建分析”，选择 **Fixture 演练**；它使用内置样例，不联网、不消耗 LLM 额度。
-2. 依次确认数据运行、候选板块和生成分析稿。
-3. 生成分析稿：新运行统一由 A0 父 Agent 调度 A1–A4 子 Agent 完成归因、写作与自动审核，无需选择执行模式。
-4. 在“分析运行”查看进度，完成后进入内容运行详情和“审核工作台”。
-5. 在审核工作台修改草稿、查看来源并人工批准或退回。
-
-Fixture 使用仓库内的可复现样例，不调用真实数据源，也不消耗 LLM 额度。
-
-### 4. 需要真实数据时
-
-先编辑根目录 `.env`，填写 PostgreSQL（可选）和 OpenAI-compatible LLM 配置；再创建授权文件：
-
-```powershell
-New-Item .live-data-consent -ItemType File -Force
-New-Item .live-llm-consent -ItemType File -Force
-```
-
-回到“系统状态”确认数据库、数据源、模型和授权均为就绪，再创建 Live 运行。Live 运行会访问外部数据源并消耗模型额度；A2 子 Agent 还会按其判断进行额外的新闻检索和详情读取。
-
-如果只想检查页面或接口，不需要创建这两个授权文件，直接使用 Fixture 即可。
-
-## 产品界面
-
-### 运行列表
-
-从“分析运行”查找近期内容运行和数据运行。支持 ID / 场景搜索、状态快捷筛选、来源与时间筛选、创建时间排序，每页显示 20 条；条件保存在网址中，刷新页面或从详情返回时可恢复。刷新失败会保留上次成功加载的记录，并提供就地重试。
-
-![SectorPulse 近期运行搜索与筛选](docs/screenshots/sectorpulse-recent-runs-2026-09-08.png)
-
-> 搜索仅覆盖已加载的近期记录：内容运行和数据运行各最多 50 条，不是全历史检索。“未记录”“不适用”“待完成”和真实的 0 值分别显示，不将缺失指标当作零值。
-
-本节运行列表、下方数据工作台和审核专注模式截图均来自 2026-09-08 主目录生产构建的浏览器回归，API 响应由测试样例拦截提供。图中的 `live` 来源标签也是样例字段，不表示本次测试访问了实时行情或真实 LLM。
-
-### 运行对比工作台
-
-从“分析运行”进入“运行对比”，选择两次相同来源、相同场景且已结束的数据运行。页面按 A（基准）与 B（对照）对齐系统候选、行情、新闻成员和板块证据，所有差值由后端以十进制数据计算；该功能只读，不会重新采集或调用 LLM。
-
-新闻页比较的是运行中实际留存的新闻成员。标题、摘要、来源和原文链接是当前保存的元数据，不是历史正文快照；缺少成员记录不会被解释成零条新闻，已经删除的历史关系也无法由当前表恢复。
-
-![SectorPulse 运行对比工作台](docs/screenshots/sectorpulse-run-comparison.png)
-
-图中是生产构建页面，使用浏览器测试拦截的只读 GET Fixture 响应，不连接业务数据库、不代表真实行情或投资结论。支持候选关系筛选、来源与字段口径展开，以及新闻和证据分页；窄屏按板块分组展示 A/B 对照。
-
-[查看运行选择界面](docs/screenshots/sectorpulse-run-comparison-selection.png) · [查看移动端布局](docs/screenshots/sectorpulse-run-comparison-mobile.png) · [本地验收记录](docs/superpowers/acceptance/2026-09-08-run-comparison.md)
-
-### 数据运行工作台
-
-查看采集来源、行情板块、新闻记录、质量报告和候选结果，并在写作前选择分析板块。处理期间展开进度；运行结束后默认收起“处理与采集详情”，优先展示结果和下一步操作，随时可以重新展开核对。
-
-![SectorPulse 结果优先的数据运行工作台](docs/screenshots/sectorpulse-data-results-2026-09-08.png)
-
-错误与降级提示不会随采集详情一并隐藏。结果标签支持左右方向键以及 Home / End；候选板块仍需确认版本后才能生成分析稿。
-
-### 审核工作台
-
-在同一页面编辑草稿、检查引用来源、记录证据决定，并执行批准或退回。大屏默认保留队列、草稿、证据三栏和独立滚动，点击“专注草稿”可以暂时隐藏两侧，再通过“恢复三栏”返回；窄屏继续使用分区标签。
-
-![SectorPulse 审核工作台的专注草稿模式](docs/screenshots/sectorpulse-review-focus-2026-09-08.png)
-
-上图展示章节定位后的正文阅读位置。通过“跳转章节”可直接定位对应输入框，正文随内容自动增高；切换专注模式不会销毁编辑状态。自动保存、失败重试、版本冲突保护和历史版本只读保持不变。
-
-点击“退回修改”才会展开退回原因，取消收起后保留已输入文本；提交仍需确认，批准仍受治理检查与未保存修改的限制。
-
-[本轮 UI 设计与范围](docs/superpowers/specs/2026-09-08-ui-refinement-design.md) · [实现计划](docs/superpowers/plans/2026-09-08-ui-refinement.md) · [验收与本地 main 合并记录](docs/verification/2026-09-08-ui-refinement.md)
-
-## Live 实时运行
-
-Live 模式会访问外部数据源并调用真实 LLM。除 `.env` 配置外，它还需要两个本机 consent 文件，避免误触发网络访问或额度消耗。
-
-### 配置 LLM
-
-编辑根目录 `.env`：
+在 `.env` 配置 OpenAI-compatible 服务，例如：
 
 ```dotenv
 SECTOR_PULSE_LLM_PROVIDER=openai-compatible
@@ -204,207 +126,60 @@ SECTOR_PULSE_LLM_TIMEOUT_SECONDS=60
 SECTOR_PULSE_LLM_BUDGET_CNY=2.00
 ```
 
-`SECTOR_PULSE_LLM_BASE_URL` 应填写 OpenAI-compatible API 的基础地址。API Key 只保存在本机 `.env`，不要提交到 Git。
-
-### 创建授权文件
-
-确认接受数据源条款和真实 LLM 调用成本后，在仓库根目录执行：
+确认接受外部数据条款和模型费用后，再创建授权文件：
 
 ```powershell
 New-Item .live-data-consent -ItemType File -Force
 New-Item .live-llm-consent -ItemType File -Force
 ```
 
-这些文件只代表当前机器上的明确授权，并已被 Git 忽略。启动 Live 分析前，可在“系统状态”页检查数据库、数据源、模型配置和 consent 是否就绪。
+Live 会访问外部数据源并消耗模型额度；没有 consent 文件时不会启动对应外部调用。
 
-## 运行方式
+## 6. 配置与目录结构
 
-### 本地生产模式
+主要配置入口：
 
-推荐用于日常使用。先构建前端，再由一个 FastAPI 进程提供页面和 API：
-
-```powershell
-Set-Location web
-npm.cmd run build
-Set-Location ..
-.\.venv\Scripts\python.exe -m sector_pulse.web.server
-```
-
-访问 <http://127.0.0.1:9000>。
-
-### 前后端开发模式
-
-终端 1，启动后端：
-
-```powershell
-.\.venv\Scripts\python.exe -m sector_pulse.web.server
-```
-
-终端 2，启动前端热更新：
-
-```powershell
-Set-Location web
-npm.cmd run dev
-```
-
-访问 Vite 输出的地址，通常是 <http://127.0.0.1:5173>。开发服务器会将 `/api` 代理到 `127.0.0.1:9000`。
-
-开发和预览服务器默认只绑定 `127.0.0.1`，不要将它们作为公网服务。更新代码后使用 `npm.cmd ci` 安装锁文件中的版本，再重新构建；日常使用可直接运行后端提供的 `web/dist`。
-
-如果拉取或合并代码后页面仍是旧版，请在当前启动的项目目录中执行 `cd web`、`npm.cmd ci`、`npm.cmd run build`，再用 Ctrl+F5 强制刷新浏览器。构建其他 worktree 的 `dist` 不会更新主目录页面；前端开发模式应访问 Vite 输出的地址。
-
-### Docker Compose
-
-SQLite：
-
-```powershell
-Copy-Item .env.example .env
-docker compose up --build -d sector-pulse
-```
-
-访问 <http://127.0.0.1:8010>。
-
-PostgreSQL：
-
-```powershell
-Copy-Item .env.example .env
-docker compose --profile postgres up --build -d sector-pulse-postgres
-```
-
-访问 <http://127.0.0.1:8011>。Compose 会同时启动 PostgreSQL 16，并使用持久化 volume 保存数据。
-
-基础容器配置用于 Fixture 演练。启用实时采集和 LLM 时，先按“授权文件”说明确认使用上游数据和模型额度，在宿主机创建两个授权文件，再显式加载 Live 覆盖文件：
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.live.yml up --build -d sector-pulse
-# PostgreSQL 部署使用：
-docker compose -f docker-compose.yml -f docker-compose.live.yml --profile postgres up --build -d sector-pulse-postgres
-```
-
-覆盖文件只读挂载 `.live-data-consent` 和 `.live-llm-consent`；缺失文件会阻止启动，不会自动创建授权。SQLite 容器显式清空数据库 URL，避免误用宿主机 PostgreSQL 配置。
-
-## 数据库
-
-### SQLite（默认）
-
-适合单机体验和开发。保持 `.env` 中数据库 URL 为空：
-
-```dotenv
-SECTOR_PULSE_DATABASE_PATH=data/sector-pulse.db
-SECTOR_PULSE_DATABASE_URL=
-```
-
-### PostgreSQL
-
-适合长期运行和更严格的持久化需求。先创建数据库和用户，再配置：
-
-**本机已安装 PostgreSQL 时，无需 Docker。** 使用根目录 `.venv` 运行后端，连接本机数据库即可；前端构建后由后端一起提供。Docker Compose 只是可选部署方式。
-
-```dotenv
-SECTOR_PULSE_DATABASE_URL=postgresql+psycopg://用户名:密码@127.0.0.1:5432/数据库名
-```
-
-设置 `SECTOR_PULSE_DATABASE_URL` 后 PostgreSQL 优先于 SQLite。连接或迁移失败会终止启动，避免数据被意外写入另一个数据库。
-运行时统一使用同步 psycopg 驱动；已有的 `postgresql+asyncpg://` 配置会自动规范化为 psycopg URL，便于旧环境平滑升级。
-
-升级或迁移前，请先备份目标数据库。下面的命令不会修改数据库，密码可通过 PostgreSQL 的密码文件或临时 `PGPASSWORD` 环境变量提供：
-
-```powershell
-$backupFile = "data/backups/sectorpulse-$(Get-Date -Format 'yyyyMMdd-HHmmss').dump"
-New-Item (Split-Path $backupFile) -ItemType Directory -Force | Out-Null
-pg_dump -h 127.0.0.1 -U 用户名 -d 数据库名 --format=custom --file=$backupFile
-```
-
-应用启动时只执行尚未应用的前向迁移，不会自动删除、截断或重置现有数据。当前最新迁移版本为 `019_agent_steps`。
-
-### 取消与异常恢复
-
-- 取消请求会先持久化，再由执行器在安全检查点停止任务。
-- 服务重启时，遗留的运行中任务会被标记为 `INTERRUPTED`，不会伪装成仍在执行。
-- 手动和定时分析共用同一执行路径；某个定时任务失败不会阻止其他到期任务继续推进。
-- 调度器持久化上次消费窗口，重启后不会重复消费已经处理的到期窗口。
-- 关闭自动调度只停止新到期任务的派发；已手动触发任务仍会推进，并同步采集、写作的最终结果。
-- 单轮调度异常会降级并在下一轮重试，系统状态反映实际循环健康状态。
-- 数据与内容重试均新建运行，通过 `retry_of_run_id` 保留来源，原记录和输入不变。
-
-## 技术架构
-
-| 层级 | 实现 |
-| --- | --- |
-| Web UI | React 18、TypeScript、Vite |
-| API | FastAPI、Pydantic、Uvicorn |
-| 数据与任务 | SQLite / PostgreSQL、嵌入式调度器 |
-| 市场与新闻 | AkShare 适配器、RSS/新闻 Provider、可降级 Provider 链 |
-| LLM | Fixture Provider、OpenAI-compatible Provider、阶段路由与预算限制 |
-| 质量保障 | Pytest、Vitest、Playwright、Ruff |
-
-核心原则：
-
-- **Cutoff 可追踪**：每次运行锁定数据时间边界。
-- **Evidence before prose**：先形成证据与归因，再进入写作。
-- **Human in the loop**：机器生成内容必须经过人工审核。
-- **Failure is visible**：数据降级、超时、限流和失败原因进入运行记录。
-- **Local-first**：默认监听 `127.0.0.1`，敏感配置留在本机。
-
-## 项目结构
+- [`config/prompts`](config/prompts)：A0–A4 系统提示词、输出契约和纠错模板
+- [`config/agent-skills`](config/agent-skills)：受控 Skill 方法文档
+- [`config/llm.yaml`](config/llm.yaml)：角色路由、模型、预算、超时和价格
+- [`config/news_sources.yaml`](config/news_sources.yaml)：新闻来源配置
+- [`config/sector_entities.yaml`](config/sector_entities.yaml)：板块与实体映射
+- `.env`：本机数据库、LLM 和服务配置，禁止提交密钥
 
 ```text
 SectorPulse/
-├─ backend/
-│  ├─ src/sector_pulse/
-│  │  ├─ application/      # 按业务分包：data_runs/news/writing/review/runs/tasks 等
-│  │  ├─ domain/           # market/news/writing/review/runs/evaluation 领域模型
-│  │  ├─ infrastructure/   # 数据源与 LLM Provider
-│  │  ├─ storage/          # sqlite/postgres 内按业务分组；ports 协议、装配与 migrations
-│  │  └─ web/              # routers/schemas/services/events/providers 与服务入口
-│  └─ tests/               # 单元、集成、端到端与 Live 测试
-├─ config/                 # LLM、新闻源、实体和 Prompt 配置
-├─ docs/                   # 设计、计划、验收与项目审查记录
-├─ plugins/                # 可选 Provider 清单
-├─ scripts/                # 验证、备份与恢复脚本
-└─ web/                    # React 运营后台
+├─ backend/src/sector_pulse/
+│  ├─ application/          # 用例、编排、预算、任务和审核服务
+│  ├─ domain/               # 行情、新闻、证据、草稿和任务模型
+│  ├─ infrastructure/      # aidynamic-agent、角色、Tool、Provider 适配
+│  ├─ storage/              # SQLite/PostgreSQL、迁移和 Repository
+│  └─ web/                  # FastAPI、路由、Schema 和服务入口
+├─ backend/tests/           # 单元、集成、PostgreSQL 和显式 Live 测试
+├─ config/
+│  ├─ agent-skills/         # 受控方法 Skill
+│  └─ prompts/              # A0–A4 提示词与输出协议
+├─ vendor/aidynamic-agent/  # 内置 Agent 框架源码
+├─ web/                     # React + TypeScript 前端
+├─ docs/                    # 设计、计划、验收和状态记录
+└─ scripts/                 # 验证、备份和恢复脚本
 ```
 
-后端职责划分、新代码放置规则及导入示例见 [后端维护指南](backend/README.md)。
-本轮仅整理 Python 内部模块路径，HTTP API、CLI 和数据库表保持不变。
+后端模块放置规则见 [backend/README.md](backend/README.md)。
 
-## 主要页面
+## 7. 测试与验收命令
 
-| 路径 | 用途 |
-| --- | --- |
-| `/` | 运营总览与运行条件 |
-| `/runs/new` | 新建 Fixture 或 Live 分析 |
-| `/runs` | 分析运行历史 |
-| `/runs/compare` | 两次已结束数据运行的只读对比 |
-| `/data-runs/:runId` | 实时数据采集与候选板块工作台 |
-| `/runs/:runId` | 内容运行、草稿与治理结果 |
-| `/review` | 人工审核队列和草稿编辑 |
-| `/schedules` | 定时任务管理 |
-| `/system` | 脱敏系统状态 |
-| `/shadow-acceptance` | 历史影子验收记录（当前暂停） |
-
-## 测试与质量检查
-
-推荐从仓库根目录运行完整 Stage 0 门禁：
+### 后端离线回归
 
 ```powershell
-# 首次运行浏览器测试时安装 Chromium
-Set-Location web
-npx.cmd playwright install chromium
-Set-Location ..
-powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1
+$env:PYTHONPATH="$PWD/backend/src"
+.\.venv\Scripts\python.exe -m pytest backend/tests -m "not live_llm and not live_data and not postgres" --import-mode=importlib -q
+.\.venv\Scripts\ruff.exe check backend/src backend/tests
+.\.venv\Scripts\python.exe -m mypy backend/src
 ```
 
-该命令依次执行 Ruff、严格 Mypy、Python 依赖审计、非 Live 后端测试、前端工具链边界测试、前端单测、生产构建、真实 SQLite HTTP 流程、生产及开发模式 Playwright、依赖树检查和包含开发依赖的全量 npm 安全审计。测试子进程强制使用 Fixture/SQLite，不继承业务 PostgreSQL 连接，不会访问 Live 数据源或调用真实 LLM。PostgreSQL 合约测试由 CI 的隔离 PostgreSQL 16 服务执行；本机执行时必须明确指向专用测试库。
+该命令使用模拟依赖和临时 SQLite，不调用真实 LLM、实时数据源或生产数据库。
 
-后端：
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest backend/tests -q
-.\.venv\Scripts\python.exe -m ruff check backend/src backend/tests
-```
-
-前端：
+### 前端与完整门禁
 
 ```powershell
 Set-Location web
@@ -413,37 +188,60 @@ npm.cmd test
 npm.cmd run build
 npm.cmd run test:e2e
 npm.cmd run test:e2e:dev
-npm.cmd ls --all
-npm.cmd audit
+Set-Location ..
+
+powershell -ExecutionPolicy Bypass -File scripts/verify-stage0.ps1
 ```
 
-Live 测试默认跳过，只有在显式提供 consent、配置和 pytest 参数时才会访问外部服务。PostgreSQL 集成测试需要 `SECTOR_PULSE_DATABASE_URL` 已进入当前进程环境。
+首次运行 Playwright 需要先执行 `npx.cmd playwright install chromium`。
 
-## 文档
+### PostgreSQL 合同测试
 
-- [项目当前进度与未完成边界](docs/PROJECT_STATUS.md)
+只允许使用专用测试库，例如 `sectorpulse_test` 或 `sector_pulse_run_comparison_test`：
+
+```powershell
+$env:SECTOR_PULSE_TEST_DATABASE_URL="postgresql+psycopg://user:password@127.0.0.1:5432/sectorpulse_test"
+$env:SECTOR_PULSE_DATABASE_URL=$env:SECTOR_PULSE_TEST_DATABASE_URL
+.\.venv\Scripts\python.exe -m pytest backend/tests -m postgres --import-mode=importlib -q
+```
+
+没有专用 `_test` 数据库连接时，PostgreSQL 测试应跳过，不能改用生产库。
+
+### 真实 LLM 长链路（显式 opt-in）
+
+真实 A0→A4 测试默认跳过。配置 `.env` 和 `.live-llm-consent` 后，明确传入项目提供的 live 参数运行；它会使用临时 SQLite 和确定性数据沙盒，但会消耗真实模型额度。
+
+## 8. 当前完成情况与边界
+
+已落地并持续回归的能力包括：
+
+- 单一 A0→A4 父子 Agent 运行模型，真实复用 `vendor/aidynamic-agent`
+- A1–A4 精确 Tool / Skill 白名单与作用域隔离
+- 任务状态机、取消传播、worker 租约、过期接管和新 attempt
+- 模型与 Tool 的共享 token、调用次数、deadline、金额预算和幂等审计
+- SQLite 与 PostgreSQL Repository 合同、产物原子写入和迟到结果防覆盖
+- Fixture 离线回归、专用 PostgreSQL 合同和显式真实 LLM 长链路验收
+- 人工编辑、批准、退回和撤销仍由用户控制
+
+当前边界：
+
+- 项目仍面向单用户或受控环境，没有账号、权限和多租户体系。
+- 外部数据质量和可用性受上游服务、网络和 Provider 条款影响。
+- LLM 可能超时、限流或产生错误；系统记录失败，但不能替代研究判断。
+- 运行列表主要面向近期已加载记录，不是无限历史检索服务。
+- 系统不会自动发布文章，也不会产生交易指令。
+
+## 9. 相关文档
+
+- [项目当前状态](docs/PROJECT_STATUS.md)
 - [产品定义](PRODUCT.md)
-- [UI 设计系统](docs/design/soft-blue-operations-ui-system.md)
-- [2026-09-08 UI 视觉与工作台效率验收](docs/verification/2026-09-08-ui-refinement.md)
-- [完整项目审查](docs/superpowers/reports/2026-08-23-full-project-review.md)
-- [实现计划与设计记录](docs/superpowers/)
-- [Stage 0 可靠性验收](docs/superpowers/acceptance/2026-08-30-stage0-reliability-foundation.md)
-- [2026-09-05 收尾设计](docs/superpowers/specs/2026-09-05-reliability-closeout-design.md)
-- [2026-09-05 收尾计划](docs/superpowers/plans/2026-09-05-reliability-closeout.md)
-- [2026-09-05 可靠性验收](docs/superpowers/acceptance/2026-09-05-reliability-closeout.md)
-- [2026-09-06 本机业务 PostgreSQL 升级验收](docs/superpowers/acceptance/2026-09-06-business-postgresql-upgrade.md)
-- [2026-09-06 前端工具链升级设计](docs/superpowers/specs/2026-09-06-web-toolchain-security-design.md)
-- [2026-09-06 前端工具链升级计划](docs/superpowers/plans/2026-09-06-web-toolchain-security.md)
-- [2026-09-06 前端工具链与开发模式验收](docs/superpowers/acceptance/2026-09-06-web-toolchain-security.md)
-
-## 当前边界
-
-- 项目面向单用户、本机或受控环境部署，尚未提供账号、权限与多租户体系。
-- 数据源可用性受上游接口、网络状况和各 Provider 使用条款影响。
-- 运行列表的搜索和分页仅覆盖每类最近最多 50 条已加载记录，尚未提供该列表的全历史服务端检索。
-- 新闻摘要和公开链接的完整度取决于上游来源；审核时应打开原文核对关键事实。
-- LLM 输出可能超时、限流或产生错误，系统会记录失败，但不能替代人工判断。
-- 批准动作只开放复制和导出，不会自动发布文章，也不会产生交易指令。
+- [功能迁移总说明](docs/superpowers/specs/2026-09-13-feature-migration-map.md)
+- [多 Agent 平台设计](docs/superpowers/specs/2026-09-12-multi-agent-platform-design.md)
+- [Phase 2 实施计划与验收记录](docs/superpowers/plans/2026-09-13-multi-agent-phase2.md)
+- [Phase 3a：A1 与数据 Skill](docs/superpowers/plans/2026-09-13-multi-agent-phase3a.md)
+- [Phase 3b：A2 与证据 Skill](docs/superpowers/plans/2026-09-14-multi-agent-phase3b.md)
+- [Phase 3c：A3/A4 与写作审校 Skill](docs/superpowers/plans/2026-09-14-multi-agent-phase3c.md)
+- [后端维护指南](backend/README.md)
 
 ## License
 
