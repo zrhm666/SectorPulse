@@ -10,11 +10,16 @@ from sector_pulse.domain.runs.real_data_run import (
 )
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 from sector_pulse.storage.sqlite.operations_query import SQLiteOperationsQuery
+from sector_pulse.storage.sqlite.orchestration.repository import SQLiteOrchestrationRepository
 from sector_pulse.storage.sqlite.runs.phase1b_runs_repository import (
     Phase1BRunRow,
     SQLitePhase1BRunsRepository,
 )
 from sector_pulse.storage.sqlite.runs.real_data_run_repository import SQLiteRealDataRunRepository
+
+
+def _query(database: SQLiteDatabase) -> SQLiteOperationsQuery:
+    return SQLiteOperationsQuery(database, SQLiteOrchestrationRepository(database))
 
 
 def test_sqlite_operations_query_unifies_real_persisted_runs(tmp_path) -> None:
@@ -60,7 +65,7 @@ def test_sqlite_operations_query_unifies_real_persisted_runs(tmp_path) -> None:
         ),
     )
 
-    records = SQLiteOperationsQuery(database).list_records()
+    records = _query(database).list_records()
 
     assert [record.run_id for record in records] == [
         str(data_run.run_id),
@@ -90,7 +95,7 @@ def test_sqlite_operations_query_applies_since_and_limit(tmp_path) -> None:
             )
         )
 
-    records = SQLiteOperationsQuery(database).list_records(
+    records = _query(database).list_records(
         since=now - timedelta(days=1), limit=1
     )
 
@@ -123,7 +128,90 @@ def test_sqlite_operations_query_does_not_count_one_workflow_twice(tmp_path) -> 
         )
     )
 
-    records = SQLiteOperationsQuery(database).list_records()
+    records = _query(database).list_records()
 
     assert len(records) == 1
     assert records[0].kind == "content"
+
+
+def test_sqlite_operations_query_counts_multi_agent_runs_without_inventing_cost(tmp_path) -> None:
+    from sector_pulse.domain.orchestration.models import (
+        BudgetLedger,
+        BudgetReservation,
+        RunSnapshot,
+        TaskRecord,
+        TaskStatus,
+    )
+    database = SQLiteDatabase(tmp_path / "operations-multi-agent.db")
+    database.initialize()
+    requested_at = datetime(2026, 8, 27, 12, tzinfo=UTC)
+    run_id = uuid4()
+    snapshot = RunSnapshot(
+        run_id=run_id,
+        requested_at=requested_at,
+        deadline=requested_at + timedelta(minutes=10),
+        tasks=(
+            TaskRecord(
+                task_id=uuid4(),
+                role="A0",
+                scope="分析半导体板块",
+                status=TaskStatus.WAITING_USER_REVIEW,
+            ),
+        ),
+        ledger=BudgetLedger(
+            reservations=(BudgetReservation(call_id="m1", reserved_tokens=10),),
+        ),
+    )
+    SQLiteOrchestrationRepository(database).save(snapshot, -1, "run.created")
+
+    records = _query(database).list_records()
+
+    assert [record.run_id for record in records] == [str(run_id)]
+    record = records[0]
+    assert record.execution_engine == "multi_agent"
+    assert record.kind == "content"
+    assert record.requested_at == requested_at
+    assert record.status == "WAITING_USER_REVIEW"
+    assert record.total_cost_cny is None
+
+
+def test_sqlite_operations_query_prefers_the_multi_agent_snapshot_over_legacy_rows(
+    tmp_path,
+) -> None:
+    from sector_pulse.domain.orchestration.models import RunSnapshot, TaskRecord, TaskStatus
+    database = SQLiteDatabase(tmp_path / "operations-multi-agent-precedence.db")
+    database.initialize()
+    requested_at = datetime(2026, 8, 27, 12, tzinfo=UTC)
+    run_id = uuid4()
+    SQLiteRealDataRunRepository(database).insert(
+        RealDataRun(
+            run_id=run_id,
+            request=RealDataRunRequest(mode="post_close", requested_at=requested_at),
+            provider="live",
+        )
+    )
+    SQLiteOrchestrationRepository(database).save(
+        RunSnapshot(
+            run_id=run_id,
+            requested_at=requested_at,
+            deadline=requested_at + timedelta(minutes=10),
+            tasks=(
+                TaskRecord(
+                    task_id=uuid4(),
+                    role="A0",
+                    scope="分析半导体板块",
+                    status=TaskStatus.RUNNING,
+                    worker_id="root-agent-1",
+                    lease_expires_at=requested_at + timedelta(minutes=5),
+                ),
+            ),
+        ),
+        -1,
+        "run.created",
+    )
+
+    records = _query(database).list_records()
+
+    assert len(records) == 1
+    assert records[0].execution_engine == "multi_agent"
+    assert records[0].status == "RUNNING"

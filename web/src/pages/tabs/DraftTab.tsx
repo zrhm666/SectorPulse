@@ -20,6 +20,7 @@ export default function DraftTab({ runId }: { runId: string }) {
   const [metrics, setMetrics] = useState<ReviewMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [revision, setRevision] = useState<number | null>(null)
   const requestId = useRef(0)
   const loadDraft = useCallback(async () => {
     const currentRequest = ++requestId.current
@@ -29,6 +30,7 @@ export default function DraftTab({ runId }: { runId: string }) {
       const draft = await fetchDraft(runId)
       if (currentRequest !== requestId.current) return
       setVersions(draft.versions)
+      setRevision(draft.revision ?? null)
       if (draft.versions.length > 0) {
         setRight(draft.versions.length)
         setLeft(draft.versions.length > 1 ? draft.versions.length - 1 : draft.versions.length)
@@ -162,6 +164,7 @@ export default function DraftTab({ runId }: { runId: string }) {
           runId={runId}
           draftId={draftId}
           version={latest.version}
+          baseRevision={revision}
           sectionId={latest.sections[0].section_id}
           heading={latest.sections[0].heading}
           body={latest.sections[0].body}

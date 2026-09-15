@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+from sector_pulse.application.orchestration.usage import InvocationUsageProjection
 from sector_pulse.domain.evaluation.shadow_acceptance import ShadowRun
 from sector_pulse.domain.runs.real_data_run import RealDataRun, RealDataRunRequest
 from sector_pulse.domain.runs.task import TaskRunKey, TaskRunStatus
@@ -10,14 +11,20 @@ from sector_pulse.storage.ports.evaluation import (
     ShadowAcceptanceRepositoryPort,
 )
 from sector_pulse.storage.ports.market import (
+    CandidateBatchRepositoryPort,
+    CandidateProposalRepositoryPort,
     CandidateSelectionRepositoryPort,
     MarketSnapshotRepositoryPort,
+    OrchestrationSelectionRepositoryPort,
 )
 from sector_pulse.storage.ports.news import (
     EvidenceRepositoryPort,
+    NewsBatchRepositoryPort,
+    NewsDetailSnapshotRepositoryPort,
     NewsEvidenceRepositoryPort,
     NewsRepositoryPort,
     NewsRetrievalRepositoryPort,
+    ResearchSearchRepositoryPort,
 )
 from sector_pulse.storage.ports.operations import OperationsQueryPort
 from sector_pulse.storage.ports.review import (
@@ -27,7 +34,16 @@ from sector_pulse.storage.ports.review import (
 )
 from sector_pulse.storage.ports.runs import Phase1BRunsRepositoryPort, RealDataRunRepositoryPort
 from sector_pulse.storage.ports.tasks import ScheduleRepositoryPort, TaskRepositoryPort
-from sector_pulse.storage.ports.writing import AgentInvocationRepositoryPort, Phase1BRepositoryPort
+from sector_pulse.storage.ports.writing import (
+    AgentInvocationRepositoryPort,
+    DraftRulesRepositoryPort,
+    EditorialDraftRepositoryPort,
+    EditorialOutlineRepositoryPort,
+    EvidenceInspectionRepositoryPort,
+    IndependentReviewRepositoryPort,
+    Phase1BRepositoryPort,
+    SectorAnalysisRepositoryPort,
+)
 from sector_pulse.storage.runtime_bundle import build_sqlite_storage
 from sector_pulse.storage.sqlite.database import SQLiteDatabase
 
@@ -41,6 +57,15 @@ def test_sqlite_runtime_adapters_satisfy_declared_ports(tmp_path: Path) -> None:
     expected = {
         "market_snapshots": MarketSnapshotRepositoryPort,
         "news": NewsRepositoryPort,
+        "news_batches": NewsBatchRepositoryPort,
+        "research_searches": ResearchSearchRepositoryPort,
+        "news_details": NewsDetailSnapshotRepositoryPort,
+        "evidence_inspections": EvidenceInspectionRepositoryPort,
+        "sector_analyses": SectorAnalysisRepositoryPort,
+        "editorial_outlines": EditorialOutlineRepositoryPort,
+        "editorial_drafts": EditorialDraftRepositoryPort,
+        "draft_rules": DraftRulesRepositoryPort,
+        "independent_reviews": IndependentReviewRepositoryPort,
         "evidence": EvidenceRepositoryPort,
         "news_retrieval": NewsRetrievalRepositoryPort,
         "real_data_runs": RealDataRunRepositoryPort,
@@ -56,11 +81,16 @@ def test_sqlite_runtime_adapters_satisfy_declared_ports(tmp_path: Path) -> None:
         "governance": GovernanceRepositoryPort,
         "operations": OperationsQueryPort,
         "candidate_selections": CandidateSelectionRepositoryPort,
+        "orchestration_selections": OrchestrationSelectionRepositoryPort,
+        "candidate_batches": CandidateBatchRepositoryPort,
+        "candidate_proposals": CandidateProposalRepositoryPort,
     }
 
     for field, port in expected.items():
         assert isinstance(getattr(bundle, field), port), field
     assert isinstance(bundle.task, ScheduleRepositoryPort)
+    assert isinstance(bundle.usage, InvocationUsageProjection)
+    assert bundle.usage.orchestration is bundle.orchestration
 
 
 def test_task_lifecycle_metadata_round_trips(tmp_path: Path) -> None:

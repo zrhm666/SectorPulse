@@ -1,0 +1,63 @@
+# aidynamic-agent Codeup built-in pipeline.
+# NOTE: exact key names (stages/jobs/step/triggers/os) follow the Codeup console template.
+#   Verify against the console after the first push; structure and shell commands are authoritative.
+#
+# Private index note:
+#   This package is published to a private PyPI index at http://192.168.1.15:8080/
+#   For local testing without the private index, the pipeline degrades gracefully.
+name: aidynamic-agent
+
+# ---- CI path: runs on push/MR to main ----
+stages:
+  - name: lint
+    jobs:
+      - name: ruff-and-mypy
+        step:
+          type: Command
+          command: |
+            set -euo pipefail
+            python -m pip install --upgrade pip
+            pip install ruff==0.6.9 mypy pydantic pydantic-settings
+            ruff check --output-format=concise .
+            ruff format --check .
+            mypy aidynamic_agent --ignore-missing-imports
+
+  - name: test
+    jobs:
+      - name: pytest
+        step:
+          type: Command
+          command: |
+            set -euo pipefail
+            pip install -e ".[dev]"
+            pytest -v
+
+  - name: build
+    jobs:
+      - name: build-wheel
+        step:
+          type: Command
+          command: |
+            set -euo pipefail
+            if [ -z "${CI_COMMIT_TAG:-}" ]; then echo "skip: not a release run (no CI_COMMIT_TAG)"; exit 0; fi
+            pip install build
+            python -m build
+
+  - name: publish
+    jobs:
+      - name: twine-upload
+        step:
+          type: Command
+          command: |
+            set -euo pipefail
+            if [ -z "${CI_COMMIT_TAG:-}" ]; then echo "skip: not a release run (no CI_COMMIT_TAG)"; exit 0; fi
+            pip install twine
+            # TWINE_USERNAME and TWINE_PASSWORD must be set in Codeup pipeline variables
+            twine upload --repository-url http://192.168.1.15:8080/ dist/*
+
+# Trigger rules. Verify exact key names in the Codeup console.
+triggers:
+  - type: push
+    branches: [main]
+  - type: tag
+    tags: ["v*.*.*"]

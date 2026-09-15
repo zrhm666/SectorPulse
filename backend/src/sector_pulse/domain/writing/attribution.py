@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from contextlib import suppress
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
@@ -57,6 +58,24 @@ class AttributionContext(BaseModel):
         if value.tzinfo is None or value.utcoffset() != timedelta(0):
             raise ValueError("cutoff must use UTC")
         return value
+
+    @field_validator("market_facts", mode="before")
+    @classmethod
+    def restore_decimal_market_facts(cls, value: Any) -> Any:
+        if not isinstance(value, Mapping):
+            return value
+        restored = dict(value)
+        for key in (
+            "pct_change",
+            "breadth_ratio",
+            "turnover_rate",
+            "leader_pct_change",
+        ):
+            item = restored.get(key)
+            if isinstance(item, str):
+                with suppress(ArithmeticError):
+                    restored[key] = Decimal(item)
+        return restored
 
 
 class AttributionGateResult(BaseModel):

@@ -103,7 +103,12 @@ export default function ReviewWorkspacePage() {
           {selectedRun && workspaceError && !latest && <main className="draft-workspace" aria-label="草稿编辑区"><InlineAlert tone="error" title="无法加载审核材料">{workspaceError}<div><button className="button button-secondary" type="button" onClick={() => void workspace.refreshWorkspace()}>重新加载</button></div></InlineAlert></main>}
           {selectedRun && latest && <DraftWorkspace versions={versions} onFocusField={setActiveField} onStateChange={setDraftState} onSave={async (input) => {
           try {
-            const result = await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, input)
+            const result = await applyDraftPatch(selectedRun.run_id, selectedRun.draft_id!, {
+              ...input,
+              // State the revision the draft was read at so an agent revision that
+              // landed meanwhile loses the race instead of being overwritten.
+              ...(workspace.revision === null ? {} : { base_revision: workspace.revision }),
+            })
             await workspace.refreshWorkspace()
             return result
           } catch (error) {

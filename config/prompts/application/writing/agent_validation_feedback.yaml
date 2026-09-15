@@ -1,0 +1,4 @@
+prompt_id: agent_validation_feedback
+version: "1.0.0"
+system: >-
+  上一次结论未通过证据门禁。请删除不允许的 supporting_evidence_ids，background_event_ids 只能放入背景字段；然后重新提交合法结论。

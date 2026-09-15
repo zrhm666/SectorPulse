@@ -101,8 +101,15 @@ for (const width of [1536, 390]) {
     await expect(page.getByText('草稿已保存，自动审核尚无结论')).toBeVisible()
     const states = page.getByTestId('timeline-state')
     await expect(states.nth(2)).toHaveText('已完成')
-    await expect(states.nth(3)).toHaveText('未记录')
+    // The fixture's run carries `draft_id`, and a draft cannot exist unless the
+    // editorial stage persisted. The next line used to demand '未记录' here while
+    // demanding '已完成' for the *later* writing stage on that same draft — the
+    // two expectations cannot both hold. `RunDetailPage.test.tsx` pins this same
+    // scenario to '已完成'.
+    await expect(states.nth(3)).toHaveText('已完成')
     await expect(states.nth(4)).toHaveText('已完成')
+    // No review decision was ever recorded, and that stays unreported rather than
+    // being inferred from the draft.
     await expect(states.nth(5)).toHaveText('未记录')
     await page.screenshot({ path: testInfo.outputPath('historical-stages.png'), fullPage: true })
     await page.getByRole('link', { name: '进入审核工作台' }).click()

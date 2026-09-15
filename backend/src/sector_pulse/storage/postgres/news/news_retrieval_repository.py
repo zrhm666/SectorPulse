@@ -29,12 +29,13 @@ class PostgresNewsRetrievalRepository:
         with self._database.start().begin() as connection:
             for metric in metrics:
                 connection.execute(
-                    text("INSERT INTO news_source_runs (run_id, source_id, started_at, completed_at, call_count, retry_count, status, duration_ms, error_code) "
-                         "VALUES (:run_id, :source_id, :started_at, :completed_at, :call_count, :retry_count, :status, :duration_ms, :error_code) "
-                         "ON CONFLICT (run_id, source_id) DO UPDATE SET completed_at = EXCLUDED.completed_at, call_count = EXCLUDED.call_count, retry_count = EXCLUDED.retry_count, status = EXCLUDED.status, duration_ms = EXCLUDED.duration_ms, error_code = EXCLUDED.error_code"),
+                    text("INSERT INTO news_source_runs (run_id, source_id, started_at, completed_at, call_count, retry_count, result_count, status, duration_ms, error_code) "
+                         "VALUES (:run_id, :source_id, :started_at, :completed_at, :call_count, :retry_count, :result_count, :status, :duration_ms, :error_code) "
+                         "ON CONFLICT (run_id, source_id) DO UPDATE SET completed_at = EXCLUDED.completed_at, call_count = EXCLUDED.call_count, retry_count = EXCLUDED.retry_count, result_count = EXCLUDED.result_count, status = EXCLUDED.status, duration_ms = EXCLUDED.duration_ms, error_code = EXCLUDED.error_code"),
                     {"run_id": str(metric.run_id), "source_id": metric.source_id,
                      "started_at": metric.started_at.isoformat(), "completed_at": metric.completed_at.isoformat(),
                      "call_count": metric.call_count, "retry_count": metric.retry_count,
+                     "result_count": metric.result_count,
                      "status": metric.status.value, "duration_ms": metric.duration_ms, "error_code": metric.error_code},
                 )
             for query, status, result_count, error_code in query_results:
@@ -118,7 +119,7 @@ class PostgresNewsRetrievalRepository:
         with self._database.start().connect() as connection:
             result = connection.execute(
                 text("SELECT source_id, started_at, completed_at, call_count, retry_count, "
-                     "status, duration_ms, error_code FROM news_source_runs "
+                     "result_count, status, duration_ms, error_code FROM news_source_runs "
                      "WHERE run_id = :run_id ORDER BY source_id"),
                 {"run_id": str(run_id)},
             )
@@ -128,8 +129,8 @@ class PostgresNewsRetrievalRepository:
                 run_id=run_id, source_id=row[0],
                 started_at=datetime.fromisoformat(row[1]),
                 completed_at=datetime.fromisoformat(row[2]), call_count=row[3],
-                retry_count=row[4], status=row[5], duration_ms=row[6],
-                error_code=row[7],
+                retry_count=row[4], result_count=row[5], status=row[6], duration_ms=row[7],
+                error_code=row[8],
             )
             for row in rows
         )

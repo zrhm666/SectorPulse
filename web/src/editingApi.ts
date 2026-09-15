@@ -1,5 +1,7 @@
 export interface DraftPatchInput {
   base_version: number
+  /** Snapshot revision the editor read; absent for a run without one. */
+  base_revision?: number
   path: string
   old_value_hash: string
   value: string
@@ -62,7 +64,11 @@ export async function applyDraftPatch(runId: string, draftId: string, input: Dra
   return reviewRequest<DraftPatchResponse>(`/api/runs/${runId}/drafts/${draftId}/patches`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Actor': 'reviewer' },
-    body: JSON.stringify({ base_version: input.base_version, operations: [{ path: input.path, old_value_hash: input.old_value_hash, value: input.value }] }),
+    body: JSON.stringify({
+      base_version: input.base_version,
+      ...(input.base_revision === undefined ? {} : { base_revision: input.base_revision }),
+      operations: [{ path: input.path, old_value_hash: input.old_value_hash, value: input.value }],
+    }),
     ...(signal ? { signal } : {}),
   })
 }

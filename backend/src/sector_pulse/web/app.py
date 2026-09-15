@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from sector_pulse.application.orchestration.commands import MultiAgentRunCommands
 from sector_pulse.config.llm_config import load_llm_config
 from sector_pulse.config.settings import ApplicationSettings, load_environment
 from sector_pulse.storage.database_runtime import close_database, initialize_database
@@ -39,7 +40,11 @@ def create_app(
         database_path = settings.database_path
     else:
         settings = settings.model_copy(update={"database_url": None})
-    dependencies = build_runtime_dependencies(settings, database_path)
+    dependencies = build_runtime_dependencies(
+        settings,
+        database_path,
+        enable_multi_agent=True,
+    )
     database = dependencies.database
     storage = dependencies.storage
     router_dependencies = build_web_router_dependencies(dependencies, settings, overrides)
@@ -88,6 +93,11 @@ def create_app(
             workbench_queries=router_dependencies.workbench_queries,
             candidate_selection_service=router_dependencies.candidate_selection_service,
             writing_service=router_dependencies.writing_service,
+            multi_agent_commands=(
+                router_dependencies.commands
+                if isinstance(router_dependencies.commands, MultiAgentRunCommands)
+                else None
+            ),
         )
     )
     app.include_router(

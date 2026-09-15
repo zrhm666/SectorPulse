@@ -37,7 +37,7 @@ export default function DataRunActionPanel({ run, contentRun, busy, error, candi
           : selectionDirty
             ? '候选范围有未确认修改，请保存后再生成分析稿。'
             : `已确认 ${candidateCount} 个候选板块，分析稿只会覆盖该版本。`
-    action = <button className="button button-primary" type="button" disabled={busy || !selectionReady} onClick={onGenerate}>{busy ? '正在启动生成…' : '生成分析稿'}</button>
+    action = <button className="button button-primary" type="button" disabled={busy || !selectionReady} onClick={() => onGenerate()}>{busy ? '正在启动生成…' : '生成分析稿'}</button>
   } else if (RETRYABLE.has(run.status)) {
     description = run.error_code ? `本次运行未能继续：${run.error_code}` : '本次运行未能继续，可按原参数重新采集。'
     action = <button className="button button-primary" type="button" disabled={busy} onClick={onRetry}>{busy ? '正在创建新运行…' : '按原参数重新采集'}</button>

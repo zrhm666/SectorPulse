@@ -2,13 +2,11 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createRun, fetchFixtureInput } from '../api'
-import { createDataRun } from '../dataRunsApi'
+import { createRun } from '../api'
 import { fetchOperationsSummary } from '../operationsApi'
 import NewAnalysisPage from './NewAnalysisPage'
 
-vi.mock('../api', () => ({ createRun: vi.fn(), fetchFixtureInput: vi.fn() }))
-vi.mock('../dataRunsApi', () => ({ createDataRun: vi.fn() }))
+vi.mock('../api', () => ({ createRun: vi.fn() }))
 vi.mock('../operationsApi', () => ({ fetchOperationsSummary: vi.fn() }))
 
 const readySummary = {
@@ -45,9 +43,7 @@ describe('NewAnalysisPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(fetchOperationsSummary).mockResolvedValue(readySummary)
-    vi.mocked(fetchFixtureInput).mockResolvedValue({ requested_at: '2026-08-23T00:00:00Z' })
     vi.mocked(createRun).mockResolvedValue({ run_id: 'fixture-run' })
-    vi.mocked(createDataRun).mockResolvedValue({ run_id: 'live-run' })
   })
 
   it('creates a fixture run through the four-step flow and submits only real parameters', async () => {
@@ -66,8 +62,12 @@ describe('NewAnalysisPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '启动 Fixture 分析' }))
 
     expect(await screen.findByText('内容运行详情')).toBeVisible()
-    expect(fetchFixtureInput).toHaveBeenCalledOnce()
-    expect(createRun).toHaveBeenCalledWith(expect.any(Object), 'fixture')
+    expect(createRun).toHaveBeenCalledWith({
+      goal: '完成盘后板块分析',
+      mode: 'post_close',
+      precandidate_limit: 30,
+      final_candidate_limit: 12,
+    }, 'fixture')
   })
 
   it('blocks live submission when consent or provider requirements are missing', async () => {
@@ -84,7 +84,26 @@ describe('NewAnalysisPage', () => {
     expect(screen.getByText(/创建 .live-data-consent/)).toBeVisible()
     expect(screen.getByText(/创建 .live-llm-consent/)).toBeVisible()
     expect(screen.getByRole('button', { name: '下一步：确认参数' })).toBeDisabled()
-    await waitFor(() => expect(createDataRun).not.toHaveBeenCalled())
+    await waitFor(() => expect(createRun).not.toHaveBeenCalled())
+  })
+
+  it('creates live analysis through the same parent-agent run endpoint', async () => {
+    vi.mocked(createRun).mockResolvedValue({ run_id: 'live-run' })
+    renderPage()
+    await screen.findByRole('button', { name: /盘中分析/ })
+    fireEvent.click(screen.getByRole('button', { name: '下一步：选择执行方式' }))
+    fireEvent.click(screen.getByRole('button', { name: /Live 实时运行/ }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：确认参数' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：启动' }))
+    fireEvent.click(screen.getByRole('button', { name: '启动实时分析' }))
+
+    expect(await screen.findByText('内容运行详情')).toBeVisible()
+    expect(createRun).toHaveBeenCalledWith({
+      goal: '完成盘中板块分析',
+      mode: 'intraday',
+      precandidate_limit: 30,
+      final_candidate_limit: 12,
+    }, 'live')
   })
 
   it('retains choices when moving backward and prevents duplicate submission', async () => {

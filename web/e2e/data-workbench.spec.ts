@@ -167,6 +167,31 @@ async function openWorkbench(page: Page, viewport: { width: number; height: numb
   await expect(page.getByRole('region', { name: '数据运行摘要' })).toBeVisible()
 }
 
+for (const width of [1536, 390]) {
+  test(`blocked market explains recovery at ${width}`, async ({ page }, testInfo) => {
+    await installWorkbenchFixture(page, 'empty')
+    await page.route('**/api/data-runs/run-e2e', (route) => route.fulfill({ json: {
+      run_id: 'run-e2e', provider: 'live', mode: 'post_close', status: 'BLOCKED',
+      requested_at: '2026-09-09T01:03:27Z', cutoff_at: null,
+      request: { mode: 'post_close', requested_at: '2026-09-09T01:03:27Z', lookback_hours: 6, precandidate_limit: 30, final_candidate_limit: 12 },
+      quality: { industry: 'BLOCKED', concept: 'NORMAL' },
+      downgrade_reasons: ['CORE_MARKET_BLOCKED', 'INDUSTRY_MARKET_PROVIDERS_FAILED'],
+      error_code: null, finished_at: '2026-09-09T01:03:35Z',
+    } }))
+    await page.route('**/api/data-runs/run-e2e/summary', (route) => route.fulfill({ json: {
+      run_id: 'run-e2e', status: 'BLOCKED', workflow_stage: 'BLOCKED', workflow_stage_index: 0,
+      terminal: true, requested_at: '2026-09-09T01:03:27Z', cutoff_at: null,
+      finished_at: '2026-09-09T01:03:35Z', candidate_count: 0,
+    } }))
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/data-runs/run-e2e')
+    await expect(page.getByText('核心行情数据未就绪，运行已停止')).toBeVisible()
+    await expect(page.getByText('本次运行已结束，没有保存可展示的行情快照。请检查上方原因后重新采集。')).toBeVisible()
+    await expect(page.getByRole('button', { name: '按原参数重新采集' })).toBeEnabled()
+    await page.screenshot({ path: testInfo.outputPath('blocked-market.png'), fullPage: true })
+  })
+}
+
 for (const viewport of [{ width: 1536, height: 1024 }, { width: 1440, height: 900 }]) {
   test(`desktop workbench preserves hierarchy at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await openWorkbench(page, viewport)
@@ -247,7 +272,10 @@ for (const state of ['active', 'degraded', 'empty', 'stale', 'failed'] as const)
     await openWorkbench(page, { width: 768, height: 1024 }, state)
     if (state === 'active') await expect(page.getByText('进行中').first()).toBeVisible()
     if (state === 'degraded' || state === 'stale') await expect(page.getByText('本次运行存在数据降级')).toBeVisible()
-    if (state === 'empty') await expect(page.getByText('行情板块尚未产生，当前运行可能仍在采集阶段。')).toBeVisible()
+    // The `empty` fixture describes a *finished* run (`finished_at` set, `terminal: true`),
+    // so the panel must not tell the reader it may still be collecting — that would be the
+    // same kind of invented status this suite exists to prevent elsewhere.
+    if (state === 'empty') await expect(page.getByText('本次运行已结束，没有保存可展示的行情快照。请检查上方原因后重新采集。')).toBeVisible()
     if (state === 'failed') await expect(page.getByRole('button', { name: '按原参数重新采集' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })

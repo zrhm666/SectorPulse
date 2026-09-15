@@ -6,12 +6,13 @@ type Props = {
   kind: SectorKind
   loading: boolean
   error: string | null
+  terminal?: boolean
   onKindChange: (kind: SectorKind) => void
   onPage: (offset: number) => void
   onOpenDetail: (item: MarketSectorView) => void
 }
 
-export default function MarketPanel({ data, kind, loading, error, onKindChange, onPage, onOpenDetail }: Props) {
+export default function MarketPanel({ data, kind, loading, error, terminal = false, onKindChange, onPage, onOpenDetail }: Props) {
   const summary = data?.snapshots.find((item) => item.kind === kind)
   const capability = summary ? marketCapability(summary) : null
   const display = (availability: boolean | undefined, value: string | number | null, suffix = '') => {
@@ -31,7 +32,7 @@ export default function MarketPanel({ data, kind, loading, error, onKindChange, 
     </div>
     {loading && <p className="status-detail">正在加载行情板块…</p>}
     {error && <p className="panel-error" role="alert">{error}</p>}
-    {!loading && !error && (!data || data.items.length === 0) && <p className="status-detail">行情板块尚未产生，当前运行可能仍在采集阶段。</p>}
+    {!loading && !error && (!data || data.items.length === 0) && <p className="status-detail">{terminal ? '本次运行已结束，没有保存可展示的行情快照。请检查上方原因后重新采集。' : '行情板块尚未产生，当前运行可能仍在采集阶段。'}</p>}
     {data && data.items.length > 0 && <>
       <p className="field-coverage-notice">“未返回”表示该 Provider 的响应里没有这个字段；真实的零值会显示为 0。</p>
       <div className="run-table-wrap"><table className="run-table"><thead><tr><th>板块</th><th>涨跌幅</th><th>换手率</th><th>上涨/下跌</th><th>领涨股</th><th>领涨幅</th><th>详情</th></tr></thead><tbody>{data.items.map((item) => {

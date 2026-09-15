@@ -4,6 +4,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -18,6 +19,7 @@ from sector_pulse.domain.llm import (
     MoneyCny,
     TokenUsage,
 )
+from sector_pulse.infrastructure.llm.prompt_registry import PromptDefinition, PromptRegistry
 
 
 class ModelPrice(BaseModel):
@@ -40,11 +42,15 @@ class OpenAICompatibleProvider:
         pricing: Mapping[str, ModelPrice],
         client: httpx.AsyncClient | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        structured_prompt: PromptDefinition | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout_seconds = timeout_seconds
         self._pricing = dict(pricing)
+        self._structured_prompt = structured_prompt or PromptRegistry(Path("config/prompts")).get(
+            "structured_output"
+        )
         self._client = client or httpx.AsyncClient(timeout=timeout_seconds)
         self._sleep = sleep
 
@@ -55,10 +61,8 @@ class OpenAICompatibleProvider:
             "messages": [
                 {
                     "role": "system",
-                    "content": (
-                        f"{request.system_prompt}\n\n"
-                        "必须严格返回一个 JSON 对象，不得输出 Markdown 或解释文字。"
-                        f"返回值必须符合以下 JSON Schema：\n{schema}"
+                    "content": self._structured_prompt.render(
+                        system_prompt=request.system_prompt, schema=schema
                     ),
                 },
                 {"role": "user", "content": json.dumps(request.user_payload, ensure_ascii=False)},
@@ -68,6 +72,8 @@ class OpenAICompatibleProvider:
                 "type": "json_object",
             },
         }
+        if request.max_output_tokens is not None:
+            payload["max_tokens"] = request.max_output_tokens
         body: Any = None
         response: httpx.Response | None = None
         request_started = time.perf_counter()
@@ -185,8 +191,7 @@ class OpenAICompatibleProvider:
         """兼容第三方服务返回的代码块、前后说明文字和文本块数组。"""
         if isinstance(content, list):
             content = "".join(
-                item.get("text", "") if isinstance(item, dict) else str(item)
-                for item in content
+                item.get("text", "") if isinstance(item, dict) else str(item) for item in content
             )
         if not isinstance(content, str):
             return content
@@ -228,10 +233,7 @@ class OpenAICompatibleProvider:
             model,
             ModelPrice(input_cny_per_million=Decimal("0"), output_cny_per_million=Decimal("0")),
         )
-        cost = (
-            Decimal(usage.prompt_tokens) * price.input_cny_per_million / Decimal(1_000_000)
-            + Decimal(usage.completion_tokens)
-            * price.output_cny_per_million
-            / Decimal(1_000_000)
-        )
+        cost = Decimal(usage.prompt_tokens) * price.input_cny_per_million / Decimal(
+            1_000_000
+        ) + Decimal(usage.completion_tokens) * price.output_cny_per_million / Decimal(1_000_000)
         return MoneyCny(amount=cost)

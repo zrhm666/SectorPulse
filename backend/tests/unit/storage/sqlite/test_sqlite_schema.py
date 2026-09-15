@@ -16,6 +16,25 @@ EXPECTED_TABLES = {
     "evidence_packs",
     "real_data_runs",
     "real_data_candidates",
+    "candidate_batches",
+    "sector_candidate_versions",
+    "news_batches",
+    "news_batch_documents",
+    "news_batch_events",
+    "candidate_proposals",
+    "candidate_proposal_items",
+    "market_quality_reports",
+    "research_search_batches",
+    "research_search_documents",
+    "research_search_events",
+    "news_detail_snapshots",
+    "evidence_inspection_reports",
+    "sector_analysis_artifacts",
+    "sector_analysis_claims",
+    "editorial_outline_artifacts",
+    "editorial_draft_artifacts",
+    "draft_rules_artifacts",
+    "independent_review_artifacts",
 }
 
 
@@ -24,9 +43,7 @@ def test_initialize_creates_phase1a_tables(tmp_path: Path) -> None:
     database.initialize()
 
     with database.connection() as connection:
-        rows = connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        ).fetchall()
+        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
 
     assert {row[0] for row in rows} >= EXPECTED_TABLES
 
@@ -41,7 +58,7 @@ def test_initialize_is_idempotent(tmp_path: Path) -> None:
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
 
-        assert versions == [(version,) for version in range(1, 19)]
+        assert versions == [(version,) for version in range(1, 35)]
 
 
 def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> None:
@@ -50,12 +67,8 @@ def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> No
 
     with database.connection() as connection:
         task_columns = {row[1] for row in connection.execute("PRAGMA table_info(task_runs)")}
-        run_columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(real_data_runs)")
-        }
-        schedule_columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(schedules)")
-        }
+        run_columns = {row[1] for row in connection.execute("PRAGMA table_info(real_data_runs)")}
+        schedule_columns = {row[1] for row in connection.execute("PRAGMA table_info(schedules)")}
 
     assert {
         "retry_of_run_id",
@@ -151,9 +164,7 @@ def test_failed_migration_rolls_back_schema_and_version(tmp_path: Path) -> None:
         database.initialize(broken_migrations)
 
     with database.connection() as connection:
-        schedule_columns = {
-            row[1] for row in connection.execute("PRAGMA table_info(schedules)")
-        }
+        schedule_columns = {row[1] for row in connection.execute("PRAGMA table_info(schedules)")}
         versions = connection.execute(
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()

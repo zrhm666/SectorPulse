@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchRadar, fetchRun } from '../api'
 import RunDetailPage from './RunDetailPage'
@@ -24,6 +24,8 @@ vi.mock('./tabs/ReviewTab', () => ({ default: () => <div>审核内容</div> }))
 vi.mock('./tabs/GovernanceTab', () => ({ default: () => <div>治理内容</div> }))
 
 describe('RunDetailPage', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
   beforeEach(() => {
     vi.mocked(fetchRadar).mockResolvedValue({ cards: [] })
     vi.mocked(fetchRun).mockResolvedValue({
@@ -103,5 +105,57 @@ describe('RunDetailPage', () => {
     expect(screen.getAllByTestId('timeline-state')[3]).toHaveTextContent('已完成')
     expect(screen.getAllByTestId('timeline-state')[5]).toHaveTextContent('未记录')
     expect(screen.getByText('草稿已保存，自动审核尚无结论')).toBeVisible()
+  })
+
+  describe('dynamic task tree', () => {
+    function stubTasks(payload: Record<string, unknown>) {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+        recording: 'recorded', tasks: [], artifacts: [], tool_invocations: [],
+        model_calls: [], budget: {}, ...payload,
+      }), { status: 200 })))
+    }
+
+    beforeEach(() => {
+      vi.mocked(fetchRun).mockResolvedValue({
+        run_id: 'run-1', requested_at: '2026-09-15T09:00:00Z', provider: 'fixture',
+        status: 'RUNNING', elapsed_ms: null, total_cost_cny: null, draft_id: null,
+        execution_engine: 'multi_agent', retryable: false,
+      })
+    })
+
+    it('replaces the fixed stage rail with the recorded task tree', async () => {
+      stubTasks({ tasks: [
+        { task_id: 'root', parent_id: null, role: 'A0', scope: '分析半导体板块', attempt: 1,
+          status: 'running', worker_id: null, lease_expires_at: null,
+          public_error_code: null, selection_version: null },
+      ] })
+      render(<MemoryRouter initialEntries={['/runs/run-1']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+
+      const tree = await screen.findByRole('list', { name: '任务树' })
+      expect(within(tree).getByText('分析半导体板块')).toBeVisible()
+      // 阶段条是旧运行的固定推断，多 Agent 运行必须由真实任务记录取代它。
+      expect(screen.queryByRole('region', { name: '运行阶段' })).toBeNull()
+    })
+
+    it('keeps the historical stage rail for a run without a task tree', async () => {
+      vi.mocked(fetchRun).mockResolvedValue({
+        run_id: 'run-1', requested_at: '2026-08-17T00:00:00Z', provider: 'fixture',
+        status: 'READY_FOR_HUMAN_REVIEW', elapsed_ms: 120, total_cost_cny: '0',
+        draft_id: 'draft-1', sector_count: 8, retryable: true, execution_engine: 'legacy',
+      })
+      stubTasks({ recording: 'not_recorded' })
+      render(<MemoryRouter initialEntries={['/runs/run-1']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+
+      expect(await screen.findByRole('region', { name: '运行阶段' })).toBeVisible()
+      expect(screen.queryByRole('list', { name: '任务树' })).toBeNull()
+    })
+
+    it('opens the tab named in the URL so an artifact link lands on its own view', async () => {
+      stubTasks({})
+      render(<MemoryRouter initialEntries={['/runs/run-1?tab=review']}><Routes><Route path="/runs/:runId" element={<RunDetailPage />} /></Routes></MemoryRouter>)
+
+      expect(await screen.findByText('审核内容')).toBeVisible()
+      expect(screen.queryByText('概览内容')).toBeNull()
+    })
   })
 })

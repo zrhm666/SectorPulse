@@ -1,22 +1,38 @@
 # backend/src/sector_pulse/web/schemas.py
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from sector_pulse.domain.writing.attribution_mode import AttributionMode
 
 
 class NewRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     input_json: dict[str, Any]
-    provider: str = "fixture"
+    provider: Literal["fixture", "live"] = "fixture"
+    selection_policy: Literal["manual", "server_default"] = "manual"
+
+    @model_validator(mode="after")
+    def reject_removed_execution_mode(self) -> Self:
+        if "attribution_mode" in self.input_json:
+            raise ValueError(
+                "attribution_mode has been removed; all new runs use the multi-agent engine"
+            )
+        return self
 
 
 class NewRunResponse(BaseModel):
     run_id: UUID
+    execution_engine: Literal["multi_agent", "legacy"]
 
 
 class RunSummary(BaseModel):
+    attribution_mode: AttributionMode = AttributionMode.WORKFLOW
     run_id: UUID
+    execution_engine: Literal["multi_agent", "legacy"] = "legacy"
     requested_at: datetime
     provider: str
     status: str

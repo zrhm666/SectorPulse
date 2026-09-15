@@ -38,7 +38,7 @@ import PageHeader from '../components/ui/PageHeader'
 import Panel from '../components/ui/Panel'
 import StatusBadge from '../components/ui/StatusBadge'
 import SummaryStrip from '../components/ui/SummaryStrip'
-import { downgradeLabel, formatDate, providerLabel } from '../runPresentation'
+import { downgradeLabel, formatDate, isActiveRun, providerLabel } from '../runPresentation'
 import CandidatesPanel from './data-run/CandidatesPanel'
 import CandidateSelectionBar from './data-run/CandidateSelectionBar'
 import AcquisitionSummary from './data-run/AcquisitionSummary'
@@ -377,7 +377,7 @@ export default function DataRunPage() {
       { label: '完成时间', value: run.finished_at ? formatDate(run.finished_at) : '尚未完成' },
     ]} />
     {workbench.stale && <InlineAlert tone="warning" title="显示最近一次成功数据">{cancelling ? '取消请求已接收，但状态刷新暂时失败；系统会自动重试。' : workbench.error}</InlineAlert>}
-    {run.downgrade_reasons.length > 0 && <InlineAlert tone="warning" title="本次运行存在数据降级"><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{downgradeLabel(reason)}{downgradeLabel(reason) !== reason && <details><summary>查看原始代码</summary><code>{reason}</code></details>}</li>)}</ul></InlineAlert>}
+    {run.downgrade_reasons.length > 0 && <InlineAlert tone={run.status === 'BLOCKED' ? 'error' : 'warning'} title={run.status === 'BLOCKED' && run.downgrade_reasons.includes('CORE_MARKET_BLOCKED') ? '核心行情数据未就绪，运行已停止' : '本次运行存在数据降级'}><ul>{run.downgrade_reasons.map((reason) => <li key={reason}>{downgradeLabel(reason)}{downgradeLabel(reason) !== reason && <details><summary>查看原始代码</summary><code>{reason}</code></details>}</li>)}</ul></InlineAlert>}
     {acquisitionError && <InlineAlert tone="warning" title="采集摘要加载失败">{acquisitionError}，可展开详情核对已保存的处理记录。</InlineAlert>}
     <details className="data-processing-details" key={`${run.run_id}-${terminal}`} open={!terminal}>
       <summary>处理与采集详情</summary>
@@ -393,7 +393,7 @@ export default function DataRunPage() {
       document.getElementById(`tab-${tabs[next].id}`)?.focus()
     }}>{tab.label}</button>)}</div>
     <Panel className="data-workbench-panel" density="compact"><div id={`panel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`}>
-      {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} onOpenDetail={setMarketDetail} />}
+      {activeTab === 'market' && <MarketPanel data={market} kind={marketKind} loading={marketLoading} error={marketError} terminal={!isActiveRun(run.status)} onKindChange={(kind) => { setMarketKind(kind); setMarketOffset(0) }} onPage={setMarketOffset} onOpenDetail={setMarketDetail} />}
       {activeTab === 'candidates' && <CandidatesPanel
         page={candidatePage}
         selectedIds={selectedCandidateIds}

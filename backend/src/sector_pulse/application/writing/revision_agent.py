@@ -96,7 +96,7 @@ def _apply(
             continue
         card = cards[section.sector_id]
         sector_evidence = set(card.supporting_evidence_ids) | set(card.background_event_ids)
-        if not set(replacement.source_ids) <= source_ids:
+        if not set(replacement.source_ids) <= source_ids & sector_evidence:
             raise ValueError("unknown source")
         for claim in replacement.claims:
             validate_prohibited_language(claim.text)

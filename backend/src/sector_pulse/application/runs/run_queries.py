@@ -21,6 +21,7 @@ class _RunQueryPort(Protocol):
     def get_evidence(self, run_id: UUID) -> dict[str, Any]: ...
 
     def get_review(self, run_id: UUID) -> dict[str, Any]: ...
+    def get_agent_trace(self, run_id: UUID) -> dict[str, Any]: ...
 
     def render_draft_markdown(self, run_id: UUID) -> str | None: ...
 
@@ -48,6 +49,9 @@ class RunQueryService:
 
     def review(self, run_id: UUID) -> dict[str, Any]:
         return self._port.get_review(run_id)
+
+    def agent_trace(self, run_id: UUID) -> dict[str, Any]:
+        return self._port.get_agent_trace(run_id)
 
     def markdown(self, run_id: UUID) -> str | None:
         return self._port.render_draft_markdown(run_id)

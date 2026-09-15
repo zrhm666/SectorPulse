@@ -7,6 +7,7 @@ from sector_pulse.domain.writing.attribution import (
     AttributionContext,
     AttributionGateResult,
     Claim,
+    ClaimKind,
     SectorAnalysisCard,
 )
 
@@ -23,10 +24,14 @@ def validate_analysis_card(
     gate: AttributionGateResult,
     context: AttributionContext,
 ) -> SectorAnalysisCard:
-    allowed_ids = set(gate.eligible_evidence_ids) | set(gate.excluded_evidence_ids)
+    allowed_ids = set(gate.eligible_evidence_ids)
     for evidence_id in card.supporting_evidence_ids:
+        if evidence_id in gate.excluded_evidence_ids:
+            raise AgentOutputViolation("INELIGIBLE_SUPPORTING_EVIDENCE", evidence_id)
         if evidence_id not in allowed_ids:
             raise AgentOutputViolation("UNKNOWN_EVIDENCE_ID", evidence_id)
+    if not set(card.background_event_ids) <= set(context.background_event_ids):
+        raise AgentOutputViolation("INVALID_BACKGROUND_EVIDENCE", "background evidence")
     if (
         card.run_id != context.run_id
         or card.sector_id != context.sector_id
@@ -39,6 +44,19 @@ def validate_analysis_card(
     for claim in card.claims:
         validate_prohibited_language(claim.text)
         validate_claim_numbers(claim, context.market_facts)
+        if claim.kind in {ClaimKind.NEWS_FACT, ClaimKind.ATTRIBUTION} and (
+            not claim.evidence_ids or not set(claim.evidence_ids) <= allowed_ids
+        ):
+            raise AgentOutputViolation("CLAIM_EVIDENCE_INVALID", claim.claim_id)
+        if claim.kind is ClaimKind.BACKGROUND and (
+            not claim.evidence_ids
+            or not set(claim.evidence_ids) <= set(context.background_event_ids)
+        ):
+            raise AgentOutputViolation("BACKGROUND_CLAIM_INVALID", claim.claim_id)
+    if card.attribution_level.value == "NO_RELIABLE_EXPLANATION" and (
+        card.supporting_evidence_ids
+    ):
+        raise AgentOutputViolation("NO_EXPLANATION_HAS_SUPPORT", "supporting evidence")
     return card.model_copy(
         update={
             "sector_name": context.sector_name,

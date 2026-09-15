@@ -17,7 +17,7 @@ class NewDataRunRequest(BaseModel):
 
 
 class GenerateDataRunRequest(BaseModel):
-    sector_ids: list[str] | None = Field(default=None, min_length=3, max_length=12)
+    model_config = ConfigDict(extra="forbid")
 
 
 class CandidateSelectionConfirmRequest(BaseModel):

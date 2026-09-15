@@ -9,18 +9,40 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import ValidationError
 
+from sector_pulse.application.orchestration.commands import MultiAgentRunCommands
 from sector_pulse.application.runs.run_commands import RunCommandService
 from sector_pulse.application.runs.run_queries import RunQueryService
 from sector_pulse.infrastructure.llm.fixture_resources import load_default_fixture_input
 from sector_pulse.web.events.progress_bus import ProgressBus
-from sector_pulse.web.schemas.runs import NewRunRequest, NewRunResponse
+from sector_pulse.web.schemas.runs import (
+    NewRunRequest,
+    NewRunResponse,
+    RunDetail,
+    RunSummary,
+)
 from sector_pulse.web.services.run_service import ProviderUnavailable
+
+LEGACY_RETRY_MESSAGE = "该运行由旧引擎创建，无法重试为多 Agent 运行；请新建一次运行"
 
 
 def build_runs_review_router(
-    *, commands: RunCommandService, queries: RunQueryService, bus: ProgressBus
+    *,
+    commands: RunCommandService | MultiAgentRunCommands,
+    queries: RunQueryService,
+    bus: ProgressBus,
 ) -> APIRouter:
     router = APIRouter(tags=["runs", "review"])
+
+    def _retryable(detail: RunDetail | RunSummary) -> RunDetail | RunSummary:
+        """Clear the retry flag when the wired engine is not the one that can retry.
+
+        `execution_engine` says how a run was made; whether retry works depends on
+        the engine that would do the retrying, which is `commands`. A historical run
+        therefore loses the flag here rather than offering a button that 409s.
+        """
+        if detail.execution_engine == "legacy" and commands.execution_engine != "legacy":
+            return detail.model_copy(update={"retryable": False})
+        return detail
 
     @router.get("/api/fixture-input")
     async def fixture_input() -> dict[str, Any]:
@@ -28,24 +50,33 @@ def build_runs_review_router(
 
     @router.get("/api/runs")
     async def list_runs() -> list[Any]:
-        return queries.list()
+        return [_retryable(item) for item in queries.list()]
 
     @router.post("/api/runs", response_model=NewRunResponse, status_code=200)
     async def create_run(req: NewRunRequest) -> NewRunResponse:
         try:
-            run_id = commands.create(req.input_json, req.provider)
+            run_id = commands.create(
+                req.input_json,
+                req.provider,
+                selection_policy=req.selection_policy,
+            )
         except ProviderUnavailable as exc:
             raise HTTPException(409, str(exc)) from exc
         except ValidationError as exc:
             raise HTTPException(422, str(exc)) from exc
-        return NewRunResponse(run_id=run_id)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return NewRunResponse(
+            run_id=run_id,
+            execution_engine=commands.execution_engine,
+        )
 
     @router.get("/api/runs/{run_id}")
     async def get_run(run_id: UUID) -> dict[str, Any]:
         detail = queries.detail(run_id)
         if detail is None:
             raise HTTPException(404, "run not found")
-        return detail.model_dump(mode="json")
+        return _retryable(detail).model_dump(mode="json")
 
     @router.get("/api/runs/{run_id}/events")
     async def run_events(run_id: UUID) -> StreamingResponse:
@@ -60,11 +91,20 @@ def build_runs_review_router(
 
     @router.post("/api/runs/{run_id}/retry", response_model=NewRunResponse)
     async def retry_run(run_id: UUID) -> NewRunResponse:
+        if queries.detail(run_id) is None:
+            raise HTTPException(404, "run not found")
         try:
             new_run_id = commands.retry(run_id)
         except ProviderUnavailable as exc:
             raise HTTPException(409, str(exc)) from exc
-        return NewRunResponse(run_id=new_run_id)
+        except KeyError as exc:
+            # The multi-agent engine only retries a run it owns; a historical row has
+            # no snapshot to rebuild from, so report the migration rather than 500.
+            raise HTTPException(409, LEGACY_RETRY_MESSAGE) from exc
+        return NewRunResponse(
+            run_id=new_run_id,
+            execution_engine=commands.execution_engine,
+        )
 
     @router.post("/api/runs/{run_id}/cancel")
     async def cancel_run(run_id: UUID) -> dict[str, bool]:
@@ -77,6 +117,36 @@ def build_runs_review_router(
         if queries.detail(run_id) is None:
             raise HTTPException(404, "run not found")
         return queries.radar(run_id)
+
+    @router.get("/api/runs/{run_id}/agent-trace")
+    async def get_agent_trace(run_id: UUID) -> dict[str, Any]:
+        if queries.detail(run_id) is None:
+            raise HTTPException(404, "run not found")
+        return queries.agent_trace(run_id)
+
+    @router.get("/api/runs/{run_id}/tasks")
+    async def get_tasks(run_id: UUID) -> dict[str, Any]:
+        detail = queries.detail(run_id)
+        if detail is None:
+            raise HTTPException(404, "run not found")
+        if detail.execution_engine == "legacy":
+            return {
+                "recording": "not_recorded",
+                "tasks": [],
+                "artifacts": [],
+                "tool_invocations": [],
+                "model_calls": [],
+                "budget": {},
+            }
+        trace = queries.agent_trace(run_id)
+        return {
+            "recording": "recorded",
+            "tasks": trace.get("tasks", []),
+            "artifacts": trace.get("artifacts", []),
+            "tool_invocations": trace.get("tool_invocations", []),
+            "model_calls": trace.get("model_calls", []),
+            "budget": trace.get("budget", {}),
+        }
 
     @router.get("/api/runs/{run_id}/draft")
     async def get_draft(run_id: UUID) -> dict[str, Any]:

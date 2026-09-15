@@ -16,6 +16,42 @@ class ResultModel(BaseModel):
     value: str
 
 
+async def test_yaml_template_controls_actual_system_message(tmp_path):
+    from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
+
+    (tmp_path / "protocol.yaml").write_text(
+        "prompt_id: custom\nversion: '1'\nvariables: [system_prompt, schema]\n"
+        "system: 'custom ${system_prompt} schema=${schema}'\n",
+        encoding="utf-8",
+    )
+    captured = []
+
+    def handler(http_request):
+        captured.append(json.loads(http_request.content))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"value":"ok"}'}}],
+                "usage": {},
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        llm = OpenAICompatibleProvider(
+            "https://example.test/v1",
+            SecretStr("test"),
+            2,
+            {},
+            client,
+            structured_prompt=PromptRegistry(tmp_path).get("custom"),
+        )
+        result = await llm.generate_structured(request())
+    assert result.status is LLMStatus.SUCCESS
+    actual = captured[0]["messages"][0]["content"]
+    assert actual.startswith("custom return json schema=")
+    assert json.loads(actual.split("schema=", 1)[1])["properties"]["value"]["type"] == "string"
+
+
 def request() -> LLMRequest[ResultModel]:
     return LLMRequest(
         agent_name="test",
@@ -189,7 +225,7 @@ async def test_http_429_is_retriable_and_secret_is_not_exposed() -> None:
 
 def test_parses_fenced_json_and_text_blocks() -> None:
     assert OpenAICompatibleProvider._parse_json_content(
-        "Here is the result:\n```json\n{\"value\":\"ok\"}\n```"
+        'Here is the result:\n```json\n{"value":"ok"}\n```'
     ) == {"value": "ok"}
     assert OpenAICompatibleProvider._parse_json_content(
         [{"type": "text", "text": '{"value":"ok"}'}]

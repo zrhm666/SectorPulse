@@ -45,6 +45,7 @@ web/test-results/
 web/tsconfig.tsbuildinfo
 .pytest-temp/
 .tmp-test/
+.tmp_pytest/
 .pip-cache/
 web/.npm-cache/
 .worktrees/

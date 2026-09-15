@@ -23,7 +23,7 @@ const version = {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(api.fetchRuns).mockResolvedValue([approvedRun, pendingRun])
-  vi.mocked(api.fetchDraft).mockResolvedValue({ versions: [version] })
+  vi.mocked(api.fetchDraft).mockResolvedValue({ versions: [version], revision: 3 })
   vi.mocked(editing.fetchGovernance).mockResolvedValue({ status: 'PASS', issues: [] })
   vi.mocked(editing.fetchApproval).mockResolvedValue(null)
   vi.mocked(editing.fetchEvidenceDecisions).mockResolvedValue([])
@@ -80,16 +80,16 @@ it('keeps the queue loading until the StrictMode replacement request finishes', 
 })
 
 it('prevents a stale run response from replacing the newer selection', async () => {
-  let resolvePending: ((value: { versions: typeof version[] }) => void) | undefined
+  let resolvePending: ((value: api.DraftView) => void) | undefined
   vi.mocked(api.fetchDraft).mockImplementation((runId) => runId === 'run-pending'
     ? new Promise((resolve) => { resolvePending = resolve })
-    : Promise.resolve({ versions: [{ ...version, titles: ['已批准标题'] }] }))
+    : Promise.resolve({ versions: [{ ...version, titles: ['已批准标题'] }], revision: 3 }))
   const { result } = renderHook(() => useReviewWorkspace())
   await act(async () => { await Promise.resolve() })
 
   act(() => result.current.selectRun('run-approved'))
   await act(async () => { await Promise.resolve(); await Promise.resolve() })
-  await act(async () => { resolvePending?.({ versions: [version] }); await Promise.resolve() })
+  await act(async () => { resolvePending?.({ versions: [version], revision: 3 }); await Promise.resolve() })
 
   expect(result.current.selectedRun?.run_id).toBe('run-approved')
   expect(result.current.versions[0].titles[0]).toBe('已批准标题')

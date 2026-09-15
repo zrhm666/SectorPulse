@@ -1,0 +1,8 @@
+prompt_id: structured_output
+version: "1.0.0"
+variables: [system_prompt, schema]
+system: |-
+  ${system_prompt}
+
+  必须严格返回一个 JSON 对象，不得输出 Markdown 或解释文字。返回值必须符合以下 JSON Schema：
+  ${schema}

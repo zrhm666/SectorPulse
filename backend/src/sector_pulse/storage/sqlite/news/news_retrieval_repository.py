@@ -35,17 +35,19 @@ class SQLiteNewsRetrievalRepository:
                     """
                     INSERT INTO news_source_runs (
                         run_id, source_id, started_at, completed_at, call_count,
-                        retry_count, status, duration_ms, error_code
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        retry_count, result_count, status, duration_ms, error_code
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(run_id, source_id) DO UPDATE SET
                         completed_at = excluded.completed_at, call_count = excluded.call_count,
-                        retry_count = excluded.retry_count, status = excluded.status,
+                        retry_count = excluded.retry_count, result_count = excluded.result_count,
+                        status = excluded.status,
                         duration_ms = excluded.duration_ms, error_code = excluded.error_code
                     """,
                     (
                         str(metric.run_id), metric.source_id, metric.started_at.isoformat(),
                         metric.completed_at.isoformat(), metric.call_count, metric.retry_count,
-                        metric.status.value, metric.duration_ms, metric.error_code,
+                        metric.result_count, metric.status.value, metric.duration_ms,
+                        metric.error_code,
                     ),
                 )
             for query, status, result_count, error_code in query_results:
@@ -156,7 +158,7 @@ class SQLiteNewsRetrievalRepository:
         with self._database.connection() as connection:
             rows = connection.execute(
                 "SELECT source_id, started_at, completed_at, call_count, retry_count, "
-                "status, duration_ms, error_code FROM news_source_runs "
+                "result_count, status, duration_ms, error_code FROM news_source_runs "
                 "WHERE run_id = ? ORDER BY source_id",
                 (str(run_id),),
             ).fetchall()
@@ -168,9 +170,10 @@ class SQLiteNewsRetrievalRepository:
                 completed_at=datetime.fromisoformat(row[2]),
                 call_count=row[3],
                 retry_count=row[4],
-                status=row[5],
-                duration_ms=row[6],
-                error_code=row[7],
+                result_count=row[5],
+                status=row[6],
+                duration_ms=row[7],
+                error_code=row[8],
             )
             for row in rows
         )

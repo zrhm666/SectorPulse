@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sector_pulse.domain.news.evidence import EvidencePack
 from sector_pulse.domain.news.news import NewsDocument, NewsEvent
+from sector_pulse.domain.news.news_batch import NewsBatch
 from sector_pulse.domain.news.news_retrieval import (
     NewsQuery,
     NewsQueryAuditRecord,
@@ -13,6 +14,7 @@ from sector_pulse.domain.news.news_retrieval import (
     SectorEventLink,
     SourceRunMetric,
 )
+from sector_pulse.domain.news.research import NewsDetailSnapshot, ResearchSearchBatch
 from sector_pulse.domain.provider import DataStatus
 from sector_pulse.storage.sqlite.news.news_evidence_repository import NewsEvidenceItem
 
@@ -26,6 +28,21 @@ class NewsRepositoryPort(Protocol):
     def get_events(self, event_ids: Sequence[str]) -> tuple[NewsEvent, ...]: ...
 
     def get_documents(self, document_ids: Sequence[str]) -> dict[str, NewsDocument]: ...
+
+
+@runtime_checkable
+class NewsBatchRepositoryPort(Protocol):
+    def get(self, batch_id: UUID) -> NewsBatch | None: ...
+
+
+@runtime_checkable
+class ResearchSearchRepositoryPort(Protocol):
+    def get(self, batch_id: UUID) -> ResearchSearchBatch | None: ...
+
+
+@runtime_checkable
+class NewsDetailSnapshotRepositoryPort(Protocol):
+    def get(self, detail_id: UUID) -> NewsDetailSnapshot | None: ...
 
 
 

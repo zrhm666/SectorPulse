@@ -180,6 +180,7 @@ def build_operations_router(
                     mode=run.mode,
                     status=run.status,
                     provider=run.provider,
+                    execution_engine=run.execution_engine,
                     requested_at=run.requested_at,
                     finished_at=run.finished_at,
                     elapsed_ms=run.elapsed_ms,
