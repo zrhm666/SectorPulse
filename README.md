@@ -10,6 +10,7 @@
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/Web-React-61DAFB?logo=react&logoColor=111827)
 ![SQLite%20%7C%20PostgreSQL](https://img.shields.io/badge/Database-SQLite%20%7C%20PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![Multi-Agent](https://img.shields.io/badge/Architecture-Multi--Agent-7C3AED?logo=probot&logoColor=white)
 
 </div>
 
@@ -58,6 +59,18 @@ flowchart TD
 
 A0 负责拆解目标和委派任务；A1–A4 负责各自专业阶段。采集、评分、证据校验、预算和数据库操作由受控 Tool 或基础服务执行。
 
+### Agent 角色
+
+| Agent | 负责什么 | 主要产出 |
+| --- | --- | --- |
+| **A0 研究负责人** | 理解研究目标，安排任务并汇总阶段结果 | 一棵可追踪的研究任务树 |
+| **A1 数据与选题** | 整理行情与新闻，检查数据质量，提出候选板块 | 候选板块提案 |
+| **A2 板块归因研究** | 针对每个板块核验新闻和证据，分析上涨或变化原因 | 板块归因分析与证据引用 |
+| **A3 编辑写作** | 根据已核验的研究结果组织结构并撰写分析稿 | 大纲、草稿和受控修订稿 |
+| **A4 独立审校** | 独立检查事实、来源、证据和表达质量 | 审校意见与通过/修订建议 |
+
+A0 会根据阶段结果继续委派下一步任务；A2 可以按板块并行研究。A4 通过后仍需人工编辑和审核，系统不会自动发布内容。
+
 ### 受控 Skill
 
 Skill 是只读的方法库，不是权限系统。当前方法包括：
@@ -67,7 +80,7 @@ Skill 是只读的方法库，不是权限系统。当前方法包括：
 - `analysis-writing`：分析写作
 - `independent-review`：独立审校
 
-Skill 按角色白名单加载，不能访问任意文件、数据库或审批能力。详细方法文档位于 [`config/agent-skills`](config/agent-skills)。
+Skill 按角色白名单加载，不能访问任意文件、数据库或审批能力。
 
 ## 快速开始
 
