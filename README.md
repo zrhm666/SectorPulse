@@ -134,6 +134,27 @@ New-Item .live-llm-consent -ItemType File -Force
 
 没有授权文件时，系统不会启动相应的外部调用。API Key 只保存在本机 `.env`，不要提交到 Git。
 
+## 数据来源
+
+### 行情与板块
+
+Live 模式默认通过 AkShare 读取 A 股板块行情和板块成分信息，内置支持东方财富和同花顺口径的板块数据适配。Fixture 模式使用本地可复现样例，不访问网络。
+
+### 新闻
+
+新闻来源按 [`config/news_sources.yaml`](config/news_sources.yaml) 管理，当前内置适配包括：
+
+- 财联社（CLS）快讯
+- 东方财富新闻
+- 巨潮资讯（CNINFO）公告与披露
+- 配置化 RSS 来源
+
+系统会记录来源、抓取时间、数据质量和使用的时间边界。新闻原文不可得时会明确标记，不会把缺失内容伪装成已核验事实。
+
+### 可插拔 Provider
+
+行情和新闻都通过统一的 Provider 接口接入。你可以新增自己的数据源适配器，完成字段映射和质量报告后，在运行时 Provider 装配中替换默认实现；上层的候选筛选、证据归因、Agent 和数据库流程无需改动。Provider 也可以通过插件注册机制接入，具体开发约定见 [后端维护指南](backend/README.md)。
+
 ## 数据库
 
 默认使用 SQLite：
