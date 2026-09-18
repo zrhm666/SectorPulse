@@ -4,7 +4,6 @@ import json
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 from uuid import UUID, uuid4
 
 from aidynamic_agent.core.agent import AgentResult, TerminationReason
@@ -37,8 +36,8 @@ from sector_pulse.infrastructure.agents.roles import (
     RoleAgentFactory,
     RoleRuntime,
     role_runtimes_from_config,
+    role_skill_managers,
 )
-from sector_pulse.infrastructure.agents.skills import AllowedSkillManager
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.ports.orchestration import SnapshotRepository
 
@@ -99,22 +98,6 @@ class ParentAgentRuntime:
             }
         )
         self.tool_reserved_cny.setdefault("skill", Decimal("0"))
-        a1_skills = AllowedSkillManager(
-            Path("config/agent-skills"),
-            allowed_names=frozenset({"data-gap-handling", "sector-selection"}),
-        )
-        a2_skills = AllowedSkillManager(
-            Path("config/agent-skills"),
-            allowed_names=frozenset({"causal-evidence", "news-verification"}),
-        )
-        a3_skills = AllowedSkillManager(
-            Path("config/agent-skills"),
-            allowed_names=frozenset({"analysis-writing"}),
-        )
-        a4_skills = AllowedSkillManager(
-            Path("config/agent-skills"),
-            allowed_names=frozenset({"independent-review", "news-verification"}),
-        )
         return RoleAgentFactory(
             repository=self.repository,
             run_id=self.run_id,
@@ -123,12 +106,7 @@ class ParentAgentRuntime:
             tool_builders={},
             contextual_tool_builders=contextual,
             tool_reserved_cny=self.tool_reserved_cny,
-            skill_managers={
-                AgentRole.A1: a1_skills,
-                AgentRole.A2: a2_skills,
-                AgentRole.A3: a3_skills,
-                AgentRole.A4: a4_skills,
-            },
+            skill_managers=role_skill_managers(),
         )
 
     def _provider(self, runtime: RoleRuntime) -> LLMProvider:

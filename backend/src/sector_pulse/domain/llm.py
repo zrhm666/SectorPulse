@@ -1,6 +1,6 @@
 from decimal import Decimal
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -38,6 +38,33 @@ class LLMError(BaseModel):
     retriable: bool = False
 
 
+class PromptExample(BaseModel):
+    """一轮 few-shot 示范：模型看到的输入与应当产出的输出。"""
+
+    model_config = ConfigDict(frozen=True)
+    input: str = Field(min_length=1)
+    output: str = Field(min_length=1)
+
+
+class PromptTurn(BaseModel):
+    """示范对话中的一条消息，按声明顺序进入 Agent 上下文。
+
+    带 tool_name 的 assistant 轮必须紧跟一条 tool_call_id 相同的 tool 轮，
+    否则服务端收到的工具调用没有结果，请求会被供应商拒绝。
+    """
+
+    model_config = ConfigDict(frozen=True)
+    role: Literal["user", "assistant", "tool"]
+    text: str = ""
+    tool_call_id: str = ""
+    tool_name: str = ""
+    tool_arguments: dict[str, object] = Field(default_factory=dict)
+
+    @property
+    def calls_tool(self) -> bool:
+        return bool(self.tool_name)
+
+
 T = TypeVar("T")
 
 
@@ -52,6 +79,7 @@ class LLMRequest(BaseModel, Generic[T]):
     response_model: type[BaseModel]
     fixture_key: str | None = None
     max_output_tokens: int | None = Field(default=None, ge=1, le=16384)
+    examples: tuple[PromptExample, ...] = ()
 
 
 class LLMResult(BaseModel, Generic[T]):

@@ -56,17 +56,23 @@ class OpenAICompatibleProvider:
 
     async def generate_structured(self, request: LLMRequest[Any]) -> LLMResult[Any]:
         schema = json.dumps(request.response_model.model_json_schema(), ensure_ascii=False)
+        messages: list[dict[str, str]] = [
+            {
+                "role": "system",
+                "content": self._structured_prompt.render(
+                    system_prompt=request.system_prompt, schema=schema
+                ),
+            }
+        ]
+        for example in request.examples:
+            messages.append({"role": "user", "content": example.input})
+            messages.append({"role": "assistant", "content": example.output})
+        messages.append(
+            {"role": "user", "content": json.dumps(request.user_payload, ensure_ascii=False)}
+        )
         payload = {
             "model": request.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": self._structured_prompt.render(
-                        system_prompt=request.system_prompt, schema=schema
-                    ),
-                },
-                {"role": "user", "content": json.dumps(request.user_payload, ensure_ascii=False)},
-            ],
+            "messages": messages,
             "temperature": 0,
             "response_format": {
                 "type": "json_object",

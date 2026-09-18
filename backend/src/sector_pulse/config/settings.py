@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from sector_pulse.config.llm_config import LLMRuntimeConfig
+from sector_pulse.config.rag_settings import RagSettings, load_rag_settings
+from sector_pulse.storage.database_config import resolve_database_config
 
 
 def load_environment(dotenv_path: Path = Path(".env")) -> None:
@@ -32,6 +34,7 @@ class ApplicationSettings(BaseModel):
     task_max_attempts: int = Field(default=3, ge=1, le=10)
     task_deadline_seconds: int = Field(default=900, ge=1, le=86400)
     task_retry_backoff_seconds: int = Field(default=2, ge=0, le=3600)
+    rag: RagSettings = Field(default_factory=RagSettings)
 
     def apply_runtime_overrides(self, yaml_config: LLMRuntimeConfig) -> LLMRuntimeConfig:
         """将环境变量中的运行限制合并到不可变的 YAML 配置副本。"""
@@ -61,11 +64,19 @@ class ApplicationSettings(BaseModel):
             return raw.lower() == "true"
 
         api_key = value("SECTOR_PULSE_LLM_API_KEY")
+        database_path = required_value("SECTOR_PULSE_DATABASE_PATH", "data/sector-pulse.db")
+        database_url = value("SECTOR_PULSE_DATABASE_URL")
+        rag = load_rag_settings()
+        if rag.enabled and _resolved_backend(database_url, database_path) != "postgresql":
+            raise ValueError(
+                "RAG requires PostgreSQL: SECTOR_PULSE_RAG_ENABLED is true but "
+                "SECTOR_PULSE_DATABASE_URL does not point at a PostgreSQL database. "
+                "PostgreSQL is the authoritative state source for the internal "
+                "research library; do not enable RAG on SQLite."
+            )
         return cls(
-            database_path=Path(
-                required_value("SECTOR_PULSE_DATABASE_PATH", "data/sector-pulse.db")
-            ),
-            database_url=value("SECTOR_PULSE_DATABASE_URL"),
+            database_path=Path(database_path),
+            database_url=database_url,
             llm_provider=required_value("SECTOR_PULSE_LLM_PROVIDER", "fixture"),
             llm_base_url=value("SECTOR_PULSE_LLM_BASE_URL"),
             llm_api_key=SecretStr(api_key) if api_key else None,
@@ -99,4 +110,13 @@ class ApplicationSettings(BaseModel):
             task_retry_backoff_seconds=int(
                 value("SECTOR_PULSE_TASK_RETRY_BACKOFF_SECONDS", "2") or "2"
             ),
+            rag=rag,
         )
+
+
+def _resolved_backend(database_url: str | None, database_path: str) -> str:
+    """复用运行时 URL 解析，避免这里再维护一份 PostgreSQL scheme 列表。"""
+    try:
+        return resolve_database_config(database_url, database_path).backend
+    except ValueError:
+        return "unsupported"

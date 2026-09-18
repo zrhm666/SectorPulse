@@ -1,16 +1,25 @@
 """Server-owned A0-A4 role construction on the embedded agent framework."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
+from pathlib import Path
 from uuid import UUID
 
 from aidynamic_agent.agents.factory import AgentFactory
 from aidynamic_agent.agents.parent import ParentAgent
 from aidynamic_agent.agents.sub import SubAgent
 from aidynamic_agent.core.agent import AgentConfig
+from aidynamic_agent.core.message import (
+    ContentBlockUnion,
+    Message,
+    Role,
+    TextBlock,
+    ToolResultBlock,
+    ToolUseBlock,
+)
 from aidynamic_agent.llm.base import LLMProvider
 from aidynamic_agent.managers.skill import SkillManager
 from aidynamic_agent.tools.base import Tool
@@ -20,8 +29,10 @@ from sector_pulse.application.orchestration.budget import SharedBudget
 from sector_pulse.application.orchestration.tasks import TaskOwnershipError
 from sector_pulse.application.orchestration.tool_budget import SharedToolBudget
 from sector_pulse.config.llm_config import LLMRuntimeConfig
+from sector_pulse.domain.llm import PromptTurn
 from sector_pulse.domain.orchestration.models import ModelPricing, TaskStatus
 from sector_pulse.infrastructure.agents.provider import BudgetedProvider
+from sector_pulse.infrastructure.agents.skills import AllowedSkillManager
 from sector_pulse.infrastructure.agents.tool_adapter import BudgetedTool
 from sector_pulse.infrastructure.llm.prompt_registry import PromptRegistry
 from sector_pulse.ports.orchestration import SnapshotRepository
@@ -64,6 +75,12 @@ ROLE_TOOL_NAMES: dict[AgentRole, frozenset[str]] = {
             "submit_analysis",
             "inspect_artifacts",
             "skill",
+            # 内部研究资料库（规格 15）：只有 A2 有检索权限，因此只有 A2 的白名单里有它们。
+            # 白名单说的是"这个角色**可以**调什么"；RAG 关掉时这三件工具根本不注册，于是
+            # 这里的名字不会凭空出现在注册表里。
+            "search_internal_research",
+            "inspect_research_source",
+            "accept_internal_evidence",
         }
     ),
     AgentRole.A3: frozenset(
@@ -90,17 +107,36 @@ ROLE_TOOL_NAMES: dict[AgentRole, frozenset[str]] = {
 }
 
 
+SKILLS_ROOT = Path("config/agent-skills")
+
+# 每个角色能加载哪些方法文档。Skill 不是权限来源——能不能检索、能不能接纳证据由工具白名单
+# 与接纳服务决定——这里决定的是"这个角色读得到哪些方法与写作规则"。
+ROLE_SKILL_NAMES: dict[AgentRole, frozenset[str]] = {
+    AgentRole.A1: frozenset({"data-gap-handling", "sector-selection"}),
+    AgentRole.A2: frozenset(
+        {"causal-evidence", "news-verification", "internal-research-retrieval"}
+    ),
+    AgentRole.A3: frozenset({"analysis-writing", "internal-evidence-writing"}),
+    AgentRole.A4: frozenset(
+        {"independent-review", "news-verification", "internal-evidence-writing"}
+    ),
+}
+
+
+def role_skill_managers(skills_root: Path = SKILLS_ROOT) -> dict[AgentRole, SkillManager]:
+    return {
+        role: AllowedSkillManager(skills_root, allowed_names=names)
+        for role, names in ROLE_SKILL_NAMES.items()
+    }
+
+
 def _task_tool_names(role: AgentRole, scope: str) -> frozenset[str]:
     if role is AgentRole.A3:
         if scope.startswith("revision:"):
             return frozenset({"inspect_artifacts", "submit_revision", "skill"})
-        return frozenset(
-            {"inspect_artifacts", "submit_outline", "submit_draft", "skill"}
-        )
+        return frozenset({"inspect_artifacts", "submit_outline", "submit_draft", "skill"})
     if role is AgentRole.A4:
-        return frozenset(
-            {"inspect_artifacts", "check_draft_rules", "submit_review", "skill"}
-        )
+        return frozenset({"inspect_artifacts", "check_draft_rules", "submit_review", "skill"})
     return ROLE_TOOL_NAMES[role]
 
 
@@ -119,6 +155,33 @@ class RoleRuntime:
     model: str
     prompt: str
     pricing: ModelPricing | None
+    demonstrations: tuple[PromptTurn, ...] = ()
+
+
+def demonstration_messages(turns: Sequence[PromptTurn]) -> list[Message]:
+    """把示范对话转成框架消息，工具调用与其结果保持成对且顺序一致。"""
+    messages: list[Message] = []
+    for turn in turns:
+        if turn.role == "user":
+            messages.append(Message.from_text(Role.USER, turn.text))
+        elif turn.role == "tool":
+            # 与框架自身写入工具结果的格式保持一致：user 轮只放结果块。
+            result = ToolResultBlock(tool_call_id=turn.tool_call_id, tool_result_content=turn.text)
+            messages.append(Message(Role.USER, [result]))
+        else:
+            blocks: list[ContentBlockUnion] = []
+            if turn.text.strip():
+                blocks.append(TextBlock(text=turn.text))
+            if turn.calls_tool:
+                blocks.append(
+                    ToolUseBlock(
+                        tool_call_id=turn.tool_call_id,
+                        tool_name=turn.tool_name,
+                        tool_input=dict(turn.tool_arguments),
+                    )
+                )
+            messages.append(Message(Role.ASSISTANT, blocks))
+    return messages
 
 
 @dataclass(frozen=True)
@@ -156,6 +219,7 @@ def role_runtimes_from_config(
             model=route.model,
             prompt=prompt.system,
             pricing=pricing,
+            demonstrations=prompt.demonstrations,
         )
     return runtimes
 
@@ -280,11 +344,15 @@ class RoleAgentFactory:
             tool_registry=registry,
             inject_skill_info=skill_manager is not None,
         )
+        examples = demonstration_messages(runtime.demonstrations)
         if role is AgentRole.A0:
-            return framework_factory.create_parent_agent(system_prompt=runtime.prompt)
+            return framework_factory.create_parent_agent(
+                system_prompt=runtime.prompt, example_messages=examples
+            )
         max_loops, total_timeout = _subagent_limits(role, task.scope)
         return framework_factory.create_sub_agent(
             system_prompt=runtime.prompt,
             max_loops=max_loops,
             total_timeout=total_timeout,
+            example_messages=examples,
         )

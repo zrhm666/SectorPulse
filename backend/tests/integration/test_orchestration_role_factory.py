@@ -404,6 +404,61 @@ async def test_a2_gets_only_research_tools_and_allowlisted_method_skills(tmp_pat
     assert "sector-selection" not in listed.content
 
 
+@pytest.mark.asyncio
+async def test_only_a2_reaches_the_internal_research_tools(tmp_path):
+    from sector_pulse.infrastructure.agents.roles import AgentRole, RoleAgentFactory, RoleRuntime
+
+    repository, snapshot, root, child = setup_roles(tmp_path)
+    internal = {
+        "search_internal_research",
+        "inspect_research_source",
+        "accept_internal_evidence",
+    }
+    names = internal | {
+        "delegate",
+        "inspect_artifacts",
+        "inspect_tasks",
+        "request_selection",
+        "request_finish",
+        "search_news",
+        "read_news_detail",
+        "inspect_evidence",
+        "submit_analysis",
+        "skill",
+    }
+    runtimes = {
+        role: RoleRuntime(
+            provider="fixture",
+            model="fixture-model",
+            prompt=f"fixed {role.value}",
+            pricing=None,
+        )
+        for role in AgentRole
+    }
+    factory = RoleAgentFactory(
+        repository=repository,
+        run_id=snapshot.run_id,
+        provider_builder=lambda runtime: Endpoint(),
+        role_runtimes=runtimes,
+        tool_builders={name: tool_builder(name) for name in names},
+        tool_reserved_cny={name: Decimal("0") for name in names},
+    )
+
+    researcher = factory.create(child.task_id, attempt=1)
+    parent = factory.create(root.task_id, attempt=1)
+
+    # 注册表里有这三件工具，白名单才把它们交给 A2；A0 的注册表里一件也没有。
+    assert {tool.name for tool in researcher.tool_registry.list_all()} == {
+        "search_news",
+        "read_news_detail",
+        "inspect_evidence",
+        "submit_analysis",
+        "inspect_artifacts",
+        "skill",
+    } | internal
+    assert internal.isdisjoint(tool.name for tool in parent.tool_registry.list_all())
+
+
 def test_a2_production_skills_are_method_only_and_allowlisted():
     from pathlib import Path
 

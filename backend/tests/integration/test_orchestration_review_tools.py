@@ -4,7 +4,19 @@ from uuid import UUID, uuid4
 import pytest
 
 
-def build_review_context(tmp_path, *, with_quality_issue: bool = False):
+def build_review_context(
+    tmp_path,
+    *,
+    with_quality_issue: bool = False,
+    evidence_artifact=None,
+    section_claims=None,
+):
+    """A4 的绑定上下文。
+
+    `evidence_artifact` 与 `section_claims` 只在测内部证据通道时用：前者把一条已接纳证据的
+    Artifact 引用放进快照（挂在一个 A2 任务下，并给它一个当前 attempt），后者给章节装上引用
+    那条证据的事实。不用这两个参数时快照与章节同从前一模一样。
+    """
     from sector_pulse.application.orchestration.editorial_context import (
         BoundReviewContextReader,
     )
@@ -80,11 +92,18 @@ def build_review_context(tmp_path, *, with_quality_issue: bool = False):
                 ("主体缺失。" if with_quality_issue and index == 1 else f"板块{index}出现异动。")
                 + "中性分析" * 110
             ),
-            claims=(),
-            source_ids=(f"event-{index}",),
+            claims=claims,
+            source_ids=tuple(
+                dict.fromkeys(
+                    (f"event-{index}", *(eid for c in claims for eid in c.evidence_ids))
+                )
+            ),
             character_count=450,
         )
-        for index in range(1, 4)
+        for index, claims in (
+            (index, (section_claims or {}).get(f"section-{index}", ()))
+            for index in range(1, 4)
+        )
     )
     article = ArticleDraft(
         draft_id=draft_id,
@@ -158,6 +177,19 @@ def build_review_context(tmp_path, *, with_quality_issue: bool = False):
         scope=f"article:{run_id}",
         status=TaskStatus.COMPLETED,
     )
+    researchers = (
+        (
+            TaskRecord(
+                task_id=evidence_artifact.task_id,
+                parent_id=root_id,
+                role="A2",
+                scope="industry:1",
+                status=TaskStatus.COMPLETED,
+            ),
+        )
+        if evidence_artifact is not None
+        else ()
+    )
     reviewer = TaskRecord(
         task_id=reviewer_id,
         parent_id=root_id,
@@ -175,8 +207,8 @@ def build_review_context(tmp_path, *, with_quality_issue: bool = False):
         RunSnapshot(
             run_id=run_id,
             deadline=now + timedelta(minutes=10),
-            tasks=(root, writer, reviewer),
-            artifacts=(draft_ref,),
+            tasks=(root, writer, reviewer, *researchers),
+            artifacts=(draft_ref, *((evidence_artifact,) if evidence_artifact else ())),
         ),
         -1,
         "review.created",

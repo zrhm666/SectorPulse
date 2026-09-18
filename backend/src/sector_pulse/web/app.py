@@ -21,6 +21,7 @@ from sector_pulse.web.dependencies import (
 from sector_pulse.web.errors import register_error_handlers
 from sector_pulse.web.routers.data_runs import build_data_runs_router
 from sector_pulse.web.routers.operations import build_operations_router
+from sector_pulse.web.routers.research_library import build_research_library_router
 from sector_pulse.web.routers.review import build_review_governance_router
 from sector_pulse.web.routers.run_comparisons import build_run_comparisons_router
 from sector_pulse.web.routers.runs import build_runs_review_router
@@ -40,9 +41,16 @@ def create_app(
         database_path = settings.database_path
     else:
         settings = settings.model_copy(update={"database_url": None})
+    # 资料库只有一条来源：注入的那一份装配结果。治理路由拿到的是它，A2 拿到的是它的窄
+    # 接口（`agent_services()`）——两处各自组装一次，就是把"同一次运行里只有一份权威库"
+    # 变成一句要靠自觉维持的话。没有它时路由整体 404（关掉 RAG 是正常部署形态）。
+    research_library = (overrides or {}).get("research_library")
     dependencies = build_runtime_dependencies(
         settings,
         database_path,
+        research_library=(
+            research_library.agent_services() if research_library is not None else None
+        ),
         enable_multi_agent=True,
     )
     database = dependencies.database
@@ -116,6 +124,7 @@ def create_app(
             bus=dependencies.bus,
         )
     )
+    app.include_router(build_research_library_router(research_library))
     app.include_router(build_review_governance_router(router_dependencies.review))
     app.include_router(
         build_shadow_prompts_router(

@@ -11,6 +11,7 @@ import OperationsDashboardPage from './pages/OperationsDashboardPage'
 import SystemStatusPage from './pages/SystemStatusPage'
 import NewAnalysisPage from './pages/NewAnalysisPage'
 import ReviewWorkspacePage from './pages/ReviewWorkspacePage'
+import ResearchLibraryPage from './pages/ResearchLibraryPage'
 
 export function AppRoutes() {
   return (
@@ -25,6 +26,7 @@ export function AppRoutes() {
         <Route path="/data-runs/:runId" element={<DataRunPage />} />
         <Route path="/schedules" element={<SchedulePage />} />
         <Route path="/task-runs/:runId" element={<TaskRunPage />} />
+        <Route path="/research-library" element={<ResearchLibraryPage />} />
         <Route path="/shadow-acceptance" element={<ShadowAcceptancePage />} />
         <Route path="/system" element={<SystemStatusPage />} />
       </Route>

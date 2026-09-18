@@ -6,15 +6,23 @@ process environment — verified: `create_app()` alone is enough to put
 variable and then migrate and write rows. Without this guard the suite reaches the
 business database purely because it was started without the canonical env
 blanking, which the project forbids outright.
+
+The name rule itself lives in `dedicated_resources`, together with the bucket and
+collection guards that state the same thing about other servers. `BusinessDatabaseRefused`
+is kept as the name those call sites and tests already catch.
 """
 
 import os
 
 from sqlalchemy.engine import make_url
 
+from backend.tests.dedicated_resources import (
+    BusinessResourceRefused,
+    require_test_name,
+)
 
-class BusinessDatabaseRefused(RuntimeError):
-    """The configured PostgreSQL connection is not a dedicated test database."""
+#: 与 bucket / collection 共用同一个拒绝类型：这是一条规则，调用方该只 `except` 一次。
+BusinessDatabaseRefused = BusinessResourceRefused
 
 
 def _database_name(url: str) -> str:
@@ -34,8 +42,10 @@ def isolate_configured_postgres_url() -> None:
     if url is None:
         os.environ["SECTOR_PULSE_DATABASE_URL"] = ""
         return
-    if url and not _database_name(url).endswith("_test"):
-        raise BusinessDatabaseRefused(
-            f"refusing to run the suite against {_database_name(url)!r}; "
-            "SECTOR_PULSE_DATABASE_URL must name a dedicated database ending in _test"
+    if url:
+        require_test_name(
+            kind="database",
+            value=_database_name(url),
+            variable="SECTOR_PULSE_DATABASE_URL",
+            suffixes=("_test",),
         )

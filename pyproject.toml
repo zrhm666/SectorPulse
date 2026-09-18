@@ -12,6 +12,7 @@ dependencies = ["akshare>=1.17,<2", "fastapi>=0.115,<1", "httpx>=0.28,<1", "pand
 [project.optional-dependencies]
 dev = ["mypy>=1.17,<2", "pandas-stubs>=2.2,<3", "pip-audit>=2.9,<3", "pytest>=8.4,<10", "pytest-asyncio>=1,<2", "pytest-cov>=6,<8", "ruff>=0.12,<1", "types-PyYAML>=6,<7"]
 postgres = ["psycopg[binary]>=3.2,<4", "SQLAlchemy>=2.0,<3"]
+rag = ["markdown-it-py>=4,<5", "minio>=7.2,<8", "PyMuPDF>=1.26,<2", "pymilvus==2.6.17"]
 
 [project.scripts]
 sector-pulse = "sector_pulse.cli:app"
@@ -24,7 +25,14 @@ include = ["backend/src/sector_pulse/resources/**/*.json"]
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 addopts = "-ra --strict-markers"
-markers = ["live: requires explicit live network access", "live_llm: requires explicit live LLM access", "postgres: requires SECTOR_PULSE_DATABASE_URL and an isolated PostgreSQL database"]
+markers = [
+    "live: requires explicit live network access",
+    "live_llm: requires explicit live LLM access",
+    "postgres: requires SECTOR_PULSE_DATABASE_URL and an isolated PostgreSQL database",
+    "minio: requires a dedicated MinIO test bucket",
+    "milvus: requires a dedicated Milvus test collection",
+    "live_rag: requires a real provider and an approved call budget",
+]
 asyncio_mode = "auto"
 
 [tool.ruff]

@@ -57,7 +57,10 @@ from sector_pulse.application.orchestration.review_tools import (
     CheckDraftRulesService,
     SubmitReviewService,
 )
+from sector_pulse.application.research_library.artifacts import AcceptInternalEvidenceService
+from sector_pulse.application.research_library.retrieval import ResearchRetrievalService
 from sector_pulse.application.review.governance_service import GovernanceService
+from sector_pulse.config.rag_settings import RagSettings
 from sector_pulse.domain.market.quality import QualityThresholds
 from sector_pulse.domain.news.news_retrieval import SectorEntityConfig
 from sector_pulse.domain.runs.time import AnalysisMode, AnalysisRun
@@ -74,6 +77,11 @@ from sector_pulse.infrastructure.agents.evidence_tools import (
 )
 from sector_pulse.infrastructure.agents.news_tools import CollectInitialNewsTool
 from sector_pulse.infrastructure.agents.proposal_tools import ProposeCandidatesTool
+from sector_pulse.infrastructure.agents.research_library_tools import (
+    AcceptInternalEvidenceTool,
+    InspectResearchSourceTool,
+    SearchInternalResearchTool,
+)
 from sector_pulse.infrastructure.agents.research_tools import ReadNewsDetailTool, SearchNewsTool
 from sector_pulse.infrastructure.agents.review_tools import CheckDraftRulesTool, SubmitReviewTool
 from sector_pulse.infrastructure.agents.roles import AgentToolContext, ContextToolBuilder
@@ -98,6 +106,10 @@ from sector_pulse.storage.ports.news import (
     NewsEvidenceRepositoryPort,
     NewsRepositoryPort,
     ResearchSearchRepositoryPort,
+)
+from sector_pulse.storage.ports.research_library import (
+    AcceptedEvidenceRepositoryPort,
+    ResearchLibraryRepositoryPort,
 )
 from sector_pulse.storage.ports.writing import (
     DraftRulesRepositoryPort,
@@ -126,6 +138,25 @@ REQUIRED_BUSINESS_TOOL_NAMES = frozenset(
         "submit_review",
     }
 )
+
+#: RAG 打开时才存在的那三件 A2 工具。
+RAG_BUSINESS_TOOL_NAMES = frozenset(
+    {
+        "search_internal_research",
+        "inspect_research_source",
+        "accept_internal_evidence",
+    }
+)
+
+#: RAG 打开时的完整契约。
+#:
+#: 单独一份而不是就地改 `REQUIRED_BUSINESS_TOOL_NAMES`：关掉 RAG 的部署必须仍然拿到原来
+#: 那一份契约，否则"少接了三件工具"与"没开 RAG"会变成同一件事，而它们是两件不同的事——
+#: 前者是半接线的部署，后者是刻意关闭的能力。
+#:
+#: 这份是**期望**而不是"从结果里减去现存的名字"：谁决定开 RAG，谁就要提交这份契约。若从
+#: 结果反推，一个只接了一半的部署会静默退化成"没有那三件工具"。
+RAG_ENABLED_REQUIRED_BUSINESS_TOOL_NAMES = REQUIRED_BUSINESS_TOOL_NAMES | RAG_BUSINESS_TOOL_NAMES
 
 BusinessToolBuilderSource = Callable[
     [UUID, Literal["fixture", "live"]], Mapping[str, ContextToolBuilder]
@@ -278,6 +309,19 @@ class A1BusinessToolFactory:
 
 
 @dataclass(frozen=True)
+class A2ResearchLibraryServices:
+    """A2 能碰到的内部资料库三件东西（规格 15.2）。
+
+    打包成一个可选的依赖，而不是三个各自可选的字段：检索、回库与上限必须同时在场，缺一个
+    就是半接线的部署。它是 `None` 还是整体在场，正好就是"这个 run 有没有 RAG"。
+    """
+
+    retrieval: ResearchRetrievalService
+    repository: ResearchLibraryRepositoryPort
+    settings: RagSettings
+
+
+@dataclass(frozen=True)
 class A2ToolDependencies:
     orchestration: SnapshotRepository
     selections: OrchestrationSelectionRepositoryPort
@@ -291,6 +335,7 @@ class A2ToolDependencies:
     sector_analyses: SectorAnalysisRepositoryPort
     detail: NewsDetailPort
     keyword_news: KeywordNewsSearchPort
+    research_library: A2ResearchLibraryServices | None = None
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
 
@@ -385,12 +430,49 @@ class A2BusinessToolFactory:
                 clock=deps.clock,
             )
 
-        return {
+        builders: dict[str, ContextToolBuilder] = {
             "search_news": search_news,
             "read_news_detail": read_news_detail,
             "inspect_evidence": inspect_evidence,
             "submit_analysis": submit_analysis,
         }
+
+        services = deps.research_library
+        if services is not None:
+            # 接纳台账与查看台账是同一个对象：`inspect` 记下的定位，就是 `accept` 唯一会
+            # 认的出处。一次 run 一个，因为账本本身按 (run, task, attempt, retrieval, chunk)
+            # 记账，跨任务不会串。
+            acceptance = AcceptInternalEvidenceService(
+                retrieval=services.retrieval,
+                repository=services.repository,
+                committer=committer,
+                clock=deps.clock,
+            )
+
+            def search_internal_research(context: AgentToolContext) -> Tool:
+                bound = context_for(context)
+                return SearchInternalResearchTool(
+                    services.retrieval,
+                    repository=services.repository,
+                    context=bound,
+                    settings=services.settings,
+                    clock=deps.clock,
+                )
+
+            def inspect_research_source(context: AgentToolContext) -> Tool:
+                bound = context_for(context)
+                return InspectResearchSourceTool(acceptance, context=bound, clock=deps.clock)
+
+            def accept_internal_evidence(context: AgentToolContext) -> Tool:
+                bound = context_for(context)
+                return AcceptInternalEvidenceTool(acceptance, context=bound, clock=deps.clock)
+
+            builders |= {
+                "search_internal_research": search_internal_research,
+                "inspect_research_source": inspect_research_source,
+                "accept_internal_evidence": accept_internal_evidence,
+            }
+        return builders
 
 
 @dataclass(frozen=True)
@@ -405,6 +487,8 @@ class A3A4ToolDependencies:
     draft_rules: DraftRulesRepositoryPort
     governance: GovernanceService
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
+    # 没接内部资料库时是 None：A3/A4 的确定性检查照常跑，只是没有任何内部引用算数。
+    accepted_evidence: AcceptedEvidenceRepositoryPort | None = None
 
 
 class A3A4BusinessToolFactory:
@@ -483,6 +567,7 @@ class A3A4BusinessToolFactory:
                     committer=committer,
                     outlines=deps.outlines,
                     news_evidence=deps.news_evidence,
+                    accepted_evidence=deps.accepted_evidence,
                 ),
                 drafts=deps.drafts,
                 context=editorial_context(context),
@@ -507,6 +592,7 @@ class A3A4BusinessToolFactory:
                     orchestration=deps.orchestration,
                     committer=committer,
                     governance=deps.governance,
+                    accepted_evidence=deps.accepted_evidence,
                 ),
                 rules=deps.draft_rules,
                 context=review_context(context),
@@ -567,10 +653,15 @@ class AgentBusinessToolFactory:
 class CompositeBusinessToolFactory:
     """Merge role-specific factories and enforce one complete registry."""
 
-    def __init__(self, *factories: BusinessToolFactory) -> None:
+    def __init__(
+        self,
+        *factories: BusinessToolFactory,
+        required_names: frozenset[str] = REQUIRED_BUSINESS_TOOL_NAMES,
+    ) -> None:
         if not factories:
             raise ValueError("at least one business tool factory is required")
         self._factories = tuple(factories)
+        self._required_names = frozenset(required_names)
 
     def build(
         self,
@@ -585,16 +676,21 @@ class CompositeBusinessToolFactory:
             if duplicate:
                 raise ValueError(f"duplicate business tools: {', '.join(duplicate)}")
             merged.update(current)
-        return AgentBusinessToolFactory(merged).build(run_id=run_id, provider=provider)
+        return AgentBusinessToolFactory(merged, required_names=self._required_names).build(
+            run_id=run_id, provider=provider
+        )
 
 
 __all__ = [
     "A2BusinessToolFactory",
+    "A2ResearchLibraryServices",
     "A2ToolDependencies",
     "A1BusinessToolFactory",
     "A1ToolDependencies",
     "AgentBusinessToolFactory",
     "BusinessToolFactory",
     "CompositeBusinessToolFactory",
+    "RAG_BUSINESS_TOOL_NAMES",
+    "RAG_ENABLED_REQUIRED_BUSINESS_TOOL_NAMES",
     "REQUIRED_BUSINESS_TOOL_NAMES",
 ]

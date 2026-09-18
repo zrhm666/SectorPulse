@@ -1,0 +1,403 @@
+# 冲突裁决器的表驱动用例（规格 14 的优先级、规格 22.3 的类别）。
+#
+# 每一行给出两条事实、它们的出处元数据、以及喂给裁决器的 NLI 判定——判定是**输入**而不是
+# 被测对象，所以这张表不需要任何真实模型（规格 22.3 最后一句）。
+#
+# 出处字段的缺省值见下方 `defaults`，每个用例只写它真正要改的那几个：
+#   document_id doc_a / version_number 1 / status ACTIVE / source_weight 0.5
+#   content_origin native / requires_verification false / relevance null
+#
+# `verdict: null` 表示这次 NLI 没有完成（Provider 失败、超时或未配置）。
+#
+# 规格 22.3 要求 NLI 数据集覆盖「时间不同、单位不同、条件范围不同、预测与事实差异、主体
+# 混淆、OCR 错字」。其中单位、条件、预测三类在裁决器里走的是同一条路——NLI 判定为
+# NEUTRAL，于是不是冲突——它们仍然各占一行，因为这行记录的是一类输入，将来真实 Provider
+# 的输出就是照这些行去核对的。
+
+defaults:
+  document_id: doc_a
+  version_number: 1
+  status: ACTIVE
+  source_weight: 0.5
+  content_origin: native
+  requires_verification: false
+  relevance: null
+
+cases:
+  - id: deleted_version_loses_to_the_active_one
+    note: 规格 14 第 1 条：状态优先。两条来自不同文档，所以这条只可能由状态决定。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, status: DELETED}
+    verdict: {relation: CONTRADICTION, confidence: 0.93}
+    expected: {status: RESOLVED, rule: STATUS, selected: left, nli_relation: CONTRADICTION}
+
+  - id: an_active_old_version_still_beats_an_archived_newer_one
+    note: 状态在版本之前：一条 ACTIVE 的旧版本仍然比一条已归档的新版本更有效。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 1, status: ARCHIVED}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, version_number: 5}
+    verdict: {relation: CONTRADICTION, confidence: 0.88}
+    expected: {status: RESOLVED, rule: STATUS, selected: right, nli_relation: CONTRADICTION}
+
+  - id: the_newer_version_of_one_document_wins
+    note: 规格 14 第 2 条：同一 document_id 下的新版本优先于旧版本。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 2}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_a, version_number: 1}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EXPLICIT_VERSION, selected: left, nli_relation: CONTRADICTION}
+
+  - id: version_numbers_of_different_documents_do_not_decide
+    note: 第 2 条限定在同一份文档内。两份不同文档的版本号放在一起比是没有意义的。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 7}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, version_number: 1}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: CONTRADICTION}
+
+  - id: different_effective_times_are_not_a_conflict
+    note: 规格 14 第 3 条与 NOT_CONFLICT 的定义：不同时间的两条事实说的是两件事。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      valid_time: {from: 2026-01-01, to: 2026-03-31}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      valid_time: {from: 2026-04-01, to: 2026-06-30}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: NOT_CONFLICT, rule: EFFECTIVE_TIME, selected: null, nli_relation: CONTRADICTION}
+
+  - id: disjoint_windows_beat_a_failed_check
+    note: 时间不相交是确定性结论，不需要 NLI；一次失败的检查不该把它改写成未知。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      valid_time: {from: 2026-01-01, to: 2026-03-31}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      valid_time: {from: 2026-04-01, to: 2026-06-30}
+    verdict: null
+    expected: {status: NOT_CONFLICT, rule: EFFECTIVE_TIME, selected: null, nli_relation: null}
+
+  - id: the_side_matching_the_question_window_wins
+    note: 规格 14 第 3 条：优先匹配问题指定时间。两段有重叠（都算可比），但只有左边落在问题问的那一段里。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      valid_time: {from: 2026-06-01, to: 2026-06-30}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      valid_time: {from: 2026-01-01, to: 2026-06-10}
+    query_time_range: {from: 2026-06-15, to: 2026-06-30}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EFFECTIVE_TIME, selected: left, nli_relation: CONTRADICTION}
+
+  - id: a_timeless_claim_does_not_match_a_stated_window
+    note: 没有写适用时间的一条事实，并不因此匹配问题上指定的时间。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      valid_time: null
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      valid_time: {from: 2026-06-01, to: 2026-06-30}
+    query_time_range: {from: 2026-06-15, to: 2026-06-30}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EFFECTIVE_TIME, selected: right, nli_relation: CONTRADICTION}
+
+  - id: source_weight_decides
+    note: 规格 14 第 4 条：来源权重由资料治理配置，不由 Agent 临时修改。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, source_weight: 0.9}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, source_weight: 0.3}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: SOURCE_WEIGHT, selected: left, nli_relation: CONTRADICTION}
+
+  - id: original_text_beats_a_vision_derived_number
+    note: 规格 14 第 5 条：原生文本优先于视觉派生内容。权重相同，因此这条只可能由证据质量决定。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, content_origin: native}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, content_origin: vision_derived}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EVIDENCE_QUALITY, selected: left, nli_relation: CONTRADICTION}
+
+  - id: a_lead_awaiting_verification_drops_below_parsed_text
+    note: 待核验把一条原生事实降到最低一档，于是它输给一条普通的 OCR 结果。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, content_origin: native, requires_verification: true}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, content_origin: ocr}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EVIDENCE_QUALITY, selected: right, nli_relation: CONTRADICTION}
+
+  - id: equal_independent_active_sources_are_unresolved
+    note: 两条各自有效且相互独立的来源矛盾时，规则无法判断——保留双方，交给人。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b}
+    verdict: {relation: CONTRADICTION, confidence: 0.92}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: CONTRADICTION}
+
+  - id: relevance_alone_does_not_eliminate_an_independent_conflict
+    note: 规格 14 第 6 条：相关性不能独自消灭独立有效来源之间的冲突。排序分高不是证据。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, relevance: 0.95}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, relevance: 0.2}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: CONTRADICTION}
+
+  - id: relevance_orders_within_one_source
+    note: 同一个版本内部的两段话不是两个独立来源，此处相关性只用于排序，不构成"消灭冲突"。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 1, relevance: 0.9}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      stance: opposing
+      source: {document_id: doc_a, version_number: 1, relevance: 0.3}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: RELEVANCE, selected: left, nli_relation: CONTRADICTION}
+
+  - id: a_failed_check_is_not_a_clean_bill
+    note: 规格 13：NLI 未完成时标记 CHECK_FAILED，不能假装没有冲突。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b}
+    verdict: null
+    expected: {status: CHECK_FAILED, rule: null, selected: null, nli_relation: null}
+
+  - id: a_low_confidence_contradiction_does_not_override
+    note: 规格 13：低于阈值的判定结果就是 UNCERTAIN，不得触发自动覆盖。阈值由 policy 给出（0.7）。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b}
+    verdict: {relation: CONTRADICTION, confidence: 0.4}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: UNCERTAIN}
+
+  - id: a_verdict_exactly_at_the_threshold_is_trusted
+    note: 门槛是"低于"而不是"不高于"：等于阈值的判定照常生效。与上一条一起钉住边界的两侧。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, status: DELETED}
+    verdict: {relation: CONTRADICTION, confidence: 0.7}
+    expected: {status: RESOLVED, rule: STATUS, selected: left, nli_relation: CONTRADICTION}
+
+  - id: an_uncertain_verdict_is_unresolved_not_agreement
+    note: 判定不了不等于没有冲突，因此不能记为 NOT_CONFLICT。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b}
+    verdict: {relation: UNCERTAIN, confidence: 0.95}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: UNCERTAIN}
+
+  - id: entailment_is_agreement
+    note: 一条支持另一条，就不是冲突；没有规则参与，因此 rule 为空。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {}
+    right:
+      statement: 海外储能订单在第二季度增长
+      object: 增长
+      source: {document_id: doc_b}
+    verdict: {relation: ENTAILMENT, confidence: 0.95}
+    expected: {status: NOT_CONFLICT, rule: null, selected: null, nli_relation: ENTAILMENT}
+
+  - id: different_units_are_not_a_conflict
+    note: 规格 22.3「单位不同」：同一个数换了单位，NLI 判定为无蕴含关系，不是矛盾。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 85%
+      source: {}
+    right:
+      statement: 海外储能订单同比增长0.85亿元
+      object: 0.85亿元
+      source: {document_id: doc_b}
+    verdict: {relation: NEUTRAL, confidence: 0.86}
+    expected: {status: NOT_CONFLICT, rule: null, selected: null, nli_relation: NEUTRAL}
+
+  - id: a_forecast_does_not_contradict_the_observed_fact
+    note: 规格 22.3「预测与事实差异」：预测与已发生的事实并存，不是互相矛盾。
+    left:
+      statement: 预计海外储能订单将继续增长
+      object: 继续增长
+      qualifiers: [预测]
+      source: {}
+    right:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_b}
+    verdict: {relation: NEUTRAL, confidence: 0.81}
+    expected: {status: NOT_CONFLICT, rule: null, selected: null, nli_relation: NEUTRAL}
+
+  - id: a_different_condition_scope_is_not_a_conflict
+    note: 规格 22.3「条件范围不同」：限定在两个市场里的两条事实不是同一件事。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      qualifiers: [欧洲市场]
+      source: {}
+    right:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      qualifiers: [北美市场]
+      source: {document_id: doc_b}
+    verdict: {relation: NEUTRAL, confidence: 0.79}
+    expected: {status: NOT_CONFLICT, rule: null, selected: null, nli_relation: NEUTRAL}
+
+  # 下面几行让优先级本身可被证伪：每一行里两条规则都会给出**相反**的结论，断言的是
+  # 靠前的那一条。没有这几行，把两个分支在代码里对调的改动不会有任何用例变红。
+
+  - id: status_outranks_source_weight
+    note: 状态在第 1 位、权重在第 4 位：一份被删除的高权重资料仍然输给一份在架的低权重资料。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, source_weight: 0.1}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, status: DELETED, source_weight: 0.9}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: STATUS, selected: left, nli_relation: CONTRADICTION}
+
+  - id: explicit_version_outranks_source_weight
+    note: 同一份文档的新旧版本放在一起，版本第 2、权重第 4：新版本赢，哪怕它更轻。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 2, source_weight: 0.1}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_a, version_number: 1, source_weight: 0.9}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EXPLICIT_VERSION, selected: left, nli_relation: CONTRADICTION}
+
+  - id: effective_time_outranks_source_weight
+    note: 只有左边落在问题问的那一段里，权重第 4 因此轮不到发言。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      valid_time: {from: 2026-06-01, to: 2026-06-30}
+      source: {document_id: doc_a, source_weight: 0.1}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      valid_time: {from: 2026-01-01, to: 2026-06-10}
+      source: {document_id: doc_b, source_weight: 0.9}
+    query_time_range: {from: 2026-06-15, to: 2026-06-30}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: EFFECTIVE_TIME, selected: left, nli_relation: CONTRADICTION}
+
+  - id: source_weight_outranks_evidence_quality
+    note: 一条低权重的原生文本输给一条高权重的视觉派生数值：权重第 4、证据质量第 5。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, source_weight: 0.2}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      source: {document_id: doc_b, source_weight: 0.8, content_origin: vision_derived}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: RESOLVED, rule: SOURCE_WEIGHT, selected: right, nli_relation: CONTRADICTION}
+
+  - id: a_missing_ranking_score_is_not_a_low_one
+    note: 一侧没有排序分。缺失不是"分数低"，拿它当依据选赢家等于用一个没有量到的度量下结论。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 1, relevance: 0.9}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      stance: opposing
+      source: {document_id: doc_a, version_number: 1, relevance: null}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: CONTRADICTION}
+
+  - id: equal_relevance_within_one_source_stays_unresolved
+    note: 第 6 条要求相关性上真的分得出高下；两条一样相关时它不提供任何依据。
+    left:
+      statement: 海外储能订单同比增长85%
+      object: 同比增长85%
+      source: {document_id: doc_a, version_number: 1, relevance: null}
+    right:
+      statement: 海外储能订单同比下滑30%
+      object: 同比下滑30%
+      stance: opposing
+      source: {document_id: doc_a, version_number: 1, relevance: null}
+    verdict: {relation: CONTRADICTION, confidence: 0.9}
+    expected: {status: UNRESOLVED, rule: null, selected: null, nli_relation: CONTRADICTION}

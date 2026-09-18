@@ -14,11 +14,12 @@ src/sector_pulse/
 │   ├── runs/          # 内容运行命令/查询门面
 │   ├── tasks/         # 任务执行、协调、调度
 │   ├── comparison/    # 运行对比模型、差异计算和查询
+│   ├── research_library/  # 内部资料摄取、切片、检索、冲突裁决、维护
 │   ├── operations/    # 运营汇总
 │   └── diagnostics/   # Phase 0/1A 诊断
 ├── storage/
 │   ├── sqlite/        # market/news/runs/writing/review/evaluation 业务仓库
-│   ├── postgres/      # 与 SQLite 相同的业务目录与文件名
+│   ├── postgres/      # 与 SQLite 相同的业务目录与文件名；research_library 的权威库只在这里
 │   ├── migrations/    # 公共 SQL + sqlite/postgres 方言补充
 │   ├── ports/         # 按业务划分的持久化协议
 │   ├── database_config.py
@@ -61,6 +62,14 @@ src/sector_pulse/
 | 审核证据裁定 | application/review/evidence_decision_service.py |
 | 定时任务 | application/tasks/scheduler.py |
 | 运行对比 | application/comparison/run_comparison_queries.py |
+| 资料摄取与切片 | application/research_library/ingestion.py、chunking.py |
+| 内部资料检索 | application/research_library/retrieval.py |
+| 冲突裁决规则 | application/research_library/conflicts.py（**已实现但未接进运行时**：没有任何生产装配会构造 ClaimExtractionService / ConflictService，见实施计划 E167） |
+| 资料库维护 | application/research_library/maintenance.py |
+| RAG 运行配置 | config/rag_settings.py |
+| 资料库对象存储 | infrastructure/research_library/assets/minio.py |
+| 派生向量索引 | infrastructure/research_library/vector/milvus.py |
+| RAG Provider 适配 | infrastructure/research_library/providers/openai_compatible.py |
 | 数据库实现选择 | storage/runtime_bundle.py |
 | 行情领域类型 | domain/market/market.py |
 | 新闻证据边界 | domain/news/evidence.py |
@@ -115,3 +124,25 @@ python -m mypy
 PostgreSQL 合约只能在明确隔离的测试库运行，不要将业务库连接传给测试。
 前端构建后的真实 HTTP 验证用 `python scripts/verify-runtime-smoke.py`，
 默认创建临时 SQLite，以 Fixture 验证生成、审核、批准、导出、审计和重试链路。
+
+### 内部研究资料库
+
+资料库的权威状态在 PostgreSQL，MinIO 与 Milvus 是适配器；Milvus 只保存可由权威库重建的派生索引。需要真实服务的用例分成三档，各自有独立标记与同意书，任何一档在离线运行时都必须报告为跳过，不能报告为通过：
+
+```powershell
+# 离线：黄金集与夹具/内存适配器，不需要任何真实资源
+python -m pytest backend/tests/evaluation/test_research_rag_golden.py -q
+
+# 专用基础设施：资源名必须以 _test / -test 结尾，否则用例在建立连接之前就拒绝
+$env:SECTOR_PULSE_DATABASE_URL='postgresql+psycopg://.../sectorpulse_test'   # 资料库这一组读它
+$env:SECTOR_PULSE_TEST_DATABASE_URL='postgresql+psycopg://.../sectorpulse_test'  # 编排那一组读它
+$env:SECTOR_PULSE_RAG_MINIO_BUCKET='sectorpulse-research-test'
+$env:SECTOR_PULSE_RAG_MILVUS_COLLECTION='internal_research_chunks_test'
+python -m pytest backend/tests -q -m "postgres or minio or milvus"
+
+# 真实 Provider 冒烟与 A0→A4 真实链路：需要同意书，且有调用次数与墙钟上限
+New-Item .live-rag-consent, .live-llm-consent -ItemType File -Force
+python -m pytest backend/tests -q --run-live-rag --run-live-llm
+```
+
+第四档 Live 行情（`--run-live` 与 `.live-data-consent`）与资料库无关，不要用它的同意书放行上面两档——三档各自看自己的标记。`--basetemp` 必须显式指向仓库内的目录，默认临时目录在本机会因权限报错。

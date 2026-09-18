@@ -16,7 +16,7 @@ def test_default_migrations_apply_all_versions(tmp_path: Path) -> None:
         versions = connection.execute(
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
-    assert versions == [(n,) for n in range(1, 35)]
+    assert versions == [(n,) for n in range(1, 37)]
 
 
 class RecordingEngine:
@@ -50,12 +50,12 @@ def test_postgres_default_resources_include_all_versions_and_dialect() -> None:
         "postgresql+psycopg://unused:unused@localhost/unused", cast(Engine, engine)
     )
     database.initialize()
-    assert engine.versions == list(range(1, 35))
+    assert engine.versions == list(range(1, 37))
     assert any("INTERRUPTED" in statement for statement in engine.statements)
     assert all("PRAGMA" not in statement.upper() for statement in engine.statements)
     count = len(engine.statements)
     database.initialize()
-    assert engine.versions == list(range(1, 35))
+    assert engine.versions == list(range(1, 37))
     assert len(engine.statements) == count + 2
 
 

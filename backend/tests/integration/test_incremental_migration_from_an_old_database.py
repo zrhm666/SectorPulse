@@ -90,6 +90,52 @@ def _migration_versions(database_path: Path) -> set[int]:
         return {row[0] for row in connection.execute("SELECT version FROM schema_migrations")}
 
 
+RESEARCH_LIBRARY_TABLES = (
+    "research_documents",
+    "research_document_versions",
+    "research_document_assets",
+    "research_chunks",
+    "research_ingestion_jobs",
+    "research_index_outbox",
+    "research_retrieval_audits",
+    "research_conflict_decisions",
+    "internal_research_evidence",
+    "internal_research_evidence_sources",
+)
+
+
+def _table_names(database_path: Path) -> set[str]:
+    with sqlite3.connect(database_path) as connection:
+        return {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+
+
+def test_the_upgrade_adds_the_research_library_without_inventing_data(tmp_path: Path) -> None:
+    """Migration 035 only adds tables, and an added table must arrive empty.
+
+    The research library itself never runs on SQLite, but 035 is a common migration:
+    a file created before it has to keep working, and it must not appear to already
+    hold documents that nobody ever uploaded.
+    """
+    database_path = tmp_path / "upgraded-with-library.db"
+    historical = uuid4()
+    database = SQLiteDatabase(database_path)
+    database.initialize(_migrations_before(35, tmp_path))
+    _insert_run_as_the_old_schema_allowed(database_path, historical)
+    assert not _table_names(database_path) & set(RESEARCH_LIBRARY_TABLES)
+
+    database.initialize()
+
+    assert set(RESEARCH_LIBRARY_TABLES) <= _table_names(database_path)
+    with sqlite3.connect(database_path) as connection:
+        for table in RESEARCH_LIBRARY_TABLES:
+            count = connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+            assert count == 0, table
+    assert SQLitePhase1BRunsRepository(database).get_run(historical) is not None
+
+
 def test_an_upgraded_database_serves_its_old_run_and_accepts_a_new_one(tmp_path: Path) -> None:
     """Both halves of the migration promise, on one upgraded file."""
     database_path = tmp_path / "upgraded.db"

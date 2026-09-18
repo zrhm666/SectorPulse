@@ -166,6 +166,7 @@ async def run_review_agent(
         },
         response_model=ReviewReport,
         fixture_key=f"review:{draft.version}",
+        examples=getattr(prompt, "examples", ()),
     )
     result = await llm.generate_structured(request)
     invocation_sink(

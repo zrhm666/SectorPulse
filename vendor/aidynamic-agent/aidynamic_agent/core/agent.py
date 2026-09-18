@@ -36,6 +36,10 @@ class AgentConfig:
     max_tokens: int = 8000
     system_prompt: str = ""  # Converted to Message at startup
 
+    # Few-shot demonstration turns inserted after the system message. Treated
+    # as read-only: agents share the caller's list, so never mutate it here.
+    example_messages: list[Message] = field(default_factory=list)
+
     # Termination control
     total_timeout: int = 300
     token_budget: int = 100000
@@ -84,6 +88,8 @@ class BaseAgent(ABC):
                 await self.context.add_message(
                     Message.from_text(Role.SYSTEM, self.config.system_prompt)
                 )
+            for example in self.config.example_messages:
+                await self.context.add_message(example)
         return self.context
 
     async def run(self, initial_input: str) -> AgentResult:

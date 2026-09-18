@@ -23,6 +23,9 @@ from sector_pulse.storage.ports.news import (
     ResearchSearchRepositoryPort,
 )
 from sector_pulse.storage.ports.operations import OperationsQueryPort
+from sector_pulse.storage.ports.research_library import (
+    AcceptedEvidenceRepositoryPort,
+)
 from sector_pulse.storage.ports.review import (
     DraftEditRepositoryPort,
     GovernanceRepositoryPort,
@@ -81,6 +84,9 @@ from sector_pulse.storage.postgres.news.research_search_repository import (
 from sector_pulse.storage.postgres.operations_query import PostgresOperationsQuery
 from sector_pulse.storage.postgres.orchestration.repository import (
     PostgresOrchestrationRepository,
+)
+from sector_pulse.storage.postgres.research_library import (
+    PostgresAcceptedEvidenceRepository,
 )
 from sector_pulse.storage.postgres.review.draft_edit_repository import PostgresDraftEditRepository
 from sector_pulse.storage.postgres.review.governance_repository import PostgresGovernanceRepository
@@ -144,6 +150,9 @@ from sector_pulse.storage.sqlite.news.research_search_repository import (
 )
 from sector_pulse.storage.sqlite.operations_query import SQLiteOperationsQuery
 from sector_pulse.storage.sqlite.orchestration.repository import SQLiteOrchestrationRepository
+from sector_pulse.storage.sqlite.research_library import (
+    SQLiteAcceptedEvidenceRepository,
+)
 from sector_pulse.storage.sqlite.review.draft_edit_repository import SQLiteDraftEditRepository
 from sector_pulse.storage.sqlite.review.governance_repository import SQLiteGovernanceRepository
 from sector_pulse.storage.sqlite.review.release_audit_repository import SQLiteReleaseAuditRepository
@@ -182,6 +191,7 @@ class RuntimeStorageBundle:
     editorial_drafts: EditorialDraftRepositoryPort
     draft_rules: DraftRulesRepositoryPort
     independent_reviews: IndependentReviewRepositoryPort
+    internal_evidence: AcceptedEvidenceRepositoryPort
     evidence: EvidenceRepositoryPort
     news_retrieval: NewsRetrievalRepositoryPort
     real_data_runs: RealDataRunRepositoryPort
@@ -220,6 +230,7 @@ def build_sqlite_storage(database: SQLiteDatabase) -> RuntimeStorageBundle:
         editorial_drafts=SQLiteEditorialDraftRepository(database),
         draft_rules=SQLiteDraftRulesRepository(database),
         independent_reviews=SQLiteIndependentReviewRepository(database),
+        internal_evidence=SQLiteAcceptedEvidenceRepository(database),
         evidence=SQLiteEvidenceRepository(database),
         news_retrieval=SQLiteNewsRetrievalRepository(database),
         real_data_runs=SQLiteRealDataRunRepository(database),
@@ -254,6 +265,7 @@ def build_postgres_storage(database: PostgresDatabase) -> RuntimeStorageBundle:
         editorial_drafts=PostgresEditorialDraftRepository(database),
         draft_rules=PostgresDraftRulesRepository(database),
         independent_reviews=PostgresIndependentReviewRepository(database),
+        internal_evidence=PostgresAcceptedEvidenceRepository(database),
         evidence=PostgresEvidenceRepository(database),
         news_retrieval=PostgresNewsRetrievalRepository(database),
         real_data_runs=PostgresRealDataRunRepository(database),

@@ -10,10 +10,15 @@ from sector_pulse.application.orchestration.editorial_context import (
     BoundEditorialContext,
     BoundRevisionContext,
 )
+from sector_pulse.application.research_library.evidence_access import AcceptedEvidenceIndex
 from sector_pulse.application.writing.agent_validation import validate_prohibited_language
-from sector_pulse.application.writing.draft_quality import draft_quality_issues
+from sector_pulse.application.writing.draft_quality import (
+    draft_quality_issues,
+    internal_evidence_issues,
+)
 from sector_pulse.application.writing.revision_agent import RevisionChanges, _apply, _scope
 from sector_pulse.domain.orchestration.models import ArtifactRef
+from sector_pulse.domain.research_library.retrieval import AcceptedEvidenceClaim
 from sector_pulse.domain.writing.article import (
     ArticleDraft,
     ArticleOutline,
@@ -30,10 +35,26 @@ from sector_pulse.domain.writing.editorial import (
 )
 from sector_pulse.ports.orchestration import SnapshotRepository, TransactionSession
 from sector_pulse.storage.ports.news import NewsEvidenceRepositoryPort
+from sector_pulse.storage.ports.research_library import AcceptedEvidenceRepositoryPort
 from sector_pulse.storage.ports.writing import (
     EditorialDraftRepositoryPort,
     EditorialOutlineRepositoryPort,
 )
+
+
+def _internal_source(claim: AcceptedEvidenceClaim) -> ArticleSource:
+    """内部证据在草稿来源清单里的样子：定位得住，但不给地址。
+
+    标题由服务端拼：模型能引用的只有它读过的句柄，而那些句柄带回来的定位就是拼标题的全部
+    素材。`citation_url` 一律留空——规格 15.2 不把内部下载地址交给任何 Agent。
+    """
+    first = claim.claim.source_refs[0]
+    locator = f"第 {first.page_start} 页" if first.page_start is not None else first.chunk_id
+    return ArticleSource(
+        source_id=claim.evidence_id,
+        title=f"内部研究资料库 {first.document_id}（版本 {first.document_version_id}，{locator}）",
+        publisher="内部研究资料库",
+    )
 
 
 class EditorialOutlinePersistence:
@@ -208,11 +229,15 @@ class SubmitDraftService:
         committer: AtomicArtifactCommitter,
         outlines: EditorialOutlineRepositoryPort,
         news_evidence: NewsEvidenceRepositoryPort,
+        accepted_evidence: AcceptedEvidenceRepositoryPort | None = None,
     ) -> None:
         self._orchestration = orchestration
         self._committer = committer
         self._outlines = outlines
         self._news_evidence = news_evidence
+        # 没有内部资料库的部署就是 None：那时草稿里出现的每一个句柄都必须是新闻事件 ID，
+        # 既有的来源校验照旧挡住别的。
+        self._accepted_evidence = accepted_evidence
 
     def submit(
         self,
@@ -290,13 +315,28 @@ class SubmitDraftService:
                     published_at=document.get("published_at") or event.first_published_at,
                 )
 
+        evidence = (
+            AcceptedEvidenceIndex.load(snapshot=state, repository=self._accepted_evidence)
+            if self._accepted_evidence is not None
+            else AcceptedEvidenceIndex()
+        )
+        internal_sources = {
+            evidence_id: _internal_source(claim)
+            for evidence_id, claim in evidence.claims.items()
+        }
         sections = []
         referenced_sources: set[str] = set()
         for sector_id in outline.outline.sector_ids:
             item = sections_by_sector[sector_id]
             card = cards[sector_id]
-            allowed = set(card.supporting_evidence_ids) | set(card.background_event_ids)
-            if not set(item.source_ids) <= allowed & sources.keys():
+            allowed = (
+                set(card.supporting_evidence_ids) | set(card.background_event_ids)
+            ) & sources.keys()
+            # 内部证据与新闻事件共用一个引用位：草稿不必知道两种来源的区别，但两种都要能核对
+            # 来源。版本是否仍有效不在这里挡——那是确定性检查要报的结论，报出代码比换一句
+            # "引用了未经验证的来源"更有用。
+            allowed = allowed | set(internal_sources)
+            if not set(item.source_ids) <= allowed:
                 raise ValueError("draft section references an unverified source")
             for claim in item.claims:
                 if not set(claim.evidence_ids) <= set(item.source_ids) & allowed:
@@ -342,10 +382,17 @@ class SubmitDraftService:
             risk_notice=submission.risk_notice,
             sources=tuple(
                 sources[item] for item in allowed_event_ids if item in referenced_sources
+            )
+            + tuple(
+                internal_sources[item]
+                for item in sorted(referenced_sources & internal_sources.keys())
             ),
             character_count=character_count,
         )
-        issues = draft_quality_issues(draft, cards)
+        issues = (
+            *draft_quality_issues(draft, cards),
+            *internal_evidence_issues(draft, cards, evidence),
+        )
         if issues:
             details = "; ".join(
                 f"{issue.code}[{issue.section_id or 'global'}]: {issue.message}"

@@ -490,3 +490,42 @@
 .stepper li[data-state="done"] span { color: var(--sp-success); border-color: var(--sp-success); }
 .analysis-flow { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
 .detail-actions { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+
+/* 内部研究资料库（规格 18.1～18.3）。沿用 registry-toolbar 的字段样式，因为这两处是同一类
+   表单：一排带标签的输入，尺寸和边框必须一致，否则管理页看起来像是两个应用拼起来的。 */
+.research-actor { display: grid; gap: var(--space-1); color: var(--sp-text-muted); font-size: .75rem; font-weight: 600; }
+.research-actor input { min-width: 12rem; min-height: 40px; padding: 8px 10px; border: 1px solid var(--sp-border-strong); border-radius: var(--sp-radius-sm); background: var(--sp-surface); color: var(--sp-text); }
+
+.research-upload-form { display: grid; gap: var(--space-4); }
+.research-upload-form label { display: grid; gap: var(--space-1); color: var(--sp-text-muted); font-size: .75rem; font-weight: 600; }
+.research-upload-form input, .research-upload-form select { min-height: 40px; min-width: 0; padding: 8px 10px; border: 1px solid var(--sp-border-strong); border-radius: var(--sp-radius-sm); background: var(--sp-surface); color: var(--sp-text); }
+.research-upload-form__hint { margin: 0; color: var(--sp-text-muted); font-size: .8125rem; }
+.research-upload-form__actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.management-drawer .research-upload-form__actions {
+  position: sticky;
+  bottom: calc(var(--space-5) * -1);
+  margin: var(--space-4) calc(var(--space-5) * -1) calc(var(--space-5) * -1);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--sp-border);
+  background: var(--sp-surface);
+}
+
+.research-document-table__meta { display: block; margin-top: 3px; color: var(--sp-text-muted); font-size: .75rem; font-weight: 500; }
+.research-document-table__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.research-detail-section + .research-detail-section { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--sp-border-soft); }
+.research-detail-section h3 { margin: 0 0 var(--space-3); font-size: .9375rem; }
+.research-detail-section__empty { margin: 0; color: var(--sp-text-muted); font-size: .8125rem; }
+
+.research-version-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.research-version-list__item { display: grid; gap: 6px; padding: var(--space-3); border: 1px solid var(--sp-border-soft); border-radius: var(--sp-radius-md); background: var(--sp-surface-soft); }
+.research-version-list__heading { display: flex; align-items: center; gap: 10px; }
+.research-version-list__meta { margin: 0; color: var(--sp-text-muted); font-size: .75rem; }
+.research-version-list__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.research-audit-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.research-audit-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: var(--space-2) 0; border-bottom: 1px solid var(--sp-border-soft); font-size: .8125rem; }
+.research-audit-list li:last-child { border-bottom: 0; }
+.research-audit-list small { color: var(--sp-text-muted); }
+.research-audit-list__detail { color: var(--sp-text-secondary); }

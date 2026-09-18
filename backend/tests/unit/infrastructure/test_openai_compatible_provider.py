@@ -5,7 +5,7 @@ from decimal import Decimal
 import httpx
 import pytest
 from pydantic import BaseModel, SecretStr
-from sector_pulse.domain.llm import LLMRequest, LLMStatus
+from sector_pulse.domain.llm import LLMRequest, LLMStatus, PromptExample
 from sector_pulse.infrastructure.llm.openai_compatible import (
     ModelPrice,
     OpenAICompatibleProvider,
@@ -230,3 +230,41 @@ def test_parses_fenced_json_and_text_blocks() -> None:
     assert OpenAICompatibleProvider._parse_json_content(
         [{"type": "text", "text": '{"value":"ok"}'}]
     ) == {"value": "ok"}
+
+
+async def _capture_messages(request_body: LLMRequest[ResultModel]) -> list[dict[str, object]]:
+    captured: list[dict[str, object]] = []
+
+    def handler(http_request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(http_request.content))
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"value":"ok"}'}}], "usage": {}},
+            request=http_request,
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        llm = OpenAICompatibleProvider("https://example.test/v1", SecretStr("test"), 2, {}, client)
+        await llm.generate_structured(request_body)
+    return captured[0]["messages"]  # type: ignore[return-value]
+
+
+async def test_examples_are_spliced_between_system_and_user_message() -> None:
+    body = request().model_copy(
+        update=({"examples": (PromptExample(input='{"x":9}', output='{"value":"sample"}'),)})
+    )
+    messages = await _capture_messages(body)
+    assert [message["role"] for message in messages] == [
+        "system",
+        "user",
+        "assistant",
+        "user",
+    ]
+    assert messages[1]["content"] == '{"x":9}'
+    assert messages[2]["content"] == '{"value":"sample"}'
+    assert json.loads(str(messages[3]["content"])) == {"x": 1}
+
+
+async def test_absent_examples_leave_the_message_pair_unchanged() -> None:
+    messages = await _capture_messages(request())
+    assert [message["role"] for message in messages] == ["system", "user"]

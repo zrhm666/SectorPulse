@@ -7,8 +7,12 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from sector_pulse.application.orchestration.artifacts import AtomicArtifactCommitter
 from sector_pulse.application.orchestration.data_tools import require_live_task_owner
 from sector_pulse.application.orchestration.editorial_context import BoundReviewContext
+from sector_pulse.application.research_library.evidence_access import AcceptedEvidenceIndex
 from sector_pulse.application.review.governance_service import GovernanceService
-from sector_pulse.application.writing.draft_quality import draft_quality_issues
+from sector_pulse.application.writing.draft_quality import (
+    draft_quality_issues,
+    internal_evidence_issues,
+)
 from sector_pulse.domain.orchestration.models import ArtifactRef
 from sector_pulse.domain.review.review import (
     IssueSeverity,
@@ -23,6 +27,7 @@ from sector_pulse.domain.writing.editorial import (
     ReviewSubmission,
 )
 from sector_pulse.ports.orchestration import SnapshotRepository, TransactionSession
+from sector_pulse.storage.ports.research_library import AcceptedEvidenceRepositoryPort
 from sector_pulse.storage.ports.writing import DraftRulesRepositoryPort
 
 
@@ -70,10 +75,12 @@ class CheckDraftRulesService:
         orchestration: SnapshotRepository,
         committer: AtomicArtifactCommitter,
         governance: GovernanceService,
+        accepted_evidence: AcceptedEvidenceRepositoryPort | None = None,
     ) -> None:
         self._orchestration = orchestration
         self._committer = committer
         self._governance = governance
+        self._accepted_evidence = accepted_evidence
 
     def check(
         self,
@@ -94,7 +101,20 @@ class CheckDraftRulesService:
         if context.role != "A4" or draft_artifact_id != context.draft.artifact_id:
             raise ValueError("draft artifact is not bound to this review context")
         cards = {item.card.sector_id: item.card for item in context.analyses}
-        quality = draft_quality_issues(context.draft.draft, cards)
+        # 规格 15.4：A4 要自己核对引用版本是否仍然有效、冲突状态与核验要求有没有被如实保留。
+        # 状态是**此刻**的状态，所以在这里读，而不是在绑定上下文时读。
+        state = self._orchestration.load(context.run_id)
+        if state is None:
+            raise KeyError("orchestration run not found")
+        evidence = (
+            AcceptedEvidenceIndex.load(snapshot=state, repository=self._accepted_evidence)
+            if self._accepted_evidence is not None
+            else AcceptedEvidenceIndex()
+        )
+        quality = (
+            *draft_quality_issues(context.draft.draft, cards),
+            *internal_evidence_issues(context.draft.draft, cards, evidence),
+        )
         governance = self._governance.check(context.draft.draft)
         report = DraftRulesReport(
             draft_id=context.draft.draft.draft_id,

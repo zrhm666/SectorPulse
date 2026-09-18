@@ -58,7 +58,7 @@ def test_initialize_is_idempotent(tmp_path: Path) -> None:
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
 
-        assert versions == [(version,) for version in range(1, 35)]
+        assert versions == [(version,) for version in range(1, 37)]
 
 
 def test_reliable_runtime_migration_adds_lifecycle_columns(tmp_path: Path) -> None:

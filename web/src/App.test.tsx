@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as api from './api'
 import * as operationsApi from './operationsApi'
+import * as researchLibraryApi from './researchLibraryApi'
 
 vi.mock('./api')
 vi.mock('./dataRunsApi')
 vi.mock('./operationsApi')
+vi.mock('./researchLibraryApi')
 
 describe('App routes', () => {
   beforeEach(() => {
@@ -56,6 +58,16 @@ describe('App routes', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: '分析运行' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: '主导航' })).toBeInTheDocument()
+  })
+
+  it('renders the research library route inside the navigation shell', async () => {
+    vi.mocked(researchLibraryApi.fetchDocuments).mockResolvedValue({ corpus_generation: 'gen_1', documents: [] })
+    window.history.pushState({}, '', '/research-library')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: '内部资料库' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '内部资料库' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('shows a loading state while runs are being requested', () => {

@@ -33,10 +33,12 @@ from sector_pulse.config.settings import ApplicationSettings
 from sector_pulse.domain.news.news_retrieval import SectorEntityConfig
 from sector_pulse.domain.writing.agent_execution import AgentLimits
 from sector_pulse.infrastructure.agents.composition import (
+    RAG_ENABLED_REQUIRED_BUSINESS_TOOL_NAMES,
     REQUIRED_BUSINESS_TOOL_NAMES,
     A1BusinessToolFactory,
     A1ToolDependencies,
     A2BusinessToolFactory,
+    A2ResearchLibraryServices,
     A2ToolDependencies,
     A3A4BusinessToolFactory,
     A3A4ToolDependencies,
@@ -155,6 +157,7 @@ def _build_default_business_tool_factory(
     *,
     storage: RuntimeStorageBundle,
     entity_config: SectorEntityConfig,
+    research_library: A2ResearchLibraryServices | None = None,
 ) -> BusinessToolFactory:
     real_factory = RealDataProviderFactory()
 
@@ -202,6 +205,7 @@ def _build_default_business_tool_factory(
                 sector_analyses=storage.sector_analyses,
                 detail=detail,
                 keyword_news=bundle.keyword_news,
+                research_library=research_library,
             )
         )
         a34 = A3A4BusinessToolFactory(
@@ -214,10 +218,20 @@ def _build_default_business_tool_factory(
                 news_evidence=storage.news_evidence,
                 reviews=storage.independent_reviews,
                 draft_rules=storage.draft_rules,
+                accepted_evidence=storage.internal_evidence,
                 governance=GovernanceService(),
             )
         )
-        return CompositeBusinessToolFactory(a1, a2, a34).build(run_id=run_id, provider=provider)
+        # 契约跟着 RAG 走：接上了内部资料库就要求那三件工具都在（少一件就是半接线），
+        # 没接上就要求一件都不多在册——关掉 RAG 的部署拿到的是原来那一份契约。
+        required = (
+            RAG_ENABLED_REQUIRED_BUSINESS_TOOL_NAMES
+            if research_library is not None
+            else REQUIRED_BUSINESS_TOOL_NAMES
+        )
+        return CompositeBusinessToolFactory(a1, a2, a34, required_names=required).build(
+            run_id=run_id, provider=provider
+        )
 
     class _DefaultFactory:
         def build(
@@ -237,6 +251,7 @@ def build_runtime_dependencies(
     *,
     business_tool_factory: BusinessToolFactory | None = None,
     agent_provider_factory: AgentProviderFactory | None = None,
+    research_library: A2ResearchLibraryServices | None = None,
     enable_multi_agent: bool = False,
 ) -> RuntimeDependencies:
     database = build_database(settings, database_path)
@@ -329,9 +344,18 @@ def build_runtime_dependencies(
     schedule_service = ScheduleService(task_repository)
     task_run_service = TaskRunService(task_repository)
     if enable_multi_agent and business_tool_factory is None:
+        if settings.rag.enabled and research_library is None:
+            # 开着 RAG 却接不上资料库，跑出来的 A2 会是一个检索不到任何内部资料的 A2，而它
+            # 交出的证据看起来与"资料库里没有"完全一样。拒绝启动，而不是让这件事发生。
+            raise RuntimeError(
+                "SECTOR_PULSE_RAG_ENABLED is true but the internal research library is not "
+                "wired; A2 would research without it and every answer would look like an "
+                "empty library"
+            )
         business_tool_factory = _build_default_business_tool_factory(
             storage=storage,
             entity_config=entity_config,
+            research_library=research_library,
         )
     if agent_provider_factory is None and (enable_multi_agent or business_tool_factory is not None):
         agent_provider_factory = AgentProviderFactory(
@@ -355,8 +379,19 @@ def build_runtime_dependencies(
             prompt_registry=prompts,
             provider_factory=agent_provider_factory,
             business_tool_factory=business_tool_factory,
-            tool_reserved_cny={name: Decimal("0") for name in REQUIRED_BUSINESS_TOOL_NAMES},
-            artifact_reader=ReferenceArtifactReader(),
+            # 每一种可能在册的工具都要有价格：注册表里出现了一个没有报价的工具，角色工厂
+            # 会直接拒绝建这个 Agent。RAG 打开时那三件工具也算在内。
+            tool_reserved_cny={
+                name: Decimal("0")
+                for name in (
+                    RAG_ENABLED_REQUIRED_BUSINESS_TOOL_NAMES
+                    if research_library is not None
+                    else REQUIRED_BUSINESS_TOOL_NAMES
+                )
+            },
+            # 已接纳的内部证据是唯一有内容的 kind；没有 RAG 的部署里它读不到任何东西，
+            # 因为那种部署根本产生不了这种 Artifact。
+            artifact_reader=ReferenceArtifactReader(evidence=storage.internal_evidence),
             candidate_proposals=storage.candidate_proposals,
             review_scope_resolver=lambda artifact_id: _review_scope(
                 storage.editorial_drafts, artifact_id

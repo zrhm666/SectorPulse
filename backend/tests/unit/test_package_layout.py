@@ -43,18 +43,38 @@ def test_storage_dialect_root_is_small(dialect: str) -> None:
     }
 
 
+# Modules that exist only for PostgreSQL by design. RAG 的权威仓库（资料、版本、摄取任务、
+# 索引代次）只有 PostgreSQL 一份：SQLite 上的那些表是给离线运行用的，没有对应实现。
+#
+# 已接纳证据的**读取端**是例外，两种方言都有：那两张证据表本来就由接纳服务经事务会话写进
+# 当前方言的库里（规格 15.2），如果只有 PostgreSQL 能读回来，SQLite 运行就能接纳一批谁也
+# 读不到的证据。
+#
+# JSON 列的读法（`research_library/json_columns.py`）也只有 PostgreSQL 一侧需要：psycopg 3
+# 把 JSONB 直接解析成 Python 对象，而 SQLite 只给 TEXT，所以"要不要再解析一次"是个方言问题。
+# SQLite 那一侧继续显式 `json.loads` 是对的，不需要一个同名的孪生模块——这个模块存在，正是
+# 因为这个差异，而不是因为它被漏掉了。
+POSTGRES_ONLY_MODULES = frozenset({
+    Path("research_library/repository.py"),
+    Path("research_library/json_columns.py"),
+})
+
+
 def test_storage_dialects_have_matching_business_modules() -> None:
     sqlite = ROOT / "storage" / "sqlite"
     postgres = ROOT / "storage" / "postgres"
-    assert {p.relative_to(sqlite) for p in sqlite.rglob("*.py")} == {
-        p.relative_to(postgres) for p in postgres.rglob("*.py")
-    }
+    sqlite_modules = {p.relative_to(sqlite) for p in sqlite.rglob("*.py")}
+    postgres_modules = {p.relative_to(postgres) for p in postgres.rglob("*.py")}
+    # Every SQLite module must also exist for PostgreSQL; the reverse may only differ
+    # where the difference is named above, so an unlisted divergence still fails.
+    assert sqlite_modules <= postgres_modules
+    assert postgres_modules - sqlite_modules == POSTGRES_ONLY_MODULES
 
 
 def test_storage_protocols_have_business_owners() -> None:
     assert {p.stem for p in (ROOT / "storage" / "ports").glob("*.py")} == {
         "__init__", "market", "news", "runs", "tasks", "writing", "review",
-        "evaluation", "operations",
+        "evaluation", "operations", "research_library",
     }
 
 

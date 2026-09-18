@@ -5,9 +5,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
+from sector_pulse.application.orchestration.tasks import TaskOwnershipError
 from sector_pulse.domain.orchestration.models import (
     RunSnapshot,
     TaskRecord,
+    TaskStatus,
     ToolCallStatus,
     ToolInvocation,
 )
@@ -54,7 +56,16 @@ class SharedToolBudget:
         tool_name: str,
         input_fingerprint: str,
         reserved_cny: Decimal | None = None,
+        require_lease: bool = False,
+        max_calls_for_tool: int | None = None,
     ) -> ToolAdmission:
+        """Admit one call, or refuse it before its side effect starts.
+
+        Two rules are opt-in because the callers that already exist cannot satisfy them and
+        should not be made to: `require_lease` for tools that reach outside the process, and
+        `max_calls_for_tool` for tools whose provider has its own configured ceiling. Both
+        default to off, which is why the tests that predate them still describe the old rules.
+        """
         self._validate_money(reserved_cny)
         for _ in range(32):
             current = self.repository.load(self.run_id)
@@ -84,10 +95,33 @@ class SharedToolBudget:
                 if identity != requested:
                     raise ValueError("conflicting tool replay")
                 return ToolAdmission(existing, execute=False)
-            if datetime.now(UTC) >= current.deadline:
+            now = datetime.now(UTC)
+            if require_lease:
+                # The task must still be owned by a live worker. This does not establish *which*
+                # caller is asking -- admit receives no caller identity -- so it is a liveness
+                # check, not an ownership check, and it is what keeps a worker whose lease
+                # expired (partitioned, then recovered elsewhere) from spending the run's money.
+                # Attempt currency is checked above and covers the other half of the same
+                # failure: a superseded attempt cannot replan itself into a live one.
+                if task.status is not TaskStatus.RUNNING:
+                    raise TaskOwnershipError("only a running task may make an external call")
+                if task.lease_expires_at is None or task.lease_expires_at <= now:
+                    raise TaskOwnershipError("worker lease expired")
+            if now >= current.deadline:
                 raise ToolBudgetExceeded("run deadline exceeded")
             if current.ledger.tool_calls >= current.limits.max_tool_calls:
                 raise ToolBudgetExceeded("run tool call budget exhausted")
+            if max_calls_for_tool is not None:
+                # Counted over every row for this tool, including failed and unknown ones: a
+                # request that came back 500 still left the process and still cost money.
+                spent = sum(
+                    1 for item in current.ledger.tool_invocations if item.tool_name == tool_name
+                )
+                if spent >= max_calls_for_tool:
+                    raise ToolBudgetExceeded(
+                        f"provider call cap exhausted for {tool_name}: {spent} of "
+                        f"{max_calls_for_tool} already spent"
+                    )
             if current.limits.max_cny is not None:
                 if current.ledger.has_unpriced_history:
                     raise ToolBudgetExceeded("unpriced history prevents money admission")

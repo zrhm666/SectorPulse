@@ -98,6 +98,8 @@ _READABLE_KINDS: dict[str, frozenset[str]] = {
             "article_draft",
             "draft_rules",
             "independent_review",
+            # 规格 15.3：A3 没有检索工具，只能通过 inspect_artifacts 读 A2 已接纳的证据。
+            "internal_research_evidence",
         }
     ),
     "A4": frozenset(
@@ -112,6 +114,8 @@ _READABLE_KINDS: dict[str, frozenset[str]] = {
             "article_draft",
             "draft_rules",
             "independent_review",
+            # 规格 15.4：A4 核对的是同一批证据，但同样不经检索工具。
+            "internal_research_evidence",
         }
     ),
 }
